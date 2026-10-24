@@ -4,31 +4,53 @@
       <stop offset="0" stop-color="#252e40"/>
       <stop offset="1" stop-color="#0c0f15"/>
     </linearGradient>
-    <linearGradient id="wall" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#6be39a"/>
+    <radialGradient id="sun" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffb547" stop-opacity="0.55"/>
+      <stop offset="0.6" stop-color="#ff7a3d" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#ff7a3d" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd84d"/>
+      <stop offset="1" stop-color="#f2a516"/>
+    </linearGradient>
+    <linearGradient id="hood" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3fbf6e"/>
       <stop offset="1" stop-color="#1f8a4c"/>
     </linearGradient>
-    <linearGradient id="roof" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#5ce08a"/>
-      <stop offset="1" stop-color="#2fa35a"/>
-    </linearGradient>
-    <radialGradient id="glow" cx="0.5" cy="0.55" r="0.5">
-      <stop offset="0" stop-color="#ffb547" stop-opacity="0.2"/>
-      <stop offset="1" stop-color="#ffb547" stop-opacity="0"/>
-    </radialGradient>
   </defs>
-  <!-- Tile -->
+  <!-- Tile and a sunset glow behind the tuk-tuk -->
   <rect width="512" height="512" rx="112" fill="url(#tile)"/>
   <rect x="8" y="8" width="496" height="496" rx="105" fill="none" stroke="#ffb547" stroke-opacity="0.22" stroke-width="4"/>
-  <circle cx="256" cy="280" r="200" fill="url(#glow)"/>
-  <!-- The board's edge the house stands on -->
-  <rect x="84" y="404" width="344" height="18" rx="9" fill="#ffb547"/>
-  <!-- House: chimney, walls, roof, door, window -->
-  <rect x="322" y="112" width="44" height="96" rx="8" fill="#1f8a4c"/>
-  <rect x="140" y="236" width="232" height="168" fill="url(#wall)"/>
-  <path d="M256 92 L420 242 Q426 250 416 252 L96 252 Q86 250 92 242 Z" fill="url(#roof)"/>
-  <rect x="226" y="310" width="60" height="94" rx="10" fill="#ffb547"/>
-  <circle cx="274" cy="360" r="5" fill="#1a1205"/>
-  <rect x="166" y="282" width="40" height="40" rx="6" fill="#0c0f15" fill-opacity="0.55"/>
-  <rect x="306" y="282" width="40" height="40" rx="6" fill="#0c0f15" fill-opacity="0.55"/>
+  <circle cx="290" cy="230" r="190" fill="url(#sun)"/>
+  <!-- Speed lines -->
+  <g stroke="#ffb547" stroke-linecap="round" stroke-width="14">
+    <line x1="34" y1="250" x2="70" y2="250"/>
+    <line x1="22" y1="296" x2="72" y2="296"/>
+    <line x1="40" y1="342" x2="72" y2="342"/>
+  </g>
+  <!-- Road -->
+  <rect x="70" y="424" width="390" height="16" rx="8" fill="#ffb547"/>
+  <!-- Body: a round-backed tub, open at the side, with a pointed nose over the front wheel -->
+  <path d="M96 236 L388 236 L446 336 Q454 352 440 362 L418 376 L140 376 Q96 376 92 330 Z" fill="url(#body)"/>
+  <!-- Cabin under the canopy -->
+  <path d="M118 300 C112 214 150 168 214 166 L344 166 Q372 168 378 194 L384 240 L112 240 Z" fill="#0c0f15" fill-opacity="0.82"/>
+  <!-- Open passenger side: dark cabin, bench seat, grab rail -->
+  <path d="M112 236 L292 236 L292 318 L118 318 Q110 290 112 236 Z" fill="#0c0f15" fill-opacity="0.82"/>
+  <rect x="132" y="282" width="128" height="20" rx="8" fill="#d6475b"/>
+  <rect x="132" y="246" width="22" height="50" rx="8" fill="#d6475b"/>
+  <line x1="292" y1="236" x2="292" y2="330" stroke="#0c0f15" stroke-width="10"/>
+  <!-- Raked windscreen -->
+  <path d="M306 236 L384 236 L420 304 L306 304 Z" fill="#0c0f15" fill-opacity="0.75"/>
+  <path d="M328 248 L374 248 L398 290" fill="none" stroke="#ffffff" stroke-opacity="0.35" stroke-width="8" stroke-linecap="round"/>
+  <!-- Canopy hood, wrapping down the back -->
+  <path d="M92 300 C78 196 130 134 214 130 L350 130 Q392 132 400 176 L404 240 L382 240 L376 192 Q370 166 344 164 L214 164 C150 168 118 214 126 300 Z" fill="url(#hood)"/>
+  <!-- Red stripe, headlight -->
+  <path d="M96 340 L448 340 L446 352 L100 352 Z" fill="#d6475b"/>
+  <circle cx="436" cy="320" r="10" fill="#fff4cf"/>
+  <!-- Wheels: big rear, small front under a mudguard -->
+  <circle cx="190" cy="386" r="40" fill="#0c0f15"/>
+  <circle cx="190" cy="386" r="16" fill="#9aa3b5"/>
+  <path d="M376 380 A34 34 0 0 1 444 380" fill="none" stroke="#f2a516" stroke-width="10"/>
+  <circle cx="410" cy="396" r="28" fill="#0c0f15"/>
+  <circle cx="410" cy="396" r="11" fill="#9aa3b5"/>
 </svg>

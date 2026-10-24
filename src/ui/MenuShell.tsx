@@ -26,7 +26,11 @@ export interface MenuTab {
 }
 
 /** The legal links under the rail; only pages that exist in public/ */
-const FOOT_LINKS = [{ href: '/credits.html', label: 'Credits' }];
+const FOOT_LINKS = [
+  { href: '/terms.html', label: 'Terms' },
+  { href: '/privacy.html', label: 'Privacy' },
+  { href: '/credits.html', label: 'Credits' },
+];
 
 /**
  * The whole screen: backdrop, top bar and whatever goes in the middle. With `onSettings`, a footer with

@@ -21,7 +21,7 @@ export const IN_DISCORD = new URLSearchParams(window.location.search).has('frame
  * this is only matched and rewritten: the portal's /api mapping decides where the request really goes,
  * so it must point at the same site (see README, "Discord Activity").
  */
-export const FUNCTIONS_URL = 'https://tuk-tuk-tycoon.netlify.app/.netlify/functions';
+export const FUNCTIONS_URL = 'https://tuktuk-tycoon.netlify.app/.netlify/functions';
 
 if (IN_DISCORD) {
   const dbUrl = import.meta.env.VITE_FIREBASE_DATABASE_URL;

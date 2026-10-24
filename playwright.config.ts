@@ -18,9 +18,9 @@ export default defineConfig({
   timeout: 120_000,
   expect: { timeout: 15_000 },
   fullyParallel: true,
-  // Each browser renders WebGL on the CPU (SwiftShader), and some tests open three: more workers than half
-  // the cores only makes every test slower.
-  workers: CI ? 2 : '50%',
+  // Each browser renders WebGL on the CPU (SwiftShader) and some tests open three: more than 3 workers starve
+  // them and timing-sensitive online specs start to fail.
+  workers: CI ? 2 : 3,
   retries: CI ? 1 : 0,
   forbidOnly: CI,
   reporter: CI ? [['list'], ['html', { open: 'never' }]] : [['list']],

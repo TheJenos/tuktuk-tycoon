@@ -500,7 +500,7 @@ The same build runs as a Discord Activity: players launch it from a voice channe
    | `/api` | `<your-site>.netlify.app/.netlify/functions` |
 
 5. **Activities → Settings**: enable Activities (this creates the Launch command).
-6. **`FUNCTIONS_URL`** in `src/discord/patch.ts` is a placeholder (`https://tuk-tuk-tycoon.netlify.app/.netlify/functions`):
+6. **`FUNCTIONS_URL`** in `src/discord/patch.ts` is a placeholder (`https://tuktuk-tycoon.netlify.app/.netlify/functions`):
    set it to `https://<your-site>.netlify.app/.netlify/functions`. Inside Discord it is only matched and rewritten
    onto `/api`, and the `/api` mapping decides where the request really goes, so both must name the same site.
 7. **The client id in the build**: `VITE_DISCORD_CLIENT_ID=<client id>` in `.env` (and in Netlify's build

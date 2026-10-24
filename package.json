@@ -22,7 +22,8 @@
     "test:e2e:ui": "firebase emulators:exec --only database --project demo-tuktuk \"playwright test --ui\"",
     "deploy:rules": "firebase deploy --only database --non-interactive",
     "sim": "rolldown scripts/sim.ts --platform node --format esm --file node_modules/.cache/sim.mjs --no-codeSplitting --log-level warn && node node_modules/.cache/sim.mjs",
-    "sim:bots": "rolldown scripts/sim-bots.ts --platform node --format esm --file node_modules/.cache/sim-bots.mjs --no-codeSplitting --log-level warn && node node_modules/.cache/sim-bots.mjs"
+    "sim:bots": "rolldown scripts/sim-bots.ts --platform node --format esm --file node_modules/.cache/sim-bots.mjs --no-codeSplitting --log-level warn && node node_modules/.cache/sim-bots.mjs",
+    "build:brand": "node scripts/build-brand.mjs"
   },
   "dependencies": {
     "@dimforge/rapier3d": "^0.21.0",
