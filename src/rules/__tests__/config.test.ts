@@ -20,6 +20,17 @@ describe('normalizeConfig', () => {
       turnLimit: 0,
       debug: false,
       speedDie: false,
+      doubleGoLanding: false,
+      jackpot: false,
+      incomeTaxMode: 'choice',
+      auctions: true,
+      buyAfterFirstLap: false,
+      jailRent: true,
+      threeDoublesJail: true,
+      dealProperties: 0,
+      endMode: 'lastStanding',
+      trading: 'on',
+      tradeAfterLap: 1,
     });
   });
 
@@ -41,5 +52,36 @@ describe('normalizeConfig', () => {
     });
     expect(normalizeConfig({ speedDie: 'yes' as unknown as boolean }).speedDie).toBe(false);
     expect(normalizeConfig({ board: 'mars' }).board).toBe('lanka');
+  });
+
+  it('keeps the optional rules, clamps their numbers and drops unknown enum values', () => {
+    const all = {
+      doubleGoLanding: true,
+      jackpot: true,
+      incomeTaxMode: 'percent',
+      auctions: false,
+      buyAfterFirstLap: true,
+      jailRent: false,
+      threeDoublesJail: false,
+      dealProperties: 2,
+      endMode: 'firstBankrupt',
+      trading: 'afterLap',
+      tradeAfterLap: 3,
+    } as const;
+    expect(normalizeConfig(all)).toMatchObject(all);
+    expect(normalizeConfig({ dealProperties: 9 }).dealProperties).toBe(3);
+    expect(normalizeConfig({ dealProperties: -1 }).dealProperties).toBe(0);
+    expect(normalizeConfig({ tradeAfterLap: 0 }).tradeAfterLap).toBe(1);
+    expect(normalizeConfig({ tradeAfterLap: 99 }).tradeAfterLap).toBe(20);
+    const junk = { incomeTaxMode: 'half', endMode: 'never', trading: true, jackpot: 'yes', auctions: 0 } as unknown as Partial<
+      typeof DEFAULT_RULES
+    >;
+    expect(normalizeConfig(junk)).toMatchObject({
+      incomeTaxMode: 'choice',
+      endMode: 'lastStanding',
+      trading: 'on',
+      jackpot: false,
+      auctions: true,
+    });
   });
 });

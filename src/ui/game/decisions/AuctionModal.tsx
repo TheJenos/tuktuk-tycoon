@@ -126,7 +126,7 @@ function BidRow({ seat, s, ph, many, onRaise }: { seat: SeatId; s: GameState; ph
               aria-label={`${label}Bid ${money(n)}`}
               onClick={() => bid(n)}
             >
-              +{money(inc)} <small>({money(n)})</small>
+              +{money(inc)} <small className="amt">({money(n)})</small>
             </button>
           );
         })}

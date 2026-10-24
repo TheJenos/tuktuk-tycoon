@@ -33,15 +33,16 @@ function colourOf(u: UiState, uncle: number | null, i: number, out: Color): Colo
 
 const pulsing = (u: UiState, uncle: number | null): boolean => !!u.picker || u.preview !== null || uncle !== null;
 
-function frameTexture(): CanvasTexture {
+/** The frame drawn over a tile: a bold one for pickers and previews, a thin one for the hovered / inspected tile */
+function frameTexture(thin = false): CanvasTexture {
   const c = makeCanvas(128, 128);
   const ctx = c.getContext('2d');
   if (ctx) {
-    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    ctx.fillStyle = thin ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.22)';
     roundRect(ctx, 4, 4, 120, 120, 12);
     ctx.fill();
     ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 9;
+    ctx.lineWidth = thin ? 3 : 9;
     roundRect(ctx, 6, 6, 116, 116, 11);
     ctx.stroke();
   }
@@ -52,7 +53,9 @@ function frameTexture(): CanvasTexture {
 
 export function TileHighlights() {
   const ref = useRef<InstancedMesh>(null);
+  const thinRef = useRef<InstancedMesh>(null);
   const mat = useRef(new MeshBasicMaterial({ map: frameTexture(), transparent: true, depthWrite: false, toneMapped: false }));
+  const thinMat = useRef(new MeshBasicMaterial({ map: frameTexture(true), transparent: true, depthWrite: false, toneMapped: false }));
   const places = useRef<Matrix4[]>([]);
   const uncle = useRef<number | null>(null);
   const invalidate = useThree((s) => s.invalidate);
@@ -67,11 +70,14 @@ export function TileHighlights() {
       return new Matrix4().compose(new Vector3(x, BOARD_TOP + 0.006, z), new Quaternion().setFromAxisAngle(up, tileRotation(i)), new Vector3(w, 1, d));
     });
     const hidden = new Matrix4().makeScale(0, 0, 0);
-    for (let i = 0; i < TILES; i++) {
-      mesh.setMatrixAt(i, hidden);
-      mesh.setColorAt(i, SLATE);
+    for (const m of [mesh, thinRef.current]) {
+      if (!m) continue;
+      for (let i = 0; i < TILES; i++) {
+        m.setMatrixAt(i, hidden);
+        m.setColorAt(i, SLATE);
+      }
+      m.instanceMatrix.needsUpdate = true;
     }
-    mesh.instanceMatrix.needsUpdate = true;
   }, []);
 
   useEffect(() => {
@@ -79,15 +85,21 @@ export function TileHighlights() {
     const hidden = new Matrix4().makeScale(0, 0, 0);
     const paint = () => {
       const mesh = ref.current;
-      if (!mesh) return;
+      const thin = thinRef.current;
+      if (!mesh || !thin) return;
       const u = uiStore.get();
       for (let i = 0; i < TILES; i++) {
         const col = colourOf(u, uncle.current, i, c);
-        mesh.setMatrixAt(i, col ? (places.current[i] ?? hidden) : hidden);
-        if (col) mesh.setColorAt(i, col);
+        // Only hovered / inspected tiles get the thin frame; every other mark keeps the bold one
+        const light = !!col && col.equals(SLATE);
+        mesh.setMatrixAt(i, col && !light ? (places.current[i] ?? hidden) : hidden);
+        thin.setMatrixAt(i, light ? (places.current[i] ?? hidden) : hidden);
+        if (col) (light ? thin : mesh).setColorAt(i, col);
       }
-      mesh.instanceMatrix.needsUpdate = true;
-      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+      for (const m of [mesh, thin]) {
+        m.instanceMatrix.needsUpdate = true;
+        if (m.instanceColor) m.instanceColor.needsUpdate = true;
+      }
       invalidate();
     };
     paint();
@@ -144,5 +156,10 @@ export function TileHighlights() {
     if (pulsing(uiStore.get(), uncle.current) && !settings.get().reduceMotion) mat.current.opacity = 0.75 + 0.25 * Math.sin(clock.elapsedTime * 5);
   });
 
-  return <instancedMesh ref={ref} args={[quad, mat.current, TILES]} frustumCulled={false} renderOrder={2} />;
+  return (
+    <>
+      <instancedMesh ref={ref} args={[quad, mat.current, TILES]} frustumCulled={false} renderOrder={2} />
+      <instancedMesh ref={thinRef} args={[quad, thinMat.current, TILES]} frustumCulled={false} renderOrder={2} />
+    </>
+  );
 }

@@ -3,7 +3,7 @@ import { ConfirmButton } from '../../ConfirmButton';
 import { useBusy, useSend } from '../actions';
 import { useGame, useMySeats, useNames } from '../context';
 import { money, partyName } from '../format';
-import { debtTotal } from '../selectors';
+import { debtTotal, tradeLock } from '../selectors';
 import { Prompt } from './Prompt';
 
 const WHY: Partial<Record<string, string>> = {
@@ -33,6 +33,7 @@ export function DebtPanel({ seat, onManage, onTrade }: { seat: SeatId; onManage(
   const short = Math.max(0, total - cash);
   const canCover = most >= total;
   const creditors = (Object.keys(ph.owed) as Creditor[]).filter((c) => (ph.owed[c] ?? 0) > 0);
+  const lock = tradeLock(s, seat);
   return (
     <Prompt title={`${many ? `${names.seat(seat)} owes` : 'You owe'} ${money(total)}`} className="debt-panel">
       <ul className="owed-list">
@@ -48,7 +49,7 @@ export function DebtPanel({ seat, onManage, onTrade }: { seat: SeatId; onManage(
       {short > 0 && <p className="shortfall">Raise {money(short)} more to pay.</p>}
       <div className="action-row">
         <button type="button" onClick={onManage}>Sell or mortgage</button>
-        <button type="button" onClick={onTrade}>Trade</button>
+        {!lock && <button type="button" onClick={onTrade}>Trade</button>}
         {/* Auto-raise goes bankrupt when even selling everything can't cover the debt: only offered when it can */}
         {canCover && (
           <button

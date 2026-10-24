@@ -84,9 +84,10 @@ export const roll: Handler<'roll'> = seatAction(
     }
 
     const doubles = isDoubles(r);
-    if (doubles) s.turn.doubles++;
+    // Capped at 3 (with threeDoublesJail off a fourth doubles just rolls again)
+    if (doubles) s.turn.doubles = Math.min(3, s.turn.doubles + 1);
     // The three-doubles check comes first: a triple that is the third doubles still goes to jail.
-    if (s.turn.doubles >= 3) {
+    if (doubles && s.turn.doubles >= 3 && s.cfg.threeDoublesJail) {
       sendToJail(c, seat, 'doubles');
       return;
     }

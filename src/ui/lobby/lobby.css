@@ -13,6 +13,27 @@
 .lobby-choice { flex: 1 1 0; min-width: max-content; min-height: 40px; padding: 7px 12px; font-size: 14px; font-weight: 600; }
 .lobby-choice.selected { border-color: var(--accent); color: var(--accent); background: rgba(255, 181, 71, 0.1); }
 
+/* The board picker: a card per board (colour strip, name, blurb) */
+.board-setting { align-items: start; }
+.board-setting > .lobby-setting-label { padding-top: 10px; }
+.board-choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+.board-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-height: 44px;
+  padding: 9px 12px 10px;
+  text-align: left;
+  white-space: normal;
+}
+.board-choice strong { font-size: 15px; }
+.board-choice small { font-size: 13px; line-height: 1.35; }
+.board-choice.selected { border-color: var(--accent); background: rgba(255, 181, 71, 0.1); }
+.board-choice.selected strong { color: var(--accent); }
+.board-strip { display: flex; width: 100%; height: 8px; border-radius: 3px; overflow: hidden; }
+.board-strip > span { flex: 1 1 0; }
+
 /* A checkbox drawn as a switch: the knob's side says on or off as well as the colour */
 .lobby-setting.check { display: flex; align-items: flex-start; gap: 14px; cursor: pointer; padding: 4px 0; }
 .lobby-setting.check.disabled { cursor: default; }
@@ -94,6 +115,15 @@
 .bot-list > button { min-height: 44px; }
 .launch-rules summary { cursor: pointer; color: var(--muted); font-weight: 600; min-height: 32px; }
 .launch-rules .rules-list { margin-top: 8px; }
+
+/* The rules form's Advanced section: grouped options under a native disclosure */
+.advanced-rules { border-top: 1px solid rgba(255, 255, 255, 0.12); padding-top: 6px; }
+.advanced-rules > summary { cursor: pointer; color: var(--muted); font-weight: 600; min-height: 44px; display: flex; align-items: center; gap: 8px; }
+.advanced-rules > summary:hover, .advanced-rules[open] > summary { color: inherit; }
+.advanced-rules[open] > summary { margin-bottom: 4px; }
+.rules-group { display: flex; flex-direction: column; gap: 14px; margin: 0 0 16px; padding: 12px 14px 14px; min-width: 0; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; background: rgba(0, 0, 0, 0.12); }
+.rules-group > legend { padding: 0 6px; font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+.rules-group .lobby-choice { flex-basis: auto; }
 
 /* ---------- Notices and banners ---------- */
 

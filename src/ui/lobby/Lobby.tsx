@@ -13,7 +13,7 @@ import { CreateWizard, type RoomPlan } from './CreateWizard';
 import { LocalWizard } from './LocalWizard';
 import { OnlineNotice } from './OnlineNotice';
 import { CodeJoin, RoomList, RoomSearch, useRooms } from './RoomBrowser';
-import { draftRules, draftTimers, type RulesDraft } from './RulesForm';
+import { draftOptions, draftRules, roomTimers, type RulesDraft } from './RulesForm';
 import { SettingsView } from './SettingsView';
 import { startingSeats, toLocalSeats, type SeatDraft } from './seats';
 import './lobby.css';
@@ -177,7 +177,15 @@ export function Lobby({ name, onRename, notice }: { name: string; onRename(name:
   });
 
   const startLocal = (rules: RulesDraft, seats: SeatDraft[]) => run('local', () => {
-    enterLocal(createLocalSession({ name, seats: toLocalSeats(seats), rules: draftRules(rules), timers: OFFLINE_TIMERS }));
+    enterLocal(createLocalSession({
+      name,
+      seats: toLocalSeats(seats),
+      rules: draftRules(rules),
+      timers: roomTimers(rules, false),
+      pace: rules.botPace,
+      botSkill: rules.botSkill,
+      timeLimit: rules.timeLimit,
+    }));
   });
 
   const create = (plan: RoomPlan) => go('create', '', () => createRoom({
@@ -185,7 +193,8 @@ export function Lobby({ name, onRename, notice }: { name: string; onRename(name:
     host: name,
     name: plan.name.trim() || `${name}'s room`,
     rules: draftRules(plan.rules),
-    timers: draftTimers(plan.rules.turnTimer),
+    timers: roomTimers(plan.rules),
+    options: draftOptions(plan.rules),
     maxSeats: plan.maxSeats,
     public: plan.public,
     bots: plan.bots.map((skill) => ({ skill })),

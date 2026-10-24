@@ -83,7 +83,25 @@ export interface DirectorOptions {
   hidden?: () => boolean;
 }
 
+/**
+ * An event as the director plays it, for listeners such as the sound effects. 'start': it is about to animate (its
+ * `before` step begins); 'done': that step finished (the dice have landed, the token arrived) and the change is in
+ * view; 'instant': it was folded without animation because animations are set to Instant. Events skipped by
+ * fastForward(), a snap or a hidden tab are not reported, so catching up never makes a burst of sounds.
+ */
+export interface PlayInfo {
+  phase: 'start' | 'done' | 'instant';
+  seq: number;
+  /** Playback speed (as the handlers get it) */
+  speed: number;
+  /** Aborted when the animation is cut short (fast-forward, snap, reset) */
+  signal: AbortSignal;
+}
+export type PlayListener = (ev: GameEvent, info: PlayInfo) => void;
+
 export interface DirectorControl extends Director {
+  /** Called as each event plays (see PlayInfo); returns the unsubscribe */
+  onPlay(fn: PlayListener): () => void;
   /** Nothing shown (a new session is about to send its first snap) */
   reset(): void;
   /** The scene API registered under `name`, if any */
@@ -111,6 +129,7 @@ class DirectorImpl implements DirectorControl {
   private lastState: GameState | null = null;
   private readonly animSpeed: () => AnimSpeed;
   private readonly hidden: () => boolean;
+  private listeners = new Set<PlayListener>();
 
   constructor(opts: DirectorOptions) {
     this.animSpeed = opts.animSpeed ?? (() => settings.get().animSpeed);
@@ -174,6 +193,22 @@ class DirectorImpl implements DirectorControl {
     return this.apis[name];
   }
 
+  onPlay(fn: PlayListener): () => void {
+    this.listeners.add(fn);
+    return () => void this.listeners.delete(fn);
+  }
+
+  /** A listener's bug must not stop the game either */
+  private emit(ev: GameEvent, info: PlayInfo): void {
+    for (const fn of this.listeners) {
+      try {
+        fn(ev, info);
+      } catch (err) {
+        console.error('director listener failed', err);
+      }
+    }
+  }
+
   private stop(): void {
     this.gen++;
     this.running = false;
@@ -214,6 +249,10 @@ class DirectorImpl implements DirectorControl {
       const cur = this.cur;
       const ev = cur.b.events[cur.i];
       if (!ev || this.instant()) {
+        if (ev && this.listeners.size && !this.hidden()) {
+          const info: PlayInfo = { phase: 'instant', seq: cur.b.seq, speed: 1, signal: this.ac.signal };
+          for (let i = cur.i; i < cur.b.events.length; i++) this.emit(cur.b.events[i] as GameEvent, info);
+        }
         this.view.set(this.fold(this.view.get(), cur));
         this.cur = null;
         continue;
@@ -221,6 +260,8 @@ class DirectorImpl implements DirectorControl {
       const h = handlerFor(ev);
       const ctx = this.ctx(cur);
       if (ev.t === 'card') this.view.update({ card: { seat: ev.seat, deck: ev.deck, text: ev.text } });
+      const info = { seq: cur.b.seq, speed: ctx.speed, signal: ctx.signal };
+      if (this.listeners.size) this.emit(ev, { ...info, phase: 'start' });
       const before = h?.before && safely(() => h.before?.(ev, ctx));
       if (before) {
         await settle(before, ctx.signal);
@@ -228,6 +269,7 @@ class DirectorImpl implements DirectorControl {
       }
       this.view.set(applyEvent(this.view.get(), ev, cur.b.seq));
       cur.i++;
+      if (this.listeners.size) this.emit(ev, { ...info, phase: 'done' });
       const after = h?.after && safely(() => h.after?.(ev, ctx));
       if (after) {
         await settle(after, ctx.signal);

@@ -3,7 +3,7 @@ import { director } from './director';
 import type { ViewState } from './types';
 
 export { director, connectDirector, createDirector, applyEvent, playSpeed, EMPTY_VIEW, LOG_MAX } from './director';
-export type { DirectorControl, DirectorOptions } from './director';
+export type { DirectorControl, DirectorOptions, PlayInfo, PlayListener } from './director';
 export { reduceView } from './reduceView';
 export type * from './types';
 

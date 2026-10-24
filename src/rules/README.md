@@ -1,7 +1,8 @@
 # Rules engine (`src/rules`)
 
 The pure property-trading rules: Classic rules plus the optional Speed Die (2007 rulebook, see `docs/rules.md`), on
-Tuk-Tuk Tycoon's board (`data/lanka.ts`). No React, three, R3F or Firebase imports; nothing but its own files. Every client runs the same reducer on the same JSON state,
+Tuk-Tuk Tycoon's boards (`data/lanka.ts`, the default, and its themed twins `data/colombo.ts`, `data/hill.ts`,
+`data/south.ts`: same numbers and card effects, other names). No React, three, R3F or Firebase imports; nothing but its own files. Every client runs the same reducer on the same JSON state,
 so a replay of the same commands gives the same state and the same events everywhere.
 
 Read this file and `types.ts`; everything else is implementation. Import from `src/rules` (`index.ts`) only.
@@ -24,7 +25,7 @@ if (r.ok) { state = r.state; play(r.events); } else showError(r.error.message);
   command that would break one; pass `{ check: true | false }` to override.
 - **No clock.** Deadlines belong to the net layer (see [Timers](#timers-and-timeouts)).
 - **Randomness lives in the state** (`state.rng`, a mulberry32 uint32). Only `createGame` (deck shuffles, opening
-  roll), `roll` and the Nearest Utility card's fresh throw consume it, so nobody can change future dice by slipping in
+  roll, the quick-start deal), `roll` and the Nearest Utility card's fresh throw consume it, so nobody can change future dice by slipping in
   a free action first. The seed and deck order are readable by anyone holding the state (a known, accepted limit).
 - **JSON-safe state**: no `null`, `undefined`, `NaN` or class instances anywhere; whole money units; optional fields are
   absent rather than undefined. `encode()` is `JSON.stringify`.
@@ -32,6 +33,39 @@ if (r.ok) { state = r.state; play(r.events); } else showError(r.error.message);
   them. Players see and type rupees at `board.display.currency.scale` (x100): `formatMoney(1500)` is
   `"Rs. 150,000"` and `toUnits(6049)` is 60. The engine's own error messages format through it too.
 - **One data file**: `data/lanka.ts` holds every name, price, rent, card and label. Logic never hard-codes them.
+
+## Config
+
+`RulesConfig` (`types.ts`), filled and clamped by `normalizeConfig` (numbers clamped to their range, unknown enum values
+and wrong types replaced by the default). The defaults are the classic rules.
+
+| Field | Type (range) | Default | Meaning |
+|---|---|---|---|
+| `board` | `'lanka'` \| `'colombo'` \| `'hill'` \| `'south'` | `'lanka'` | the theme (All Island, Colombo, Hill Country, Down South); the rules and numbers are the same on every board |
+| `speedDie` | boolean | false | the Speed Die (2007 rules) |
+| `startCash` / `speedBonus` | 0-100000 | 1500 / 1000 | starting cash; extra each with the Speed Die |
+| `goSalary` | 0-10000 | 200 | Start salary |
+| `incomeFlat` / `incomePct` | 0-10000 / 0-100 | 200 / 10 | Income Tax amounts |
+| `luxuryTax` / `jailFine` | 0-10000 | 75 / 50 | |
+| `houses` / `hotels` | 0-200 / 0-100 | 32 / 12 | bank supply |
+| `mortgagePct` | 0-100 | 10 | mortgage interest (rounded up) |
+| `triplesRollAgain` | boolean | true | a triple also grants the doubles re-roll |
+| `turnLimit` | 0-100000 | 0 | end after this many turns (0 = off) |
+| `doubleGoLanding` | boolean | false | landing exactly on Start pays twice the salary |
+| `jackpot` | boolean | false | taxes, fines and card payments to the bank feed `state.pot`, won on the parking space |
+| `incomeTaxMode` | `'choice' \| 'flat' \| 'percent'` | `'choice'` | non-choice modes charge at once (no `incomeTax` phase) |
+| `auctions` | boolean | true | off: declined and bankrupt-to-bank property stays with the bank; shortages are granted in request order |
+| `buyAfterFirstLap` | boolean | false | no buying or bidding while `PlayerState.laps` is 0 |
+| `jailRent` | boolean | true | off: a jailed owner collects no rent |
+| `threeDoublesJail` | boolean | true | off: the third doubles is just another re-roll |
+| `dealProperties` | 0-3 | 0 | properties dealt free to each seat at the start (fewer if the board runs out) |
+| `endMode` | `'lastStanding' \| 'firstBankrupt'` | `'lastStanding'` | firstBankrupt: the first bankruptcy ends the game |
+| `trading` | `'on' \| 'off' \| 'afterLap'` | `'on'` | afterLap: both parties need `tradeAfterLap` laps |
+| `tradeAfterLap` | 1-20 | 1 | |
+| `debug` | boolean | false | accept `debugRig` / `debugSetCash` (e2e only) |
+
+State fields the options use: `GameState.pot` (the jackpot, 0 unless `jackpot`) and `PlayerState.laps` (Start
+salaries collected, counted whatever the rules).
 
 ## Commands
 
@@ -54,8 +88,8 @@ interface Command { by: SeatId | 'system'; a: Action; basis?: number }
 | `roll` | turn seat | `preRoll` (in jail this is the jail roll) |
 | `bus {n}` | turn seat | `bus`; `n` one of `phase.opts` |
 | `chooseSpace {space}` | turn seat | `chooseSpace` (a triple); any space but the current one |
-| `buy` / `decline` | turn seat | `buy`; `buy` needs cash >= price; `decline` starts an auction |
-| `incomeTax {pick:'flat'\|'percent'}` | turn seat | `incomeTax` (choose before seeing worth) |
+| `buy` / `decline` | turn seat | `buy`; `buy` needs cash >= price; `decline` starts an auction (`auctions` off: the bank keeps it) |
+| `incomeTax {pick:'flat'\|'percent'}` | turn seat | `incomeTax` (choose before seeing worth; only with `incomeTaxMode: 'choice'`) |
 | `payFine` | turn seat | `preRoll`, jailed, `jail.tries < 2`, cash >= fine (never opens a debt) |
 | `useCard {card?}` | turn seat | `preRoll`, jailed, holds a Get Out of Jail Free card |
 | `endTurn` | turn seat | `postRoll` |
@@ -68,8 +102,8 @@ interface Command { by: SeatId | 'system'; a: Action; basis?: number }
 | `mortgage {space}` | owner | same phases as `sell`; no buildings in the group |
 | `unmortgage {space}` | owner | `preRoll`/`postRoll`/`buy`; cash >= `unmortgageCost` |
 | `settleMortgages {lift}` | the receiving seat | `mortgageXfer`; `lift` subset of `phase.spaces` |
-| `propose {to, give, get}` | any | any phase; one open offer per proposer, 8 in total |
-| `accept {id}` | the offer's `to` | `preRoll`/`postRoll`/`buy`/`debt`; re-validated now |
+| `propose {to, give, get}` | any | any phase; one open offer per proposer, 8 in total; the `trading` rule allows it |
+| `accept {id}` | the offer's `to` | `preRoll`/`postRoll`/`buy`/`debt`; re-validated now (trading rule included) |
 | `reject {id}` / `cancel {id}` | `to` / `from` | any time |
 | `autoRaise` | debtor | `debt`: raise cash deterministically and pay, or go bankrupt |
 | `bankrupt` | debtor | `debt` and `maxRaise < owed` |
@@ -77,6 +111,7 @@ interface Command { by: SeatId | 'system'; a: Action; basis?: number }
 | `closeAuction` | system | `auction` (its deadline passed) |
 | `closeClaim` | system | `buildClaim` with seats still open (its deadline passed) |
 | `endGame` | system | any time: ends the game ranked by net worth (owner's "Finish now") |
+| `timeUp` | system | any time: the room's time limit ran out; ends the game ranked by net worth (`why: 'timeUp'`) |
 | `forced {seat, a}` | system | a timeout: `seat` is awaited and `a` deep-equals `defaultAction(state, seat)` |
 | `debugRig {dice}` | anyone | `cfg.debug` only: queue throws `[a,b]` or `[a,b,face]` used by the next rolls |
 | `debugSetCash {seat, cash}` | anyone | `cfg.debug` only |
@@ -100,8 +135,8 @@ Property for nothing (a gift) is allowed. `tradeProblems(state, offer)` explains
 | `preRoll` | turn seat: roll (or pay fine / use card when jailed) | `busy` -> ... / `bus` / `chooseSpace` / `postRoll` (jail) |
 | `bus {opts}` | turn seat: pick a move | `busy` |
 | `chooseSpace` | turn seat: pick any other space (triple) | `busy` |
-| `buy {space}` | turn seat: buy or decline | `busy` / `auction` |
-| `incomeTax` | turn seat: flat or percent | `busy` |
+| `buy {space}` | turn seat: buy or decline (never entered on a first lap with `buyAfterFirstLap`) | `busy` / `auction` |
+| `incomeTax` | turn seat: flat or percent (only with `incomeTaxMode: 'choice'`) | `busy` |
 | `postRoll` | turn seat: end turn | next seat's `preRoll` |
 | `busy` | never at rest: the pending steps are running (may appear as a `resume` value) | |
 | `over {winner, ranking, why}` | nothing | |
@@ -124,11 +159,14 @@ internal; do not read it for game logic.
 ### Flow of a roll
 1. White dice always; the Speed Die too when `cfg.speedDie`, the roller has unlocked it (first GO salary) and it is
    not a roll out of jail. Doubles are judged on the white dice only.
-2. Third doubles -> jail (no move). A triple (speed number = both white dice) -> `chooseSpace`, and with
+2. Third doubles -> jail (no move; with `threeDoublesJail` off it is just another re-roll and `turn.doubles` stays 3). A triple (speed number = both white dice) -> `chooseSpace`, and with
    `cfg.triplesRollAgain` it still rolls again; Bus -> `bus`; Tuk-Tuk Uncle -> move, resolve, then advance.
-3. Moving forward onto or past GO pays the salary (dice, card, triple or Tuk-Tuk Uncle; never on the way to jail).
-4. Landing: unowned property -> `buy`; owned by another and unmortgaged -> rent (automatic); Income Tax ->
-   `incomeTax`; Luxury Tax, cards, Go To Jail resolve at once. A payment that cannot be made opens `debt`.
+3. Moving forward onto or past GO pays the salary (dice, card, triple or Tuk-Tuk Uncle; never on the way to jail) and
+   counts a lap (`laps`); landing exactly on GO pays it twice with `doubleGoLanding`.
+4. Landing: unowned property -> `buy` (nothing on a first lap with `buyAfterFirstLap`); owned by another and
+   unmortgaged -> rent (automatic; none while the owner is jailed with `jailRent` off); Income Tax -> `incomeTax` (or
+   charged at once in a fixed `incomeTaxMode`); the parking space pays out the jackpot (`jackpot`); Luxury Tax, cards,
+   Go To Jail resolve at once. A payment that cannot be made opens `debt`.
 5. Tuk-Tuk Uncle (after the first landing is fully resolved): the next property the bank owns (buy or auction); if
    the bank owns none, the next unmortgaged property of another player (pay rent); else stay put.
 6. Doubles -> `preRoll` again; otherwise `postRoll`. Jail ends the turn and drops the rest (Speed Die moves too).
@@ -147,9 +185,9 @@ values, so a view can set rather than accumulate.
 | `bus` | `seat, opts` | Bus rolled: choose a move |
 | `chooseSpace` | `seat` | triple rolled: choose a space |
 | `move` | `seat, from, to, path, via` | `path` = every space entered, ending at `to`; `via`: `dice`, `bus`, `triple`, `card`, `uncle`, `back` (walk backwards), `jail` (jump, path `[10]`) |
-| `salary` | `seat, amount` | marker: passed/landed on GO; the money is the next `cash` event (`why:'salary'`) |
+| `salary` | `seat, amount` | marker: passed/landed on GO (doubled for an exact landing with `doubleGoLanding`); the money is the next `cash` event (`why:'salary'`) |
 | `land` | `seat, space` | arrived and the space resolves |
-| `cash` | `from, to, amount, why, after, space?` | **every** cash change; `from`/`to` a seat or `'bank'`; `after[seat]` = cash after; `space`: the square paid for (rent, tax, an auctioned lot), also when the payment settles a `debt` later |
+| `cash` | `from, to, amount, why, after, space?` | **every** cash change; `from`/`to` a seat or `'bank'`; `after[seat]` = cash after; `space`: the square paid for (rent, tax, an auctioned lot), also when the payment settles a `debt` later; `why:'jackpot'`: the pot won on the parking space (`space` = it) |
 | `card` | `seat, deck, cardId, text, kept` | a card drawn (`kept`: Get Out of Jail Free held) |
 | `cardReturn` | `deck, cardId, seat?` | a card went to the bottom of its deck (drawn and done, used, or returned at bankruptcy) |
 | `cardGive` | `cardId, from, to` | a held card changed hands (trade, bankruptcy) |
@@ -157,7 +195,7 @@ values, so a view can set rather than accumulate.
 | `jailStay` | `seat, tries` | failed jail roll |
 | `jailExit` | `seat, how:'doubles'\|'fine'\|'card'\|'forced'` | out of jail |
 | `uncle` | `seat, to?, target?:'bank'\|'rent'` | Tuk-Tuk Uncle advance (no `to`: stays put) |
-| `owner` | `space, from?, to?, via` | ownership changed; no `to` = back to the bank |
+| `owner` | `space, from?, to?, via` | ownership changed; no `to` = back to the bank; `via:'deal'`: the quick-start deal (`createGame`, after `order`, before `turn`) |
 | `level` | `space, from, to, bank:{houses, hotels}` | buildings changed; bank supply after |
 | `mortgage` | `space, on` | mortgaged / lifted (also `on:false` when the bank clears it) |
 | `auctionStart` | `lot, eligible, queue` | an auction opens |
@@ -175,7 +213,7 @@ values, so a view can set rather than accumulate.
 | `debt` / `debtPaid` | `debtor, owed, total, why` / `debtor` | |
 | `bankrupt` | `seat, to, resigned` | the seat is out (`to`: creditor seat or `'bank'`) |
 | `timeout` | `seat, a` | a `forced` command played `a` for `seat` |
-| `over` | `winner, ranking, why:'lastStanding'\|'turnLimit'\|'endGame'` | |
+| `over` | `winner, ranking, why:'lastStanding'\|'turnLimit'\|'endGame'\|'firstBankrupt'\|'timeUp'` | |
 
 ## Timers and timeouts
 
@@ -226,10 +264,12 @@ Core:
 - `SEAT_IDS`, `MIN_SEATS`, `MAX_SEATS`, `NAME_MAX`, type `SeatSetup`.
 
 Board data:
-- `getBoard(id)` -> `BoardDef` (unknown ids fall back to the classic board); `boardOf(state)`; `LANKA`.
+- `getBoard(id)` -> `BoardDef` (unknown ids fall back to the All Island board); `boardOf(state)`; `LANKA`, `COLOMBO`,
+  `HILL`, `SOUTH`; `BOARD_IDS`; `BOARDS` (`{id, name, blurb}` for the board picker); `boardName(id)`.
 - `isProperty(space)`, `isStreet(space)` (type guards on a `SpaceDef`), `deckOf(board, cardId)`,
   `pathForward(board, from, to)`, `pathBack(board, from, n)`, `cardOf(state, cardId)`.
-- `board.display.title`, `board.display.decks[deck]` (the decks' printed names), `board.display.groupColours[group]`,
+- `board.display.title`, `.name` ("Colombo"), `.subtitle` (under the title on the board), `.blurb` (the picker's line),
+  `board.display.decks[deck]` (the decks' printed names), `board.display.groupColours[group]`,
   `board.speedDie.faces` / `.labels[String(face)]`.
 
 Dice helpers: `isDoubles(roll)`, `isTriples(roll)`, `busOptions(roll)`, `faceValue(face)`, `rollTotal(roll)`.
@@ -246,7 +286,9 @@ Selectors (all take the state first):
   actions, `sellAll`, and `reason` when nothing can be built.
 - `canMortgage(state, seat, space)`, `canUnmortgage(state, seat, space)` -> `RuleError | null` (phase included).
 - `unmortgageCost(state, space)` (mortgage + 10% rounded up), `xferCost(state, spaces, lift)`.
-- `tradeProblems(state, offer)` -> `RuleError[]`.
+- `tradeProblems(state, offer)` -> `RuleError[]` (the trading rule first: codes `tradingOff` "Trading is off in this
+  game", `tradingLater` "Trading opens after lap N"); `tradingClosed(state, a, b)` -> that rule alone (`RuleError | null`).
+- `mayBuy(state, seat)`: false only on a first lap with `buyAfterFirstLap`.
 - `minBid(state)`, `placeSites(state, seat, kind)`, `buildCapacity(state, seat, kind)`.
 - `deepEqual(a, b)` for plain JSON values.
 
@@ -288,14 +330,32 @@ Dev only (not exported from `index.ts`): `randomPlayer.ts` (`randFrom`, `randomC
   limit, `endGame`) order active seats by `netWorth` (ties: turn order), then the others, last out first.
 - **Money rounding**: income tax percent rounds down; mortgage interest rounds up; building refunds are half each
   step's cost rounded down; a hotel's cost defaults to the house cost (`StreetDef.hotel` overrides).
-- **Income Tax** default (timeout) is the cheaper option.
+- **Income Tax** default (timeout) is the cheaper option (the mode's amount in a fixed `incomeTaxMode`).
+- **Jackpot**: fed by every `cash` event to the bank with `why` tax, fine or card, whenever it is paid (a debt that
+  settles later, a bankrupt's partial payment to the bank); rent, purchases, interest and bankruptcy leftovers do not
+  feed it. Landing on the parking space pays the whole pot (`why:'jackpot'`) and empties it.
+- **Auctions off**: `decline` leaves the property with the bank (Tuk-Tuk Uncle still counts it as bank-owned);
+  property of a bankruptcy to the bank is simply returned; a shortage contest whose requests exceed the supply grants
+  them in request order (the starter's first, then each `requestBuild` as it came) until the supply runs out.
+- **First lap** (`buyAfterFirstLap`): `laps` counts every Start salary. With 0 laps a landing on a bank property
+  (Tuk-Tuk Uncle's included) does nothing, `buy` is refused, and the seat is left out of property auctions.
+- **Rent while jailed** off: `rentFor` is 0 while the owner is jailed, and Tuk-Tuk Uncle's rent branch skips it.
+- **Quick-start deal**: the property spaces are shuffled with the game's RNG after the opening roll and dealt
+  round-robin in turn order, `min(dealProperties, floor(properties / seats))` each, free and unmortgaged.
+- **First bankruptcy** (`endMode: 'firstBankrupt'`): the game ends right after the bankrupt's assets reach the
+  creditor (no mortgage settling, no bank auctions), ranked by net worth; a plain resignation (no unpayable debt) does
+  not end it, and when only one player is left the reason is still `lastStanding`.
+- **Trading** `afterLap`: both parties need `laps >= tradeAfterLap` to propose or accept; reject and cancel always work.
 
 ## Tests and sim
 
 `npx vitest run src/rules`: suites per rule area (`data`, `rng`, `config`, `move`, `cards`, `rent`, `tax`,
-`auction`, `jail`, `build`, `mortgage`, `trade`, `bankrupt`, `speed`, `autoplay`, `codec`) plus the fuzz test
+`auction`, `jail`, `build`, `mortgage`, `trade`, `bankrupt`, `speed`, `autoplay`, `codec`, `options` for the optional
+rules) plus the fuzz test
 (`fuzz.test.ts` classic, `fuzzSpeed.test.ts` Speed Die: 30 seeds x 3000 random commands each, checking invariants,
-the cash ledger, RNG use, state size < 48 KB, codec round trips, `awaiting`, and that `defaultAction` is legal).
+the cash ledger and the jackpot pot, RNG use, state size < 48 KB, codec round trips, `awaiting`, and that `defaultAction` is legal).
 
-`npm run sim -- [games=100] [--players=4] [--speed] [--seed=1] [--turns=400]` plays random-legal-action games
-headless with invariants on and prints how they ended.
+Two fuzz games in three vary the optional rules by seed (`variedRules` in `randomPlayer.ts`).
+
+`npm run sim -- [games=100] [--players=4] [--speed] [--seed=1] [--turns=400] [--options]` plays random-legal-action
+games headless with invariants on and prints how they ended (`--options`: vary the optional rules game by game).

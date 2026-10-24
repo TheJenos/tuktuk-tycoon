@@ -12,7 +12,10 @@ export { awaiting, defaultAction, timer, timeoutCommand } from './autoplay';
 export { checkInvariants } from './invariants';
 export { encode, decode, RULES_VERSION } from './codec';
 export { DEFAULT_RULES, normalizeConfig } from './config';
-export { getBoard, deckOf, pathForward, pathBack, isProperty, isStreet } from './board';
+export { getBoard, boardName, BOARDS, BOARD_IDS, deckOf, pathForward, pathBack, isProperty, isStreet, type BoardInfo } from './board';
+export { COLOMBO } from './data/colombo';
+export { HILL } from './data/hill';
+export { SOUTH } from './data/south';
 export { LANKA } from './data/lanka';
 export { busOptions, isDoubles, isTriples } from './dice';
 export { faceValue, rollTotal } from './rent';
@@ -33,6 +36,8 @@ export {
   unmortgageCost,
   xferCost,
   tradeProblems,
+  tradingClosed,
+  mayBuy,
   canMortgage,
   canUnmortgage,
   minBid,

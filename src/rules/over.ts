@@ -29,11 +29,15 @@ export function finish(c: Ctx, why: OverPhase['why']): void {
   emit(c, { t: 'over', winner, ranking: order, why });
 }
 
-/** Ends the game when at most one player is left. Returns whether it did. */
-export function checkOver(c: Ctx): boolean {
+/**
+ * Ends the game when at most one player is left, or (cfg.endMode 'firstBankrupt') when a player just went bankrupt
+ * (`bankrupt`: not a resignation). Called after the creditor has received the assets. Returns whether it ended.
+ */
+export function checkOver(c: Ctx, bankrupt = false): boolean {
   if (c.s.phase.k === 'over') return true;
-  if (activeSeats(c.s).length > 1) return false;
-  finish(c, 'lastStanding');
+  if (activeSeats(c.s).length <= 1) finish(c, 'lastStanding');
+  else if (bankrupt && c.s.cfg.endMode === 'firstBankrupt') finish(c, 'firstBankrupt');
+  else return false;
   return true;
 }
 
@@ -41,6 +45,12 @@ export function checkOver(c: Ctx): boolean {
 export const endGame: Handler<'endGame'> = systemAction(
   () => null,
   (c) => finish(c, 'endGame'),
+);
+
+/** The room's time limit ran out (the driver sends it, like endGame): rank everyone by net worth */
+export const timeUp: Handler<'timeUp'> = systemAction(
+  () => null,
+  (c) => finish(c, 'timeUp'),
 );
 
 export const overError = err('over', 'The game is over');

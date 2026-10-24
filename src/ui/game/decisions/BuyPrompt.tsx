@@ -42,7 +42,7 @@ export function BuyPrompt({ seat, space, onRaise }: { seat: SeatId; space: numbe
       )}
       <div className="action-row">
         <button type="button" className="primary" disabled={busy || short > 0} onClick={() => void send(seat, { k: 'buy' })}>
-          Buy for {money(sp.price)} <kbd>B</kbd>
+          Buy for <span className="amt">{money(sp.price)}</span> <kbd>B</kbd>
         </button>
         <button type="button" disabled={busy} onClick={() => void send(seat, { k: 'decline' })}>
           Auction <kbd>A</kbd>

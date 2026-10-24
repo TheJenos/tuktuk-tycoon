@@ -55,7 +55,7 @@ declare global {
 }
 
 /** Saved settings for every test player: no animations, no physics, cheapest rendering, silent. */
-export const SETTINGS = { animSpeed: 'instant', quality: 'low', dicePhysics: false, sound: false, version: 1 };
+export const SETTINGS = { animSpeed: 'instant', quality: 'low', dicePhysics: false, sound: false, music: false, version: 1 };
 
 export interface PlayerOptions {
   /** Skip the first-visit name prompt with this name; null shows the prompt */

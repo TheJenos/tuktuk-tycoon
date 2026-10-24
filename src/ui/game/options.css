@@ -1,0 +1,25 @@
+/* The in-game chips for room options (TableStatus): the time-limit clock and the parking jackpot */
+
+.table-status { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; max-width: min(560px, 100%); pointer-events: auto; }
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(12, 16, 24, 0.78);
+  font-size: 13px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.status-chip.clock.low { border-color: var(--danger, #e85d4a); color: var(--danger, #e85d4a); }
+.status-chip.jackpot strong { color: var(--accent); }
+
+/* Late join: the spectator banner's seat picker and button */
+.hud-banner.late-join { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; pointer-events: auto; }
+.hud-banner.late-join select { min-height: 36px; }
+
+/* Hidden with the rest of the HUD while the game menu is open */
+#hud.paused .table-status { opacity: 0; transition: opacity 160ms; }

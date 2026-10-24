@@ -60,6 +60,7 @@ export function defaultAction(s: GameState, seat: SeatId): Action | null {
     case 'buy':
       return { k: 'decline' };
     case 'incomeTax': {
+      if (s.cfg.incomeTaxMode !== 'choice') return { k: 'incomeTax', pick: s.cfg.incomeTaxMode };
       const pct = Math.floor((worth(s, getBoard(s.cfg.board), seat) * s.cfg.incomePct) / 100);
       return { k: 'incomeTax', pick: pct < s.cfg.incomeFlat ? 'percent' : 'flat' };
     }

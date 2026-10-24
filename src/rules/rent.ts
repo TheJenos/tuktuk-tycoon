@@ -1,5 +1,5 @@
 import { groupById, propertyAt } from './board';
-import { ownedBy, prop } from './ctx';
+import { collectsRent, ownedBy, prop } from './ctx';
 import type { BoardDef, GameState, Roll, SeatId, SpeedFace } from './types';
 
 /** White dice plus a number face; Bus and Tuk-Tuk Uncle count 0 */
@@ -26,11 +26,11 @@ export interface RentOpts {
   utilityMul?: number;
 }
 
-/** Rent owed by a visitor landing on `space` now (0 when unowned or mortgaged) */
+/** Rent owed by a visitor landing on `space` now (0 when unowned, mortgaged, or the owner is jailed and jailRent is off) */
 export function rentFor(s: GameState, b: BoardDef, space: number, opts: RentOpts = {}): number {
   const sp = propertyAt(b, space);
   const ps = prop(s, space);
-  if (!sp || !ps || ps.mortgaged) return 0;
+  if (!sp || !ps || ps.mortgaged || !collectsRent(s, ps.owner)) return 0;
   switch (sp.k) {
     case 'street': {
       if (ps.level > 0) return sp.rent[ps.level] ?? 0;

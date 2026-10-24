@@ -10,7 +10,7 @@ import {
   legalActions,
   timer,
 } from '..';
-import { randFrom, randomCommand } from '../randomPlayer';
+import { randFrom, randomCommand, variedRules } from '../randomPlayer';
 import type { GameEvent, GameState, SeatId } from '../types';
 import { SEATS } from './helpers';
 
@@ -25,13 +25,17 @@ const STEPS = 3000;
 export const SEEDS = 30;
 const MAX_BYTES = 48 * 1024;
 
-/** 2-6 players; low starting cash and a scarce bank in some games, so debts, bankruptcies and shortages happen */
+/**
+ * 2-6 players; low starting cash and a scarce bank in some games, so debts, bankruptcies and shortages happen. Two
+ * games in three also vary the optional rules (jackpot, auctions off, first lap, quick deal, end mode, trading...).
+ */
 function newGame(seed: number, speedDie: boolean): GameState {
   const r = randFrom(seed * 7919);
   const n = 2 + Math.floor(r() * 5);
   const seats = SEATS.slice(0, n).map((id, i) => ({ id, name: `Bot ${i}` }));
   const scarce = seed % 2 === 1;
   const cfg = {
+    ...(seed % 3 === 0 ? {} : variedRules(seed)),
     speedDie,
     startCash: [1500, 600, 300][seed % 3],
     houses: scarce ? 6 : 32,
@@ -51,6 +55,14 @@ function ledgerOk(prev: GameState, next: GameState, events: GameEvent[]): string
     const want = (next.players[seat]?.cash ?? 0) - (prev.players[seat]?.cash ?? 0);
     if ((delta[seat] ?? 0) !== want) return `${seat} cash moved ${want} but events say ${delta[seat] ?? 0}`;
   }
+  // The jackpot: taxes, fines and card payments to the bank go in, a win empties it
+  let pot = 0;
+  for (const e of events) {
+    if (e.t !== 'cash') continue;
+    if (next.cfg.jackpot && e.to === 'bank' && e.from !== 'bank' && ['tax', 'fine', 'card'].includes(e.why)) pot += e.amount;
+    if (e.why === 'jackpot') pot -= e.amount;
+  }
+  if (next.pot - prev.pot !== pot) return `pot moved ${next.pot - prev.pot} but events say ${pot}`;
   return null;
 }
 

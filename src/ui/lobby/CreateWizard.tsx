@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import type { BotSkill } from '../../net/types';
 import { TOKENS, type TokenId } from '../../shared/tokens';
 import { Choices, type Choice } from './Choices';
-import { DEFAULT_DRAFT, RulesForm, RulesSummary, rulesLine, type RulesDraft } from './RulesForm';
+import { DEFAULT_DRAFT, RulesForm, RulesSummary, rulesLine, rulesTitle, type RulesDraft } from './RulesForm';
 import { TokenPicker } from './TokenPicker';
 import { Wizard } from './Wizard';
 import { freeBotName, MAX_SEATS, MIN_SEATS, SKILLS, skillLabel } from './seats';
@@ -64,7 +64,7 @@ export function TableStep({ plan, onChange }: { plan: RoomPlan; onChange(p: Part
               </button>
             </span>
           ))}
-          <button type="button" disabled={room <= 0} onClick={() => onChange({ bots: [...plan.bots, 'normal'] })}>＋ Add a bot</button>
+          <button type="button" disabled={room <= 0} onClick={() => onChange({ bots: [...plan.bots, plan.rules.botSkill] })}>＋ Add a bot</button>
         </div>
       </div>
       <div className="lobby-setting">
@@ -126,7 +126,7 @@ export function LaunchStep({ plan, go, children }: { plan: RoomPlan; go(i: numbe
       <div className="launch-summary">
         <button type="button" className="launch-pick" onClick={() => go(0)} aria-label="Rules. Change">
           <span className="text">
-            <strong>{plan.rules.speedDie ? 'Classic + Speed Die' : 'Classic rules'}</strong>
+            <strong>{rulesTitle(plan.rules)}</strong>
             <small className="muted">{rulesLine(plan.rules)}{plan.rules.turnTimer ? ` · ${plan.rules.turnTimer} s turns` : ' · no timer'}</small>
           </span>
           <span className="change" aria-hidden="true">Change</span>

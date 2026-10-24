@@ -30,7 +30,7 @@ export function JailPanel({ seat }: { seat: SeatId }) {
           title={last ? 'On your third try you must roll' : p.cash < fine ? `The fine is ${money(fine)}` : undefined}
           onClick={() => void send(seat, { k: 'payFine' })}
         >
-          Pay {money(fine)}
+          Pay <span className="amt">{money(fine)}</span>
         </button>
         <button
           type="button"

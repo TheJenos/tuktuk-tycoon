@@ -2,7 +2,9 @@ import {
   awaiting,
   boardOf,
   maxRaise,
+  opponents,
   timer,
+  tradingClosed,
   type AuctionPhase,
   type DebtPhase,
   type GameState,
@@ -23,6 +25,22 @@ import { listText, lotText as lotName, money, taxName, type Names } from './form
 export const myAwaited = (s: GameState, mine: readonly SeatId[]): SeatId[] => awaiting(s).filter((seat) => mine.includes(seat));
 
 const active = (s: GameState, seat: SeatId) => !!s.players[seat] && !s.players[seat]?.out;
+
+/** The parking space's printed name ("Tuk-Tuk Stand"), where the jackpot is won */
+export const parkingOf = (s: GameState): string => boardOf(s).spaces.find((x) => x.k === 'parking')?.name ?? 'Free Parking';
+
+/**
+ * Why `seat` can't trade with anybody right now (the room's trading rule), or null when it can trade with someone.
+ * 'off' when the room has trading switched off altogether (the Trade button goes away).
+ */
+export function tradeLock(s: GameState | null, seat: SeatId | null): { off: boolean; message: string } | null {
+  if (!s || !seat) return null;
+  if (s.cfg.trading === 'off') return { off: true, message: 'Trading is off in this game' };
+  const others = opponents(s, seat);
+  const reasons = others.map((x) => tradingClosed(s, seat, x));
+  if (!others.length || reasons.some((r) => r === null)) return null;
+  return { off: false, message: reasons[0]?.message ?? 'Trading is not open yet' };
+}
 
 /**
  * The seat my Manage / Trade actions come from (hot-seat has several): one the game waits on, else the turn seat

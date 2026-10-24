@@ -20,8 +20,8 @@ export type Deck = 'chance' | 'chest';
 export type RigRoll = [number, number] | [number, number, SpeedFace];
 
 /**
- * Room rules. Every field is a plain number or boolean (never a literal type) so the lobby can store any value;
- * normalizeConfig() clamps them.
+ * Room rules. Every field is a plain number, boolean or a small string enum so the lobby can store any value;
+ * normalizeConfig() clamps numbers and replaces unknown enum values with the default.
  */
 export interface RulesConfig {
   /** Board id for getBoard() */
@@ -44,9 +44,35 @@ export interface RulesConfig {
   triplesRollAgain: boolean;
   /** End the game after this many turns in total (each player's go counts 1), ranked by net worth. 0 = off */
   turnLimit: number;
+  /** Landing exactly on GO pays double the salary */
+  doubleGoLanding: boolean;
+  /** Taxes, fines and card payments to the bank go into a pot paid to whoever lands on the parking space */
+  jackpot: boolean;
+  /** Income Tax: the player's choice (flat or percent), or always one of them (no choice, no phase) */
+  incomeTaxMode: IncomeTaxMode;
+  /** Declined property and a bankrupt's property to the bank are auctioned (off: the bank keeps them) */
+  auctions: boolean;
+  /** No buying (or bidding) until the player has collected a GO salary once */
+  buyAfterFirstLap: boolean;
+  /** Owners collect rent while they are in jail */
+  jailRent: boolean;
+  /** A third doubles in one turn sends the player to jail */
+  threeDoublesJail: boolean;
+  /** Properties dealt free to each player at the start (0-3; fewer when the board runs out) */
+  dealProperties: number;
+  /** lastStanding: play until one player is left; firstBankrupt: the first bankruptcy ends the game */
+  endMode: EndMode;
+  /** Trading between players: on, off, or only once both have collected `tradeAfterLap` GO salaries */
+  trading: TradingMode;
+  /** With trading 'afterLap': GO salaries each party must have collected (1-20) */
+  tradeAfterLap: number;
   /** Accept debugRig / debugSetCash (e2e only) */
   debug: boolean;
 }
+
+export type IncomeTaxMode = 'choice' | 'flat' | 'percent';
+export type EndMode = 'lastStanding' | 'firstBankrupt';
+export type TradingMode = 'on' | 'off' | 'afterLap';
 
 // ---------------------------------------------------------------------------------------------------------------
 // Board data (the swappable data file)
@@ -134,11 +160,17 @@ export interface BoardDef {
   chest: CardDef[];
   speedDie: { faces: SpeedFace[]; labels: Record<string, string> };
   /**
-   * What the UI prints: the board title, each card deck's name, the colour groups' colours and the currency. Money
+   * What the UI prints: the board title, its name, subtitle and blurb, each card deck's name, the colour groups' colours and the currency. Money
    * is shown as `symbol` and the engine's amount times `scale` (the engine counts rulebook units).
    */
   display: {
     title: string;
+    /** The board's name in the board picker, the Rooms list and the rules ("All Island") */
+    name: string;
+    /** Printed under the title in the centre of the board */
+    subtitle: string;
+    /** One line for the board picker */
+    blurb: string;
     decks: Record<Deck, string>;
     groupColours: Record<string, string>;
     currency: { symbol: string; scale: number };
@@ -160,6 +192,8 @@ export interface PlayerState {
   goojf: string[];
   /** Speed Die unlocked (first GO salary collected) */
   speed: boolean;
+  /** GO salaries collected (laps completed; the first-lap and trading rules read it) */
+  laps: number;
   out?: 'bankrupt' | 'resigned';
   /** seq of the command that put the player out (for the final ranking) */
   outAt?: number;
@@ -283,7 +317,7 @@ export interface OverPhase {
   winner: SeatId;
   /** Every seat, best first: active seats by net worth, then the others, last out first */
   ranking: SeatId[];
-  why: 'lastStanding' | 'turnLimit' | 'endGame';
+  why: 'lastStanding' | 'turnLimit' | 'endGame' | 'firstBankrupt' | 'timeUp';
 }
 
 export type InterruptPhase = AuctionPhase | PlacePhase | BuildClaimPhase | MortgageXferPhase | DebtPhase;
@@ -338,6 +372,8 @@ export interface GameState {
   /** Owned properties, keyed `p<index>`. Absent = bank. */
   props: Partial<Record<string, PropState>>;
   bank: { houses: number; hotels: number };
+  /** The parking jackpot (cfg.jackpot): taxes, fines and card payments to the bank since it was last won */
+  pot: number;
   /** Card ids, [0] = top */
   decks: { chance: string[]; chest: string[] };
   trades: Record<string, Trade>;
@@ -385,6 +421,8 @@ export type Action =
   | { k: 'closeAuction' }
   | { k: 'closeClaim' }
   | { k: 'endGame' }
+  /** The room's time limit ran out: ends the game ranked by net worth */
+  | { k: 'timeUp' }
   /** A timeout: plays `a` for `seat`, which must be awaited and `a` must equal defaultAction(state, seat) */
   | { k: 'forced'; seat: SeatId; a: Action }
   // Debug (cfg.debug only)
@@ -431,11 +469,12 @@ export type CashWhy =
   | 'trade'
   | 'bankrupt'
   | 'refund'
+  | 'jackpot'
   | 'debug';
 
 export type JailReason = 'space' | 'card' | 'doubles';
 export type JailExitHow = 'doubles' | 'fine' | 'card' | 'forced';
-export type OwnerVia = 'buy' | 'auction' | 'trade' | 'bankrupt';
+export type OwnerVia = 'buy' | 'auction' | 'trade' | 'bankrupt' | 'deal';
 
 export type GameEvent =
   | { t: 'order'; order: SeatId[] }

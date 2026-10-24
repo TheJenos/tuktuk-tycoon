@@ -34,8 +34,12 @@ export interface LocalOptions {
   seed?: number;
   /** Continue the saved game when there is one (otherwise a new game from `seats`) */
   resume?: boolean;
-  /** Multiplies bot thinking time (1 = normal) */
+  /** Multiplies bot thinking time (1 = normal); 0.5 / 1 / 2 are saved with the game */
   pace?: number;
+  /** The skill a seat played for its player uses (none at a local table today; kept with the game) */
+  botSkill?: BotSkill;
+  /** Minutes until the game ends ranked by net worth (0 = no limit) */
+  timeLimit?: number;
 }
 
 interface SaveRecord {
@@ -53,14 +57,14 @@ function storage(): Storage | null {
   }
 }
 
-function readSave(): { name: string; doc: Doc } | null {
+function readSave(): { name: string; doc: Doc; at: number } | null {
   try {
     const raw = storage()?.getItem(SOLO_SAVE_KEY);
     if (!raw) return null;
     const rec = JSON.parse(raw) as Partial<SaveRecord>;
     if (rec.v !== RULES_VERSION || typeof rec.doc !== 'string') return null;
     const doc = decodeDoc(rec.doc);
-    return doc.game.phase.k === 'over' ? null : { name: String(rec.name ?? ''), doc };
+    return doc.game.phase.k === 'over' ? null : { name: String(rec.name ?? ''), doc, at: typeof rec.at === 'number' ? rec.at : Date.now() };
   } catch {
     return null;
   }
@@ -112,11 +116,16 @@ export function createLocalSession(o: LocalOptions): Session {
     timers: o.timers ?? OFFLINE_TIMERS,
     seed: o.seed ?? randomSeed(),
     at: now,
+    ...(o.pace !== undefined ? { botPace: o.pace } : {}),
+    ...(o.botSkill ? { botSkill: o.botSkill } : {}),
+    ...(o.timeLimit ? { timeLimit: o.timeLimit } : {}),
   });
   if (saved) {
     // Deadlines were in the old session's time: restart the running one from now
     const t = timer(doc.game);
     if (doc.deadline && t) doc.deadline = { key: doc.deadline.key, at: now + phaseSecs(t.kind, doc.timers) * 1000 };
+    // The time limit counts play time only: the clock stood still while the game was closed
+    if (doc.endsAt !== undefined) doc.endsAt += Math.max(0, now - saved.at);
   } else {
     writeSave(name, doc);
   }

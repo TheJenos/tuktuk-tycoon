@@ -8,7 +8,7 @@ import { MenuFrame, MenuPanel, MenuPlay, MenuRail, ProfileChip, type MenuTab } f
 import { joinErrorText, joinOrCreateRoom } from './connect';
 import { LaunchStep, newRoomPlan, TableStep, type RoomPlan } from './CreateWizard';
 import { OnlineNotice } from './OnlineNotice';
-import { draftRules, draftTimers, RulesForm } from './RulesForm';
+import { draftOptions, draftRules, roomTimers, RulesForm } from './RulesForm';
 import { SettingsView } from './SettingsView';
 import { Wizard } from './Wizard';
 import './lobby.css';
@@ -84,7 +84,8 @@ export function DiscordLobby({ notice }: { notice: string | null }) {
         public: false,
         ...(open ? {
           rules: draftRules(plan.rules),
-          timers: draftTimers(plan.rules.turnTimer),
+          timers: roomTimers(plan.rules),
+          options: draftOptions(plan.rules),
           maxSeats: plan.maxSeats,
           bots: plan.bots.map((skill) => ({ skill })),
           token: plan.token,

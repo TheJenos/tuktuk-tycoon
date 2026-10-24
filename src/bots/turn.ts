@@ -1,4 +1,4 @@
-import { incomeTaxAmounts, maxRaise, type Action } from '../rules';
+import { incomeTaxAmounts, maxRaise, mayBuy, type Action } from '../rules';
 import { type BotCtx, pickOne } from './ctx';
 import { raiseStep } from './debt';
 import { twoDice } from './landingProb';
@@ -49,14 +49,18 @@ function targetScore(c: BotCtx, from: number, to: number, walk: boolean): number
   const m = c.m;
   const b = m.info.b;
   if (to === b.goToJailIndex) return prefersJail(c) ? 60 : -120;
-  // Walking forward onto or past GO pays the salary
-  let score = walk && (to < from || to === 0) ? c.s.cfg.goSalary : 0;
+  const cfg = c.s.cfg;
+  // Walking forward onto or past GO pays the salary (double for landing on it with doubleGoLanding)
+  const salary = walk && (to < from || to === 0);
+  let score = salary ? cfg.goSalary * (to === 0 && cfg.doubleGoLanding ? 2 : 1) : 0;
   const cash = c.me.cash + score;
   const sp = b.spaces[to];
   const p = propAt(m, to);
   if (p) {
     const owner = m.owner[to];
     if (owner === undefined) {
+      // On the first lap (buyAfterFirstLap) only a move past GO opens buying
+      if (!mayBuy(c.s, c.seat) && !salary) return score;
       if (cash < p.price) return score + 5;
       const worth = worthToMe(m, c.seat, to, c.prof, c.prof.skill === 'normal' ? 0 : c.rivalShare / 2);
       const setBonus = c.prof.skill !== 'normal' && completesSet(m, c.seat, to) ? 150 : 0;
@@ -67,8 +71,10 @@ function targetScore(c: BotCtx, from: number, to: number, walk: boolean): number
   if (sp?.k === 'tax') {
     if (sp.tax === 'luxury') return score - c.s.cfg.luxuryTax;
     const t = incomeTaxAmounts(c.s, c.seat);
-    return score - Math.min(t.flat, t.percent);
+    const mode = cfg.incomeTaxMode;
+    return score - (mode === 'choice' ? Math.min(t.flat, t.percent) : t[mode]);
   }
+  if (sp?.k === 'parking' && cfg.jackpot) return score + c.s.pot;
   if (sp?.k === 'chest') return score + 10;
   if (sp?.k === 'chance') return score - 5;
   return score;
@@ -129,18 +135,22 @@ export function buyChoice(c: BotCtx, space: number): Action {
   if (!p) return { k: 'decline' };
   const cash = c.me.cash;
   const price = p.price;
+  // Auctions off: a declined property is not sold off cheap, it waits for the next visitor at full price, so the
+  // bot cannot hope to pick it up for less later; it buys more readily (a smaller reserve, a lower worth bar)
+  const noAuction = !c.s.cfg.auctions;
+  const reserve = noAuction ? c.reserve / 2 : c.reserve;
   switch (c.prof.skill) {
     case 'easy':
-      return cash - price >= 100 && c.rnd() < 0.8 ? { k: 'buy' } : { k: 'decline' };
+      return cash - price >= (noAuction ? 50 : 100) && c.rnd() < 0.8 ? { k: 'buy' } : { k: 'decline' };
     case 'normal': {
       const key = completesSet(c.m, c.seat, space) || blocksSet(c.m, c.seat, space);
-      if (cash >= price && (key || cash - price >= c.reserve)) return { k: 'buy' };
+      if (cash >= price && (key || cash - price >= reserve)) return { k: 'buy' };
       return { k: 'decline' };
     }
     default: {
       const worth = propertyWorth(c, space);
-      if (worth < price * 0.9) return { k: 'decline' };
-      if (cash >= price && cash - price >= c.reserve) return { k: 'buy' };
+      if (worth < price * (noAuction ? 0.75 : 0.9)) return { k: 'decline' };
+      if (cash >= price && cash - price >= reserve) return { k: 'buy' };
       // Worth stretching for: dip below the reserve, or mortgage lone property to afford it
       const key = completesSet(c.m, c.seat, space) || worth > price * 2;
       if (!key) return { k: 'decline' };
@@ -155,6 +165,9 @@ export function buyChoice(c: BotCtx, space: number): Action {
 }
 
 export function incomeTaxChoice(c: BotCtx): Action {
+  // A fixed Income Tax mode leaves nothing to choose (the phase does not even come up; this is a safeguard)
+  const mode = c.s.cfg.incomeTaxMode;
+  if (mode !== 'choice') return { k: 'incomeTax', pick: mode };
   const t = incomeTaxAmounts(c.s, c.seat);
   if (c.prof.skill === 'easy' && c.rnd() < 0.25) return { k: 'incomeTax', pick: 'flat' };
   return { k: 'incomeTax', pick: t.percent < t.flat ? 'percent' : 'flat' };

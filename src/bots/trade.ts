@@ -221,6 +221,8 @@ export function bestOffer(c: BotCtx, margin = 0.15): Offer | null {
 export function proposalRound(c: BotCtx): { generous: boolean } | null {
   const s = c.s;
   if (c.prof.propose === 'never' || s.phase.k !== 'preRoll' || s.turn.seat !== c.seat) return null;
+  // Trading off, or (afterLap) not yet open for the bot itself: no offer could go through
+  if (s.cfg.trading === 'off' || (s.cfg.trading === 'afterLap' && c.me.laps < s.cfg.tradeAfterLap)) return null;
   if (s.turn.roll || s.seq !== s.since) return null;
   if (Object.values(s.trades).some((t) => t.from === c.seat) || Object.keys(s.trades).length >= 8) return null;
   const round = Math.floor((s.turn.no - 1) / Math.max(1, c.m.active.length));

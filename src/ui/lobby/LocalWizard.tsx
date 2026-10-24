@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { DEFAULT_DRAFT, RulesForm, RulesSummary, rulesLine, type RulesDraft } from './RulesForm';
+import { DEFAULT_DRAFT, RulesForm, RulesSummary, rulesLine, rulesTitle, type RulesDraft } from './RulesForm';
 import { SeatsEditor, seatsProblem } from './SeatsEditor';
 import { SeatToken } from './TokenPicker';
 import { Wizard } from './Wizard';
@@ -34,13 +34,13 @@ export function LocalWizard({ you, busy, error, onStart }: {
       onLaunch={() => onStart(rules, table)}
       render={(i, go) => {
         if (i === 0) return <RulesForm value={rules} onChange={(p) => setRules({ ...rules, ...p })} />;
-        if (i === 1) return <SeatsEditor seats={table} onChange={setSeats} />;
+        if (i === 1) return <SeatsEditor seats={table} onChange={setSeats} botSkill={rules.botSkill} />;
         return (
           <>
             <div className="launch-summary">
               <button type="button" className="launch-pick" onClick={() => go(0)} aria-label="Rules. Change">
                 <span className="text">
-                  <strong>{rules.speedDie ? 'Classic + Speed Die' : 'Classic rules'}</strong>
+                  <strong>{rulesTitle(rules)}</strong>
                   <small className="muted">{rulesLine(rules)}</small>
                 </span>
                 <span className="change" aria-hidden="true">Change</span>
@@ -60,7 +60,7 @@ export function LocalWizard({ you, busy, error, onStart }: {
                 <li key={s.key}>
                   <SeatToken token={s.token} color={s.color} size={22} named />
                   <span>{s.name}</span>
-                  {s.kind === 'bot' ? <span className="badge bot">Bot · {skillLabel(s.skill)}</span> : s.kind === 'you' ? <span className="badge accent">You</span> : null}
+                  {s.kind === 'bot' ? <span className="badge bot" title="Bot">{skillLabel(s.skill)}</span> : s.kind === 'you' ? <span className="badge accent">You</span> : null}
                 </li>
               ))}
             </ul>

@@ -61,6 +61,16 @@ export interface Doc {
    * each move against the seats only when this is unchanged: in between, the seats were others it never saw.
    */
   sv?: number;
+  /** Timeouts in a row that hand a seat to the driver (0 = never); absent = AFK_STRIKES */
+  afkStrikes?: number;
+  /** Multiplies bot thinking time (0.5 quick, 1, 2 slow); absent = the session's own pace */
+  botPace?: number;
+  /** The skill the driver plays a seat with when the seat names none (an AFK human); absent = 'normal' */
+  botSkill?: BotSkill;
+  /** Server ms the room's time limit runs out: the driver then sends the system `timeUp` (absent = no limit) */
+  endsAt?: number;
+  /** The time limit in minutes that set endsAt (for the rules view and a local rematch) */
+  timeLimit?: number;
 }
 
 /** What the view plays: the events of one committed command and the state after it, strictly in seq order */

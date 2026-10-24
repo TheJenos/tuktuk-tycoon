@@ -6,7 +6,14 @@ import {
   groupLevels,
   placeSites as boardPlaceSites,
 } from './buildings';
-import { activeSeats as active, isActive as seatActive, ownerOf as owner, prop } from './ctx';
+import {
+  activeSeats as active,
+  isActive as seatActive,
+  mayBuy as buyAllowed,
+  ownerOf as owner,
+  prop,
+  tradingClosed as tradeLock,
+} from './ctx';
 import type { Handler } from './handler';
 import { HANDLERS } from './handlers';
 import { maxRaise as raise, netWorth as net, worth as taxWorth } from './money';
@@ -58,6 +65,10 @@ export const xferCost = (s: GameState, spaces: number[], lift: number[]): number
   settleCost(s, boardOf(s), spaces, lift);
 /** Everything wrong with an offer right now; empty = it can be proposed or accepted */
 export const tradeProblems = (s: GameState, t: Omit<Trade, 'id'>): RuleError[] => problems(s, boardOf(s), t);
+/** null = the trading rule (cfg.trading) lets these two seats trade now; otherwise why not */
+export const tradingClosed = (s: GameState, a: SeatId, b: SeatId): RuleError | null => tradeLock(s, a, b);
+/** The seat may buy and bid for property (false only on its first lap with cfg.buyAfterFirstLap) */
+export const mayBuy = (s: GameState, seat: SeatId): boolean => buyAllowed(s, seat);
 /** null = the seat may mortgage the space now; otherwise why not */
 export const canMortgage = (s: GameState, seat: SeatId, space: number): RuleError | null =>
   check(s, seat, { k: 'mortgage', space });

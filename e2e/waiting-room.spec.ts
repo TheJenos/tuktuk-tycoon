@@ -29,12 +29,12 @@ test('owner and guest: the owner adds, changes and removes a bot and sets the ru
   // A bot: added at Easy, made Hard, then removed
   await aw.getByLabel('Level of the next bot').selectOption('easy');
   await aw.getByRole('button', { name: '＋ Add bot' }).click();
-  await expect(seatCard(bob.page, 'Ava').locator('.badge.bot')).toHaveText('Bot · Easy');
+  await expect(seatCard(bob.page, 'Nimal').locator('.badge.bot')).toHaveText('Easy');
   await expect.poll(() => db.get(`lobby/${code}/seatsTaken`)).toBe(3);
-  await aw.getByLabel("Ava's level").selectOption('hard');
-  await expect(seatCard(bob.page, 'Ava').locator('.badge.bot')).toHaveText('Bot · Hard');
-  await aw.getByRole('button', { name: 'Remove Ava' }).click();
-  await expect(seatCard(bob.page, 'Ava')).toHaveCount(0);
+  await aw.getByLabel("Nimal's level").selectOption('hard');
+  await expect(seatCard(bob.page, 'Nimal').locator('.badge.bot')).toHaveText('Hard');
+  await aw.getByRole('button', { name: 'Remove Nimal' }).click();
+  await expect(seatCard(bob.page, 'Nimal')).toHaveCount(0);
   await expect.poll(() => db.get(`lobby/${code}/seatsTaken`)).toBe(2);
 
   // The rules: a form for the owner, a summary for everyone else

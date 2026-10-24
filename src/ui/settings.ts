@@ -18,9 +18,14 @@ export interface Settings {
   showNetWorth: boolean;
   /** No camera sweeps, bounces or pulsing panels */
   reduceMotion: boolean;
+  /** Sound effects (dice, coins, cards, buttons) */
   sound: boolean;
-  /** 0..1 */
+  /** Sound effects volume, 0..1 */
   volume: number;
+  /** Background music */
+  music: boolean;
+  /** Music volume, 0..1 */
+  musicVolume: number;
   /** Size multiplier for the game's panels */
   uiScale: number;
 }
@@ -54,6 +59,8 @@ export function defaultSettings(device: { coarse: boolean; reducedMotion: boolea
     reduceMotion: device.reducedMotion,
     sound: true,
     volume: 0.8,
+    music: true,
+    musicVolume: 0.5,
     uiScale: 1,
   };
 }
@@ -82,6 +89,8 @@ export function normalizeSettings(saved: unknown, defaults: Settings = DEFAULTS)
     reduceMotion: bool(s.reduceMotion, defaults.reduceMotion),
     sound: bool(s.sound, defaults.sound),
     volume: num(s.volume, 0, 1, defaults.volume),
+    music: bool(s.music, defaults.music),
+    musicVolume: num(s.musicVolume, 0, 1, defaults.musicVolume),
     uiScale: num(s.uiScale, UI_SCALE_MIN, UI_SCALE_MAX, defaults.uiScale),
   };
 }

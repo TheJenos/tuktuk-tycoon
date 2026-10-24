@@ -22,7 +22,12 @@ export function seatsProblem(seats: SeatDraft[]): string | null {
   return null;
 }
 
-export function SeatsEditor({ seats, onChange }: { seats: SeatDraft[]; onChange(seats: SeatDraft[]): void }) {
+export function SeatsEditor({ seats, onChange, botSkill = 'normal' }: {
+  seats: SeatDraft[];
+  onChange(seats: SeatDraft[]): void;
+  /** The level a new bot starts at (the rules' default bot level) */
+  botSkill?: BotSkill;
+}) {
   const [open, setOpen] = useState<number | null>(null);
   const set = (key: number, patch: Partial<SeatDraft>) => onChange(seats.map((s) => (s.key === key ? { ...s, ...patch } : s)));
   const remove = (key: number) => onChange(seats.filter((s) => s.key !== key));
@@ -108,7 +113,7 @@ export function SeatsEditor({ seats, onChange }: { seats: SeatDraft[]; onChange(
       </ul>
       <div className="seat-add">
         <button type="button" disabled={full} onClick={() => onChange(addSeat(seats, 'human'))}>＋ Add a player</button>
-        <button type="button" disabled={full} onClick={() => onChange(addSeat(seats, 'bot'))}>＋ Add a bot</button>
+        <button type="button" disabled={full} onClick={() => onChange(addSeat(seats, 'bot', botSkill))}>＋ Add a bot</button>
         {full && <span className="muted">The table is full.</span>}
       </div>
     </div>

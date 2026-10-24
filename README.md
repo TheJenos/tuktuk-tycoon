@@ -15,8 +15,18 @@ plays without WebGL too.
 
 ## Theme
 
-Everything themed comes from one data file, `src/rules/data/lanka.ts`; prices, rents and card effects are the
-rulebook's.
+Everything themed comes from a board data file; prices, rents and card effects are the rulebook's and the same on
+every board. Four boards, picked when a room or local game is set up (the Board cards at the top of the rules):
+
+- **All Island** (`src/rules/data/lanka.ts`, the default, described below): the whole island in one lap.
+- **Colombo** (`colombo.ts`): Pettah Market Lane up to a Galle Face Sky Suite; Fort, Maradana, Kompannavidiya and
+  Bambalapitiya stations; the Load Shedding and Low Pressure Water Boards; Rush Hour and Office Seettu decks.
+- **Hill Country** (`hill.ts`): Gampola Bazaar up to Little England Mansion; Kandy, Nanu Oya, Haputale and Ella
+  stations; Mountain Mist and Tea Tin decks.
+- **Down South** (`south.ts`): Hambantota Salt Pans up to Bentota Beach Palace; Hikkaduwa, Galle, Weligama and
+  Matara stations; Lucky Wave and Fishermen's Kitty decks.
+
+The All Island board:
 
 - **Money**: Sri Lankan rupees, shown as `Rs. 150,000` (changes as `+Rs. 20,000` / `−Rs. 35,000`). Everyone starts
   with Rs. 150,000. The rules engine counts the rulebook's amounts (start 1500, prices 60 to 400); every amount
@@ -177,6 +187,7 @@ disabled while a move is being committed. A move the rules refuse shows the engi
 | `T` | Trade |
 | `L` | Open or close the event log |
 | `C` | Recenter the camera (and turn automatic framing back on) |
+| `N` | Mute: turns the sound effects and the music off, and the second press back to how they were |
 | `Esc` | The game menu; closes the dialog on top |
 | Drag | Turn the camera (touch: one finger) |
 | Wheel | Zoom (touch: pinch) |
@@ -279,7 +290,8 @@ Saved in the browser as you change them (`tuktuk-settings`), in the lobby's **Se
 - **The camera follows the action**, **Show each player's net worth**, **Reduce motion** (starts from the system
   setting: no camera sweeps, bounces or pulsing).
 - **Panel size**: 80 to 140 %.
-- **Sound** and **Volume** are stored, but the game makes no sounds yet.
+- **Sound effects** and **Effects volume** (dice, token hops, coins, cards, buttons), **Music** and **Music volume**
+  (a looping tune in the lobby and in games, with a short jingle as a game starts). `N` in a game mutes both.
 
 ## Rules decisions
 
@@ -363,7 +375,7 @@ state**: a mulberry32 generator whose whole state is one integer in the game sta
 shuffles, the opening roll), `roll` and the nearest-Board card's fresh throw. So the same commands give the same
 dice on every client, and nobody can change the next roll by slipping in a free action first. The engine has no
 clock: `timer(state)` names the decision being waited on, and the net layer keeps the deadline. Every name, price,
-rent and card comes from one data file, `src/rules/data/lanka.ts`. In dev and test builds every command is
+rent and card comes from the board's data file (`src/rules/data/`). In dev and test builds every command is
 checked against the invariants (no negative cash, the bank's stock adds up, even building, buildings only on whole
 sets, every card accounted for...).
 
@@ -418,6 +430,18 @@ animation, set to the move's real state at the end of each move, so it can never
 idle. A backlog plays faster (1.5×, 3×); Instant animations, a hidden tab and a lost WebGL context fold whole moves at
 once. React never re-renders per frame: motion lives in mutable tracks read in `useFrame`, and the one persistent
 canvas (`Stage`, behind the lobby and the game) draws on demand only, so an idle board costs nothing.
+
+**Sound** (`src/audio`). One Web Audio `AudioContext`, made on the first click or key press (browsers block audio
+before one), with a gain node each for the effects and the music. `src/audio/events.ts` listens to the director
+(`director.onPlay`) and maps each event to a sound: the dice as they are thrown and when they land, a tap per token
+hop timed like the walk, coins in and out (quieter for other players' money), cards, buying, building, mortgages, the
+auction, jail, bankruptcy, your turn, and a win or lose jingle. With Instant animations a move makes at most its two
+most telling sounds; catching up (fast-forward, a snap, a hidden tab) makes none. A delegated listener on the lobby
+and the HUD clicks for buttons; a refused move's toast comes with an error blip. Files are decoded on first use,
+repeated sounds vary their pitch a little and overlap at most a few at a time, the music ducks under jingles and pauses
+with the tab. The files are OGG Vorbis with an MP3 beside each one: browsers that can't play OGG (older Safari versions)
+get the MP3. Nothing plays, and no context is made, in the Playwright build (`VITE_E2E`), with `tuktuk-silent` = `1`
+in localStorage, or while both the effects and the music are off.
 
 **The scene** is generated, with no model, image or font files and nothing fetched (which also keeps Discord's
 content policy happy): the board top is one canvas texture painted from the data file (4096 px, 2048 on Low) with
@@ -661,6 +685,7 @@ plans/                    the approved plan (tuk-tuk-tycoon.md)
 playwright.config.ts      e2e: port 5176, SwiftShader WebGL, the e2e dev server
 public/
   brand/logo.svg          the logo
+  sounds/                 the sound effects and music: OGG Vorbis, and an MP3 of each (credits.html says whose)
   credits.html            the credits page (linked from the lobby)
   favicon.svg             the logo simplified for tiny sizes
 README.md                 this file
@@ -681,7 +706,8 @@ src/
     README.md             its API: commands, phases, events, timers, the engine's own decisions
     index.ts              the public API (import from src/rules only)
     types.ts              every public type: state, actions, phases, events, board data
-    data/lanka.ts         THE data file: 40 spaces, rents, both decks, Speed Die faces, board title and colours
+    data/lanka.ts         the default board's data: 40 spaces, rents, both decks, Speed Die faces, title and colours
+    data/colombo.ts, hill.ts, south.ts   the other boards: the same numbers and card effects, other names
     board.ts              registered boards and space helpers
     config.ts             RulesConfig defaults and clamping; RULES_VERSION
     create.ts             createGame: seats, starting cash, shuffles, the opening roll
@@ -741,6 +767,12 @@ src/
     rejoin.ts             coming back as the same player (tuktuk-session, tuktuk-seats)
     ids.ts                player ids, room codes, invite links, seeded randomness
     __tests__/            MemoryDb, the document, sessions, rooms, presence, races
+  audio/                  SOUND
+    index.ts              initAudio: settings, the first gesture, tab visibility, the director, UI clicks; mute
+    engine.ts             AudioEngine: the AudioContext, decoding, voices, pitch spread, music loop, intro, ducking
+    events.ts             which sound each engine event makes (and the few an Instant move keeps)
+    sounds.ts             the sound list: volume, how many may overlap, pitch spread
+    __tests__/            the engine on a fake AudioContext, the event-to-sound map
   view/                   EVENTS TO ANIMATIONS
     index.ts              director, useView, useIdle
     types.ts              the contract with the scene and the HUD (displayed state, scene APIs)
@@ -902,10 +934,12 @@ src/
 
 ## Changing the theme
 
-Every name, price, rent and card text is in one swappable file, `src/rules/data/lanka.ts` (`display.title` is
-the word in the middle of the board, `display.decks` names the two card decks); the rules logic never hard-codes any
-of them. To play another theme, write another file of the same shape, register it in `src/rules/board.ts` and make
-it `DEFAULT_RULES.board` in `src/rules/config.ts`. The app's own name, "Tuk-Tuk Tycoon", is in `index.html`,
+Every name, price, rent and card text is in one board data file, `src/rules/data/lanka.ts` and its siblings
+(`display.title` is the word in the middle of the board, `display.subtitle` the line under it, `display.name` and
+`display.blurb` what the board picker shows, `display.decks` names the two card decks); the rules logic never
+hard-codes any of them. To add a board, write another file of the same shape, add it to the list in
+`src/rules/board.ts` (the picker follows) and allow its id in `database.rules.json` (`lobby/$room/board` and
+`rooms/$room/setup/rules/board`); `src/rules/__tests__/boards.test.ts` checks it matches the All Island numbers. The app's own name, "Tuk-Tuk Tycoon", is in `index.html`,
 `src/ui/Brand.tsx`, the share text in `src/ui/lobby/WaitingRoom.tsx`, `public/credits.html`, the logo's label in
 `public/brand/logo.svg`, and the heading `e2e/smoke.spec.ts` looks for.
 
@@ -913,5 +947,19 @@ it `DEFAULT_RULES.board` in `src/rules/config.ts`. The app's own name, "Tuk-Tuk 
 
 The game's credits page is `public/credits.html` (linked from the lobby as **Credits**): three.js, React Three Fiber
 and drei, camera-controls, Rapier, React, the Firebase JavaScript SDK and the Discord Embedded App SDK, with their
-licenses. There are no third-party assets: every texture, model and icon is generated in code, and text uses the
-system's fonts.
+licenses. Every texture, model and icon is generated in code, and text uses the system's fonts.
+
+### Assets: sounds and music
+
+Everything in `public/sounds` is public domain ([CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/)),
+trimmed and re-encoded (OGG Vorbis 64 kbps mono for effects, 96 kbps stereo for the music loop, plus MP3s):
+
+| Source | Author | License | Files used → in the game |
+| --- | --- | --- | --- |
+| [Casino Audio](https://kenney.nl/assets/casino-audio) | [Kenney](https://kenney.nl) | CC0 | dice-shake-1 → dice-roll, dice-throw-1 → dice-land, chip-lay-1 → token-hop, chips-collide-1 → cash-in, chips-handle-3 → cash-out, cards-pack-take-out-1 → card-draw, card-slide-3 → card-flip, chip-lay-3 → auction-bid, chips-stack-4 → build, chips-handle-4 → sell, card-shove-2 → mortgage |
+| [Interface Sounds](https://kenney.nl/assets/interface-sounds) | [Kenney](https://kenney.nl) | CC0 | bong_001 → auction-start, glass_001 → turn, click_001 → click, confirmation_001 → confirm, error_008 → error |
+| [Music Jingles](https://kenney.nl/assets/music-jingles) | [Kenney](https://kenney.nl) | CC0 | jingles_STEEL09 → buy, jingles_STEEL04 → auction-sold, jingles_SAX07 → jail, jingles_PIZZI12 → jail-free, jingles_HIT04 → bankrupt, jingles_STEEL13 → win, jingles_PIZZI07 → lose, jingles_STEEL12 → jackpot |
+| [Happy Clappy Loop](https://opengameart.org/content/happy-clappy-loop) | [OwlishMedia](https://opengameart.org/users/owlishmedia) | CC0 | HappyClappyLoop.wav → music-loop (whole, it loops seamlessly) |
+| [Tropoix](https://opengameart.org/content/tropoix) | [Tozan](https://opengameart.org/users/tozan) | CC0 (credit optional) | Tropicx.ogg, its first phrase (0.9 s to 8 s) → music-intro |
+
+To swap a sound, replace both `public/sounds/<name>.ogg` and `.mp3`; volumes and overlap are in `src/audio/sounds.ts`.

@@ -1,14 +1,15 @@
 import { isProperty, pathBack, pathForward } from './board';
-import { type Ctx, emit, isActive, player, prop, setPhase } from './ctx';
+import { type Ctx, collectsRent, emit, isActive, player, prop, setPhase } from './ctx';
 import { transfer } from './money';
 import type { JailReason, MoveVia, SeatId } from './types';
 
-/** GO salary. The first one unlocks the Speed Die (from the next roll on). */
-export function paySalary(c: Ctx, seat: SeatId): void {
-  const amount = c.s.cfg.goSalary;
+/** GO salary (`mul` 2: landing exactly on GO with cfg.doubleGoLanding). Counts a lap; the first unlocks the Speed Die. */
+export function paySalary(c: Ctx, seat: SeatId, mul = 1): void {
+  const amount = c.s.cfg.goSalary * mul;
   emit(c, { t: 'salary', seat, amount });
   transfer(c, 'bank', seat, amount, 'salary');
   const p = player(c.s, seat);
+  p.laps++;
   if (c.s.cfg.speedDie && !p.speed) {
     p.speed = true;
     emit(c, { t: 'speedOn', seat });
@@ -22,7 +23,7 @@ export function moveForward(c: Ctx, seat: SeatId, to: number, via: MoveVia): voi
   const path = pathForward(c.b, from, to);
   p.pos = to;
   emit(c, { t: 'move', seat, from, to, path, via });
-  if (path.includes(0)) paySalary(c, seat);
+  if (path.includes(0)) paySalary(c, seat, to === 0 && c.s.cfg.doubleGoLanding ? 2 : 1);
 }
 
 /** Walk back (Go Back 3): never collects salary */
@@ -80,7 +81,7 @@ export function nextRentOwed(c: Ctx, seat: SeatId, from: number): number | undef
   for (let i = 1; i < n; i++) {
     const space = (from + i) % n;
     const ps = prop(c.s, space);
-    if (ps && ps.owner !== seat && !ps.mortgaged && isActive(c.s, ps.owner)) return space;
+    if (ps && ps.owner !== seat && !ps.mortgaged && isActive(c.s, ps.owner) && collectsRent(c.s, ps.owner)) return space;
   }
   return undefined;
 }

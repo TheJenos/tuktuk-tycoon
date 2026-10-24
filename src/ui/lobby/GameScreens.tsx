@@ -65,6 +65,9 @@ export function LocalGame({ session, name }: { session: Session; name: string })
       seats: seats.map((s) => ({ name: s.name, token: s.token, color: s.color, kind: s.kind, ...(s.kind === 'bot' ? { skill: s.skill ?? 'normal' } : {}) })),
       rules: doc.game.cfg,
       timers: doc.timers,
+      ...(doc.botPace !== undefined ? { pace: doc.botPace } : {}),
+      ...(doc.botSkill ? { botSkill: doc.botSkill } : {}),
+      ...(doc.timeLimit ? { timeLimit: doc.timeLimit } : {}),
     }));
   };
   return <GameView key={keyOf(session)} session={session} onLeave={() => leaveLocal(session)} isOwner ownerActions={ownerActions} onRematch={rematch} />;
@@ -87,6 +90,14 @@ function OnlineGame({ room, session }: { room: Room; session: Session }) {
     () => Object.entries(v.presence).filter(([pid, p]) => pid !== conn.me && !p.seat).map(([pid, p]) => ({ pid, name: p.name })),
     [v.presence, conn.me],
   );
+  // Late join: the seats a spectator could take over (they change with the game and the room's rules)
+  const doc = useSelector(session.view, (x) => x.doc);
+  const takeable = useMemo(() => conn.takeableSeats(), [conn, doc, v.setup]);
+  const lateJoin = useMemo(
+    () => (takeable.length ? { seats: takeable, take: (seat: SeatId) => act(() => conn.takeSeat(seat)) } : undefined),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [conn, takeable.join()],
+  );
   const ownerActions = useMemo<OwnerActions | undefined>(() => (owner ? {
     letBotPlay: (seat: SeatId) => act(() => conn.letBotPlay(seat)),
     giveSeat: (seat: SeatId, to: string) => act(() => conn.assignSeat(seat, to)),
@@ -106,6 +117,7 @@ function OnlineGame({ room, session }: { room: Room; session: Session }) {
       isOwner={owner}
       {...(ownerActions ? { ownerActions } : {})}
       onTakeBack={(seat) => act(() => conn.takeBackControl(seat))}
+      {...(lateJoin ? { lateJoin } : {})}
       {...(owner ? { onRematch: () => act(() => conn.rematch()) } : {})}
     />
   );

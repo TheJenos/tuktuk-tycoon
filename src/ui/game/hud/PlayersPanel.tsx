@@ -6,6 +6,7 @@ import { useView } from '../../../view';
 import { safeColor } from '../../colors';
 import { settings, useSettings } from '../../settings';
 import { useDoc, useGame, useMySeats, useNames, useSessionSel } from '../context';
+import { skillLabel } from '../../lobby/seats';
 import { levelText, money, type Names } from '../format';
 import { stripScroll } from '../layout';
 import { TokenIcon } from '../tokenIcons';
@@ -203,9 +204,8 @@ export const PlayerCard = memo(function PlayerCard({ seat, s, info, names, mine,
           <span className="player-badges">
             {you && <span className="badge accent">You</span>}
             {info?.kind === 'bot' && (
-              <span className="badge bot" title={`Bot, ${info.skill ?? 'normal'} level`}>
-                {/* No-break spaces: the level is a flex item of its own, whose edge spaces would collapse */}
-                Bot{info.skill && <span className="badge-skill">{`\u00a0·\u00a0${info.skill}`}</span>}
+              <span className="badge bot" title={`Bot, ${skillLabel(info.skill)} level`}>
+                {skillLabel(info.skill)}
               </span>
             )}
             {info?.afk && <span className="badge" title="Away: a bot is playing this seat">AFK</span>}

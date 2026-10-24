@@ -1,5 +1,5 @@
 import { propertyAt, siblings } from './board';
-import { type Ctx, emit, err, interest, isActive, isSeat, levelOf, player, prop, rs, setPhase } from './ctx';
+import { type Ctx, emit, err, interest, isActive, isSeat, levelOf, player, prop, rs, setPhase, tradingClosed } from './ctx';
 import { ACCEPT_PHASES, type Handler, isInt, seatAction } from './handler';
 import { transfer } from './money';
 import type { BoardDef, Bundle, GameState, Phase, RuleError, SeatId, Trade } from './types';
@@ -59,6 +59,8 @@ export function tradeProblems(s: GameState, b: BoardDef, t: Omit<Trade, 'id'>): 
     return [err('badParty', 'Both players must still be in the game')];
   }
   if (t.from === t.to) return [err('self', 'You cannot trade with yourself')];
+  const closed = tradingClosed(s, t.from, t.to);
+  if (closed) return [closed];
   if (!isBundle(t.give) || !isBundle(t.get)) return [err('badBundle', 'Malformed offer')];
   const out = [...bundleProblems(s, b, t.from, t.give), ...bundleProblems(s, b, t.to, t.get)];
   if (isEmptyBundle(t.give) && isEmptyBundle(t.get)) out.push(err('empty', 'The offer is empty'));

@@ -1,5 +1,5 @@
 import { useRef, useState, type MouseEvent } from 'react';
-import { othersPlaying } from '../../net/doc';
+import { AFK_STRIKES, othersPlaying } from '../../net/doc';
 import type { PlayerId } from '../../net/types';
 import { getBoard, type SeatId } from '../../rules';
 import { ConfirmButton } from '../ConfirmButton';
@@ -8,6 +8,8 @@ import { MenuPanel, MenuRail, type MenuTab } from '../MenuShell';
 import { useDialogFocus, useEscape } from '../useDialogFocus';
 import { useBusy, useSend } from './actions';
 import { useDoc, useGameSession, useMySeats, useNames, useSessionSel } from './context';
+import { skillLabel } from '../lobby/seats';
+import { afkText, BOT_PACE_LABELS, incomeTaxText, jailName, minutes, parkingName, supplyOf, tradingText } from '../lobby/rulesText';
 import { money, startName, taxName } from './format';
 import { GameSettings } from './GameSettings';
 import { resignQuestion } from './selectors';
@@ -182,7 +184,7 @@ function PlayersView({ owner, actions }: { owner: boolean; actions: OwnerActions
         const p = s.players[seat];
         const human = info?.kind === 'human';
         const out = !!p?.out;
-        const status = out ? (p?.out === 'resigned' ? 'Resigned' : 'Bankrupt') : info?.kind === 'bot' ? `Bot · ${info.skill ?? 'normal'}` : info?.afk ? 'Away (a bot plays)' : !info?.ctrl ? 'Left' : 'Playing';
+        const status = out ? (p?.out === 'resigned' ? 'Resigned' : 'Bankrupt') : info?.kind === 'bot' ? skillLabel(info.skill) : info?.afk ? 'Away (a bot plays)' : !info?.ctrl ? 'Left' : 'Playing';
         const target = giveTo[seat] ?? spectators[0]?.pid ?? '';
         return (
           <li key={seat}>
@@ -228,25 +230,42 @@ const secs = (n: number) => (n > 0 ? `${n} s` : 'off');
 
 function RulesView() {
   const doc = useDoc();
+  const session = useGameSession();
   if (!doc) return null;
   const c = doc.game.cfg;
   const t = doc.timers;
   const b = getBoard(c.board);
+  const online = session.online;
   const rows: [string, string][] = [
+    ['Board', b.display.name],
     ['Rules', c.speedDie ? 'Classic with the Speed Die' : 'Classic'],
     ['Starting cash', `${money(c.startCash)}${c.speedDie ? ` + ${money(c.speedBonus)} (Speed Die)` : ''}`],
-    [`${startName(b)} salary`, money(c.goSalary)],
-    [taxName(b, 'income'), `${money(c.incomeFlat)} or ${c.incomePct}% of worth`],
+    [`${startName(b)} salary`, c.doubleGoLanding ? `${money(c.goSalary)}, ${money(c.goSalary * 2)} for landing on it` : money(c.goSalary)],
+    [taxName(b, 'income'), incomeTaxText(c)],
     [taxName(b, 'luxury'), money(c.luxuryTax)],
+    [`${parkingName(b)} jackpot`, c.jackpot ? `On: ${money(doc.game.pot)} waiting` : 'Off'],
     ['Jail fine', money(c.jailFine)],
-    ['Bank stock', `${c.houses} houses, ${c.hotels} hotels`],
+    ['Bank stock', supplyOf(c) === 'unlimited' ? 'Unlimited houses and hotels' : `${c.houses} houses, ${c.hotels} hotels`],
     ['Mortgage interest', `${c.mortgagePct}%`],
     ...(c.speedDie ? [['Triples', c.triplesRollAgain ? 'Move anywhere, then roll again' : 'Move anywhere'] as [string, string]] : []),
+    ['Three doubles', c.threeDoublesJail ? `Go to the ${jailName(b)}` : 'Just roll again'],
+    ['Auctions', c.auctions ? 'Property nobody buys is auctioned' : 'Off: property nobody buys stays with the bank'],
+    ['First lap', c.buyAfterFirstLap ? `No buying until you have passed ${startName(b)} once` : 'Buy from the start'],
+    ['Rent while in jail', c.jailRent ? 'Collected' : 'Not collected'],
+    ['Quick-start deal', c.dealProperties > 0 ? `${c.dealProperties} free propert${c.dealProperties === 1 ? 'y' : 'ies'} each` : 'None'],
+    ['Trading', tradingText(c)],
+    ['Game ends', c.endMode === 'firstBankrupt' ? 'At the first bankruptcy, ranked by net worth' : 'When one player is left'],
     ['Turn limit', c.turnLimit > 0 ? `${c.turnLimit} turns, then ranked by net worth` : 'None'],
+    ['Time limit', doc.timeLimit ? `${minutes(doc.timeLimit)}, then ranked by net worth` : 'None'],
     ['Turn timer', secs(t.turn)],
     ['Decision timer', secs(t.decision)],
     ['Auction countdown', `${secs(t.auction)}, restarting at each bid`],
     ['Debt timer', secs(t.debt)],
+    ['Bot speed', BOT_PACE_LABELS[doc.botPace ?? 1] ?? 'Normal'],
+    ...(online ? [
+      ['A bot plays for an absent player', afkText(doc.afkStrikes ?? AFK_STRIKES)] as [string, string],
+      ['Bots for absent players play at', skillLabel(doc.botSkill)] as [string, string],
+    ] : []),
   ];
   return (
     <>
@@ -258,7 +277,9 @@ function RulesView() {
           </div>
         ))}
       </dl>
-      <p className="muted small">Rent is collected automatically. Auctions are open bidding: anyone still in may raise at any time.</p>
+      <p className="muted small">
+        Rent is collected automatically.{doc.game.cfg.auctions ? ' Auctions are open bidding: anyone still in may raise at any time.' : ''}
+      </p>
     </>
   );
 }

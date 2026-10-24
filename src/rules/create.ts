@@ -1,4 +1,4 @@
-import { getBoard } from './board';
+import { getBoard, isProperty } from './board';
 import { RULES_VERSION, normalizeConfig } from './config';
 import { d6, seedState, shuffle } from './rng';
 import type { GameEvent, GameState, PlayerState, RulesConfig, SeatId } from './types';
@@ -53,7 +53,22 @@ export function createGame(
   const players: Partial<Record<SeatId, PlayerState>> = {};
   for (const x of seats) {
     const name = String(x.name).trim().slice(0, NAME_MAX);
-    players[x.id] = { seat: x.id, name, cash, pos: 0, goojf: [], speed: false };
+    players[x.id] = { seat: x.id, name, cash, pos: 0, goojf: [], speed: false, laps: 0 };
+  }
+  events.push({ t: 'order', order: [...order] });
+
+  // Quick-start deal: N random properties each, dealt round-robin in turn order (never more than the board holds)
+  const props: GameState['props'] = {};
+  const all = b.spaces.flatMap((sp, i) => (isProperty(sp) ? [i] : []));
+  const per = Math.min(rules.dealProperties, Math.floor(all.length / order.length));
+  if (per > 0) {
+    const deck = shuffle(h, all);
+    for (let i = 0; i < per * order.length; i++) {
+      const space = deck[i] as number;
+      const to = order[i % order.length] as SeatId;
+      props[`p${space}`] = { owner: to, level: 0 };
+      events.push({ t: 'owner', space, to, via: 'deal' });
+    }
   }
 
   const state: GameState = {
@@ -67,12 +82,13 @@ export function createGame(
     turn: { seat: first, no: 1, doubles: 0, again: false },
     phase: { k: 'preRoll' },
     pending: [],
-    props: {},
+    props,
     bank: { houses: rules.houses, hotels: rules.hotels },
     decks: { chance, chest },
+    pot: 0,
     trades: {},
     rig: [],
   };
-  events.push({ t: 'order', order: [...order] }, { t: 'turn', seat: first, no: 1 });
+  events.push({ t: 'turn', seat: first, no: 1 });
   return { state, events };
 }

@@ -1,8 +1,8 @@
-import { DEFAULT_RULES, RULES_VERSION, SEAT_IDS, type RulesConfig, type SeatId } from '../rules';
+import { BOARD_IDS, DEFAULT_RULES, RULES_VERSION, SEAT_IDS, type EndMode, type IncomeTaxMode, type RulesConfig, type SeatId, type TradingMode } from '../rules';
 import { ONLINE_TIMERS, type TimerRules } from '../shared/timing';
 import { SEAT_COLORS, TOKENS, isTokenId, type TokenId } from '../shared/tokens';
 import type { Db } from './db';
-import { cleanSeat, createDoc, encodeDoc, othersPlaying, seatsOf } from './doc';
+import { AFK_STRIKES, BOT_PACES, BOT_SKILLS, cleanSeat, createDoc, drivenSeat, encodeDoc, othersPlaying, seatsOf } from './doc';
 import { envelopeId, gameId, isPlayerId, randomSeed, roomCode } from './ids';
 
 export { inviteCode } from './ids';
@@ -13,8 +13,8 @@ import type { BotSkill, DispatchResult, Doc, PlayerId, SeatInfo } from './types'
 /*
  * Online rooms over a Db (FirebaseDb in the browser, MemoryDb in tests).
  *
- *   lobby/{code}               {name, host, hostId, createdAt, status, v, speedDie, maxSeats, seatsTaken, public,
- *                               lastMoveAt, members{pid: name}}   small: everyone in the lobby list downloads it
+ *   lobby/{code}               {name, host, hostId, createdAt, status, v, speedDie, board, maxSeats, seatsTaken, public,
+ *                               spectators, lateJoin, lastMoveAt, members{pid: name}}   small: everyone in the lobby list downloads it
  *   rooms/{code}/setup         {rules, seats{seatId: SeatInfo}, locked: gid|'', op}   the waiting room (by transaction;
  *                               op is the last edit's id, so an edit run again after a lost ack sees it landed)
  *   rooms/{code}/state         {gid, seq, v, at, data}   the game (Session, by transaction only)
@@ -39,28 +39,74 @@ export interface LobbyRecord {
   /** RULES_VERSION of the client that made the room */
   v?: number;
   speedDie: boolean;
+  /** Mirrors the room rule: the board id (absent = the default board) */
+  board?: string;
   maxSeats: number;
   seatsTaken: number;
   public: boolean;
+  /** Mirrors the room rule: people without a seat may watch (absent = true) */
+  spectators?: boolean;
+  /** Mirrors the room rule: a spectator may take over a bot's or an abandoned seat in a running game */
+  lateJoin?: boolean;
   lastMoveAt?: number;
   /** Connected humans only (onDisconnect removes them) */
   members?: Record<PlayerId, string>;
 }
 
-/** rooms/{code}/setup/rules: the RulesConfig fields a room may change, plus its timers in seconds (0 = off) */
-export interface RoomRules {
+/**
+ * rooms/{code}/setup/rules: the RulesConfig fields a room may change, its timers in seconds (0 = off), and the
+ * room-level options (RoomOptions). Every key must also be in DEFAULT_ROOM_RULES (setRules keeps only those) and have
+ * a validate block in database.rules.json (anything else is refused).
+ */
+export interface RoomRules extends RoomOptions {
+  /** The board id (getBoard): the theme only, every board has the same numbers */
+  board: string;
   speedDie: boolean;
   startCash: number;
   luxuryTax: number;
   triplesRollAgain: boolean;
   /** Total turns before the game ends ranked by worth (0 = no limit) */
   turnLimit: number;
+  goSalary: number;
+  incomeFlat: number;
+  incomePct: number;
+  jailFine: number;
+  mortgagePct: number;
+  houses: number;
+  hotels: number;
+  doubleGoLanding: boolean;
+  jackpot: boolean;
+  incomeTaxMode: IncomeTaxMode;
+  auctions: boolean;
+  buyAfterFirstLap: boolean;
+  jailRent: boolean;
+  threeDoublesJail: boolean;
+  dealProperties: number;
+  endMode: EndMode;
+  trading: TradingMode;
+  tradeAfterLap: number;
   turnTimer: number;
   decisionTimer: number;
   auctionTimer: number;
   debtTimer: number;
   /** e2e only: set by admin seeding, refused from clients by the database rules */
   debug?: boolean;
+}
+
+/** Room options that are not engine rules: the net layer (Doc, driver, joining) applies them */
+export interface RoomOptions {
+  /** Timeouts in a row before a bot plays the seat (0 = never) */
+  afkStrikes: number;
+  /** Bot thinking time multiplier: 0.5 quick, 1, 2 slow */
+  botPace: number;
+  /** The level of a new bot, and of a bot playing for an absent player */
+  botSkill: BotSkill;
+  /** People without a seat may watch */
+  spectators: boolean;
+  /** A spectator may take over a bot's or an abandoned seat while the game runs */
+  lateJoin: boolean;
+  /** Minutes until the game ends ranked by net worth (0 = no limit) */
+  timeLimit: number;
 }
 
 export interface SetupRecord {
@@ -85,11 +131,17 @@ export interface RoomSummary {
   host: string;
   status: RoomStatus;
   speedDie: boolean;
+  /** The board id (the default board for rooms made before boards could be picked) */
+  board: string;
   maxSeats: number;
   seatsTaken: number;
   /** Names of the connected players */
   players: string[];
   public: boolean;
+  /** People without a seat may watch */
+  spectators: boolean;
+  /** A spectator may take a bot's or an abandoned seat in the running game */
+  lateJoin: boolean;
   createdAt: number;
   lastMoveAt?: number;
   /** Made by another game version: joining is refused */
@@ -113,7 +165,7 @@ export interface RoomHandlers {
 
 export class RoomError extends Error {
   constructor(
-    readonly code: 'closed' | 'version' | 'kicked' | 'full' | 'started' | 'token' | 'owner' | 'seats' | 'taken' | 'bad',
+    readonly code: 'closed' | 'version' | 'kicked' | 'full' | 'started' | 'token' | 'owner' | 'seats' | 'taken' | 'bad' | 'spectators',
     message: string,
   ) {
     super(message);
@@ -128,52 +180,94 @@ export const IDLE_GAME_MS = 24 * 60 * 60 * 1000;
 /** The driver refreshes lobby.lastMoveAt at most this often */
 const LAST_MOVE_EVERY_MS = 60_000;
 
-const BOT_NAMES = ['Ava', 'Max', 'Ivy', 'Leo', 'Zoe', 'Kai', 'Mia', 'Rex'];
+/** Bot names: common Sri Lankan first names */
+const BOT_NAMES = ['Nimal', 'Kamala', 'Kasun', 'Dilini', 'Ruwan', 'Sanduni', 'Chamara', 'Nadeesha'];
+
+export const DEFAULT_ROOM_OPTIONS: RoomOptions = {
+  afkStrikes: AFK_STRIKES,
+  botPace: 1,
+  botSkill: 'normal',
+  spectators: true,
+  lateJoin: false,
+  timeLimit: 0,
+};
+
+/** The engine rules a room stores (RulesConfig keys, in RoomRules) */
+export const ROOM_ENGINE_KEYS = [
+  'board', 'speedDie', 'startCash', 'luxuryTax', 'triplesRollAgain', 'turnLimit', 'goSalary', 'incomeFlat', 'incomePct', 'jailFine',
+  'mortgagePct', 'houses', 'hotels', 'doubleGoLanding', 'jackpot', 'incomeTaxMode', 'auctions', 'buyAfterFirstLap', 'jailRent',
+  'threeDoublesJail', 'dealProperties', 'endMode', 'trading', 'tradeAfterLap',
+] as const satisfies readonly (keyof RoomRules & keyof RulesConfig)[];
+type RoomEngineKey = (typeof ROOM_ENGINE_KEYS)[number];
 
 export const DEFAULT_ROOM_RULES: RoomRules = {
-  speedDie: DEFAULT_RULES.speedDie,
-  startCash: DEFAULT_RULES.startCash,
-  luxuryTax: DEFAULT_RULES.luxuryTax,
-  triplesRollAgain: DEFAULT_RULES.triplesRollAgain,
+  ...(Object.fromEntries(ROOM_ENGINE_KEYS.map((k) => [k, DEFAULT_RULES[k]])) as Pick<RulesConfig, RoomEngineKey>),
   turnLimit: 0,
   turnTimer: ONLINE_TIMERS.turn,
   decisionTimer: ONLINE_TIMERS.decision,
   auctionTimer: ONLINE_TIMERS.auction,
   debtTimer: ONLINE_TIMERS.debt,
+  ...DEFAULT_ROOM_OPTIONS,
+};
+
+/** Allowed values of the room's enum-like fields (setRules drops others; so does the database) */
+const ROOM_ENUMS: Partial<Record<keyof RoomRules, readonly unknown[]>> = {
+  board: BOARD_IDS,
+  incomeTaxMode: ['choice', 'flat', 'percent'],
+  endMode: ['lastStanding', 'firstBankrupt'],
+  trading: ['on', 'off', 'afterLap'],
+  botSkill: BOT_SKILLS,
+  botPace: BOT_PACES,
 };
 
 const num = (v: unknown, fallback: number): number => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
 
-/** Room rules from engine rules and timers (what the create wizard picked) */
-export function toRoomRules(rules: Partial<RulesConfig> = {}, timers: TimerRules = ONLINE_TIMERS): RoomRules {
+/** Room options, validated (missing or wrong values take the defaults) */
+export function roomOptions(raw?: Partial<Record<keyof RoomOptions, unknown>> | null): RoomOptions {
+  const r = raw ?? {};
+  const d = DEFAULT_ROOM_OPTIONS;
   return {
-    speedDie: rules.speedDie ?? DEFAULT_ROOM_RULES.speedDie,
-    startCash: rules.startCash ?? DEFAULT_ROOM_RULES.startCash,
-    luxuryTax: rules.luxuryTax ?? DEFAULT_ROOM_RULES.luxuryTax,
-    triplesRollAgain: rules.triplesRollAgain ?? DEFAULT_ROOM_RULES.triplesRollAgain,
-    turnLimit: rules.turnLimit ?? 0,
+    afkStrikes: Math.max(0, Math.min(10, Math.round(num(r.afkStrikes, d.afkStrikes)))),
+    botPace: BOT_PACES.includes(r.botPace as number) ? (r.botPace as number) : d.botPace,
+    botSkill: BOT_SKILLS.includes(r.botSkill as BotSkill) ? (r.botSkill as BotSkill) : d.botSkill,
+    spectators: r.spectators !== false,
+    lateJoin: r.lateJoin === true,
+    timeLimit: Math.max(0, Math.min(600, Math.round(num(r.timeLimit, d.timeLimit)))),
+  };
+}
+
+/** Room rules from engine rules, timers and room options (what the create wizard picked) */
+export function toRoomRules(rules: Partial<RulesConfig> = {}, timers: TimerRules = ONLINE_TIMERS, options: Partial<RoomOptions> = {}): RoomRules {
+  const engine = {} as Record<RoomEngineKey, unknown>;
+  for (const k of ROOM_ENGINE_KEYS) engine[k] = rules[k] ?? DEFAULT_ROOM_RULES[k];
+  if (!BOARD_IDS.includes(engine.board as string)) engine.board = DEFAULT_ROOM_RULES.board;
+  return {
+    ...(engine as Pick<RoomRules, RoomEngineKey>),
     turnTimer: timers.turn,
     decisionTimer: timers.decision,
     auctionTimer: timers.auction,
     debtTimer: timers.debt,
+    ...roomOptions(options),
   };
 }
 
 /**
- * Engine rules and timers from stored room rules (missing fields take defaults). A room seeded with only
- * `turnTimer: 0` has every human timer off; the auction always keeps one.
+ * Engine rules, timers and room options from stored room rules (missing fields take defaults). A room seeded with
+ * only `turnTimer: 0` has every human timer off; the auction always keeps one. createGame clamps the engine values
+ * (normalizeConfig).
  */
-export function roomConfig(raw?: Partial<RoomRules> | null): { rules: Partial<RulesConfig>; timers: TimerRules } {
+export function roomConfig(raw?: Partial<RoomRules> | null): { rules: Partial<RulesConfig>; timers: TimerRules; options: RoomOptions } {
   const r = (raw ?? {}) as Partial<Record<keyof RoomRules, unknown>>;
   const turn = num(r.turnTimer, DEFAULT_ROOM_RULES.turnTimer);
   const off = turn === 0;
-  const rules: Partial<RulesConfig> = {
-    speedDie: r.speedDie === true,
-    startCash: num(r.startCash, DEFAULT_ROOM_RULES.startCash),
-    luxuryTax: num(r.luxuryTax, DEFAULT_ROOM_RULES.luxuryTax),
-    triplesRollAgain: r.triplesRollAgain !== false,
-    turnLimit: num(r.turnLimit, 0),
-  };
+  const rules: Partial<RulesConfig> = {};
+  for (const k of ROOM_ENGINE_KEYS) {
+    const v = r[k];
+    if (v !== undefined && typeof v === typeof DEFAULT_ROOM_RULES[k]) (rules as Record<string, unknown>)[k] = v;
+  }
+  rules.speedDie = r.speedDie === true;
+  rules.triplesRollAgain = r.triplesRollAgain !== false;
+  rules.turnLimit = num(r.turnLimit, 0);
   if (r.debug === true) rules.debug = true;
   const timers: TimerRules = {
     turn,
@@ -181,7 +275,7 @@ export function roomConfig(raw?: Partial<RoomRules> | null): { rules: Partial<Ru
     auction: num(r.auctionTimer, DEFAULT_ROOM_RULES.auctionTimer),
     debt: num(r.debtTimer, off ? 0 : DEFAULT_ROOM_RULES.debtTimer),
   };
-  return { rules, timers };
+  return { rules, timers, options: roomOptions(r) };
 }
 
 /** The setup as stored, with its containers filled in (RTDB drops empty ones) */
@@ -206,7 +300,7 @@ export function rematchSeats(doc: Doc, here: ReadonlySet<PlayerId>): SetupRecord
   const out: SetupRecord['seats'] = {};
   for (const s of Object.values(doc.seats) as SeatInfo[]) {
     out[s.seat] = s.kind === 'bot' || !s.ctrl
-      ? cleanSeat({ ...s, kind: 'bot', ctrl: '', skill: s.skill ?? 'normal', afk: false })
+      ? cleanSeat({ ...s, kind: 'bot', ctrl: '', skill: s.skill ?? doc.botSkill ?? 'normal', afk: false })
       : cleanSeat({ ...s, afk: !here.has(s.ctrl) });
   }
   return out;
@@ -326,10 +420,13 @@ export function watchRooms(db: Db, cb: (rooms: RoomSummary[]) => void, onError?:
         host: String(rec.host ?? ''),
         status: rec.status ?? 'waiting',
         speedDie: rec.speedDie === true,
+        board: typeof rec.board === 'string' && BOARD_IDS.includes(rec.board) ? rec.board : DEFAULT_RULES.board,
         maxSeats: num(rec.maxSeats, 8),
         seatsTaken: num(rec.seatsTaken, 0),
         players,
         public: true,
+        spectators: rec.spectators !== false,
+        lateJoin: rec.lateJoin === true,
         createdAt: num(rec.createdAt, 0),
         ...(typeof rec.lastMoveAt === 'number' ? { lastMoveAt: rec.lastMoveAt } : {}),
         otherVersion: typeof rec.v === 'number' && rec.v !== RULES_VERSION,
@@ -356,6 +453,8 @@ export interface CreateRoomOptions {
   name: string;
   rules?: Partial<RulesConfig>;
   timers?: TimerRules;
+  /** Room options (AFK, bot pace and level, spectators, late join, time limit); defaults for the rest */
+  options?: Partial<RoomOptions>;
   maxSeats?: number;
   public?: boolean;
   bots?: Array<{ skill: BotSkill }>;
@@ -430,7 +529,7 @@ export class RoomConnection {
     const clock = await serverClock(db);
     const maxSeats = Math.min(8, Math.max(2, Math.round(o.maxSeats ?? 8)));
     const bots = (o.bots ?? []).slice(0, maxSeats - 1);
-    const roomRules = toRoomRules(o.rules, o.timers);
+    const roomRules = toRoomRules(o.rules, o.timers, o.options);
     let code = o.code ?? '';
     const record = (): LobbyRecord => ({
       name: o.name.slice(0, 24),
@@ -440,9 +539,12 @@ export class RoomConnection {
       status: 'waiting',
       v: RULES_VERSION,
       speedDie: roomRules.speedDie,
+      board: roomRules.board,
       maxSeats,
       seatsTaken: 1 + bots.length,
       public: o.public !== false,
+      spectators: roomRules.spectators,
+      lateJoin: roomRules.lateJoin,
       members: { [o.me]: o.host },
     });
     for (let tries = 0; ; tries++) {
@@ -493,6 +595,18 @@ export class RoomConnection {
       } catch (err) {
         // A full or just-started room: watch instead
         if (!(err instanceof RoomError) || (err.code !== 'full' && err.code !== 'started')) throw err;
+      }
+    }
+    if (!conn.mySeat() && conn.setup()?.rules.spectators === false) {
+      // No watching here (checked by this client only: the database can't see who is a spectator). A running game
+      // with late join may still have a seat to take over.
+      const free = o.seat !== false ? conn.takeableSeats()[0] : undefined;
+      const took = free ? (await conn.takeSeat(free)).ok : false;
+      if (!took) {
+        await conn.leave();
+        throw new RoomError('spectators', o.seat === false || lobby.status === 'waiting'
+          ? "This room doesn't allow spectators."
+          : "This room doesn't allow spectators, and no seat is free.");
       }
     }
     rememberRoom(code, o.me);
@@ -683,15 +797,23 @@ export class RoomConnection {
     const clean: Record<string, unknown> = {};
     for (const key of Object.keys(DEFAULT_ROOM_RULES) as (keyof RoomRules)[]) {
       const v = patch[key];
-      if (v !== undefined && typeof v === typeof DEFAULT_ROOM_RULES[key]) clean[key] = v;
+      if (v === undefined || typeof v !== typeof DEFAULT_ROOM_RULES[key]) continue;
+      if (typeof v === 'number' && !Number.isFinite(v)) continue;
+      const allowed = ROOM_ENUMS[key];
+      if (allowed && !allowed.includes(v)) continue;
+      clean[key] = v;
     }
     if (!Object.keys(clean).length) return;
     await this.db.update(`${roomPath(this.code)}/setup/rules`, clean);
-    if (typeof clean.speedDie === 'boolean') await this.db.update(lobbyPath(this.code), { speedDie: clean.speedDie });
+    // What the Rooms list shows
+    const mirror: Partial<LobbyRecord> = {};
+    for (const k of ['speedDie', 'spectators', 'lateJoin'] as const) if (typeof clean[k] === 'boolean') mirror[k] = clean[k] as boolean;
+    if (typeof clean.board === 'string') mirror.board = clean.board;
+    if (Object.keys(mirror).length) await this.db.update(lobbyPath(this.code), mirror);
   }
 
-  /** Owner: put a bot in the first free seat */
-  addBot(skill: BotSkill = 'normal'): Promise<SeatId> {
+  /** Owner: put a bot in the first free seat (at the room's bot level unless told otherwise) */
+  addBot(skill: BotSkill = this.setupRec?.rules.botSkill ?? 'normal'): Promise<SeatId> {
     this.requireOwner();
     const max = this.lobbyRec?.maxSeats ?? 8;
     return this.editSetup<SeatId>((s) => {
@@ -805,9 +927,12 @@ export class RoomConnection {
     const seats = setupSeats(setup);
     if (seats.length < MIN_START_SEATS) return;
     // The rules as stored: readSetup's defaults would switch on timers that a room seeded with turnTimer 0 has off
-    const { rules, timers } = roomConfig(raw?.rules);
+    const { rules, timers, options } = roomConfig(raw?.rules);
     const at = this.game.serverNow();
-    const doc = createDoc({ gid, seats, rules, timers, seed: randomSeed(), at });
+    const doc = createDoc({
+      gid, seats, rules, timers, seed: randomSeed(), at,
+      afkStrikes: options.afkStrikes, botPace: options.botPace, botSkill: options.botSkill, timeLimit: options.timeLimit,
+    });
     const record: StateRecord = { gid, seq: 0, v: RULES_VERSION, at, data: encodeDoc(doc) };
     await this.db.transact<StateRecord>(`${roomPath(this.code)}/state`, (cur) => (cur && cur.gid === gid ? undefined : record));
     // Only a waiting room becomes playing (never a finished one, nor one a rematch is resetting)
@@ -835,7 +960,7 @@ export class RoomConnection {
       const s = seats[seat];
       if (!s) return { code: 'badSeat', message: 'Nobody sits there' };
       seats[seat] = to === 'bot'
-        ? cleanSeat({ ...s, kind: 'bot', ctrl: '', skill: s.skill ?? 'normal', afk: false })
+        ? cleanSeat({ ...s, kind: 'bot', ctrl: '', skill: s.skill ?? this.setupRec?.rules.botSkill ?? 'normal', afk: false })
         : cleanSeat({ ...s, kind: 'human', ctrl: to, afk: false, name: name ?? s.name });
       return null;
     });
@@ -852,6 +977,44 @@ export class RoomConnection {
     const s = this.game.current()?.seats[seat];
     if (!this.isOwner() && s?.ctrl !== this.me) return Promise.resolve({ ok: false, code: 'notYourSeat', message: 'That is not your seat' });
     return this.game.setAfk(seat, false);
+  }
+
+  /** Late join: may this player take over a seat in the running game? (spectating, the room allows it, not over) */
+  lateJoinOpen(): boolean {
+    const doc = this.game.current();
+    return !!doc && doc.game.phase.k !== 'over' && this.setupRec?.rules.lateJoin === true && !seatsOf(doc, this.me).length;
+  }
+
+  /** Seats a spectator could take over now: still in the game, played by a bot or by nobody (none without late join) */
+  takeableSeats(): SeatId[] {
+    const doc = this.game.current();
+    if (!doc || !this.lateJoinOpen()) return [];
+    return SEAT_IDS.filter((id) => {
+      const s = doc.seats[id];
+      const p = doc.game.players[id];
+      return !!s && !!p && !p.out && (s.kind === 'bot' || !s.ctrl);
+    });
+  }
+
+  /** Late join: a spectator takes over a bot's or an abandoned seat in the running game (its record starts clean) */
+  takeSeat(seat: SeatId): Promise<DispatchResult> {
+    if (this.setupRec?.rules.lateJoin !== true) {
+      return Promise.resolve({ ok: false, code: 'lateJoin', message: "This room doesn't let people join a game in progress." });
+    }
+    const me = this.me;
+    const name = this.name.slice(0, 16);
+    return this.game.editSeats((seats, doc) => {
+      if (doc.game.phase.k === 'over') return { code: 'over', message: 'The game is over.' };
+      if ((Object.values(seats) as SeatInfo[]).some((x) => x.kind === 'human' && x.ctrl === me)) {
+        return { code: 'seated', message: 'You already have a seat.' };
+      }
+      const s = seats[seat];
+      const p = doc.game.players[seat];
+      if (!s || !p || p.out) return { code: 'badSeat', message: 'That seat is not in the game.' };
+      if (!(s.kind === 'bot' || !s.ctrl) || !drivenSeat(s)) return { code: 'taken', message: 'Someone is playing that seat.' };
+      seats[seat] = cleanSeat({ ...s, kind: 'human', ctrl: me, name, afk: false });
+      return null;
+    });
   }
 
   /** Human seats other players are still playing (Finish now waits until there are none) */

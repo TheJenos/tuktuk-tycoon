@@ -1,7 +1,8 @@
 // Headless random-legal-action games against the rules engine, with invariants checked after every command.
-// npm run sim -- [games] [--players=N] [--speed] [--seed=N] [--turns=N]
+// npm run sim -- [games] [--players=N] [--speed] [--seed=N] [--turns=N] [--options]
+// --options varies the optional rules (jackpot, auctions off, first lap, quick deal, ...) game by game.
 import { apply, createGame, encode, SEAT_IDS } from '../src/rules';
-import { randFrom, randomCommand } from '../src/rules/randomPlayer';
+import { randFrom, randomCommand, variedRules } from '../src/rules/randomPlayer';
 import type { GameState, OverPhase } from '../src/rules';
 
 const args = process.argv.slice(2);
@@ -15,6 +16,7 @@ const players = Math.min(8, Math.max(2, flag('players', 4)));
 const speedDie = args.includes('--speed');
 const seed0 = flag('seed', 1);
 const turnLimit = flag('turns', 400);
+const options = args.includes('--options');
 const MAX_COMMANDS = 50_000;
 
 interface Stats {
@@ -31,7 +33,7 @@ interface Stats {
 }
 
 const stats: Stats = {
-  ends: { lastStanding: 0, turnLimit: 0, endGame: 0, stuck: 0 },
+  ends: { lastStanding: 0, firstBankrupt: 0, turnLimit: 0, endGame: 0, timeUp: 0, stuck: 0 },
   turns: [],
   commands: 0,
   refused: 0,
@@ -47,7 +49,7 @@ const started = Date.now();
 for (let g = 0; g < games; g++) {
   const seed = seed0 + g;
   const seats = SEAT_IDS.slice(0, players).map((id, i) => ({ id, name: `Bot ${i + 1}` }));
-  let s: GameState = createGame({ speedDie, turnLimit }, seats, seed).state;
+  let s: GameState = createGame({ ...(options ? variedRules(seed) : {}), speedDie, turnLimit }, seats, seed).state;
   const r = randFrom(seed * 2654435761);
   let n = 0;
   for (; n < MAX_COMMANDS && s.phase.k !== 'over'; n++) {
@@ -76,7 +78,7 @@ for (let g = 0; g < games; g++) {
 
 const avg = (xs: number[]): number => (xs.length ? xs.reduce((a, x) => a + x, 0) / xs.length : 0);
 const played = stats.turns.length;
-console.log(`sim: ${played} games, ${players} players, Speed Die ${speedDie ? 'on' : 'off'}, turn limit ${turnLimit}`);
+console.log(`sim: ${played} games, ${players} players, Speed Die ${speedDie ? 'on' : 'off'}, turn limit ${turnLimit}${options ? ', options varied' : ''}`);
 console.log(`  ended: ${JSON.stringify(stats.ends)}`);
 console.log(`  turns per game: avg ${avg(stats.turns).toFixed(1)}, max ${Math.max(...stats.turns)}`);
 console.log(`  commands: ${stats.commands} (${(stats.commands / Math.max(1, played)).toFixed(0)} per game)`);

@@ -1,5 +1,6 @@
 import { createRoot } from 'react-dom/client';
 import '../style.css';
+import { audioState, initAudio } from '../audio';
 import { createLocalSession, createDoc, encodeDoc, type LocalSeat } from '../net';
 import { localSeats, SOLO_SAVE_KEY } from '../net/local';
 import { apply, RULES_VERSION, timer, type Action, type GameState, type SeatId } from '../rules';
@@ -13,7 +14,7 @@ import { settings, type AnimSpeed, type Quality } from '../ui/settings';
 /*
  * DEV TOOL (not part of the app or its build): the whole game screen (3D stage + GameView) over a local session,
  * for checking the HUD without the lobby.
- *   npx vite, then open /src/dev/game.html?seats=hhbb&speed=1[&quality=low][&anim=fast][&seed=7][&gl=0][&pace=20]
+ *   npx vite, then open /src/dev/game.html?seats=hhbb&speed=1[&board=colombo|hill|south][&quality=low][&anim=fast][&seed=7][&gl=0][&pace=20]
  *   [&scenario=start|buy|tax|bus|triple|auction|jail|debt|xfer|claim|trades|build|over][&presence=1][&reduced=1]
  *   seats: one letter per seat, h = human (all played from this tab: hot-seat), b = bot. The rules have debug on,
  *   so window.game.test.rig() works. A scenario starts the game mid-way at that decision for s0 (saved as the solo
@@ -37,7 +38,7 @@ const seats: LocalSeat[] = letters.map((l, i) => ({
   color: SEAT_COLORS[i] ?? '#888',
   kind: l === 'h' ? 'human' : 'bot',
 }));
-const rules = { speedDie: q.get('speed') === '1', debug: true };
+const rules = { speedDie: q.get('speed') === '1', debug: true, ...(q.get('board') ? { board: q.get('board') as string } : {}) };
 const seed = Number(q.get('seed') ?? 7);
 
 type Run = (seat: SeatId, a: Action) => void;
@@ -148,6 +149,8 @@ if (q.get('presence') === '1') {
   session.view.update({ presence: Object.fromEntries(humans.map((seat, i) => [seat, i === 0 ? 'online' : 'offline'])) });
 }
 sessionStore.set({ session });
+initAudio();
+(window as { audio?: typeof audioState }).audio = audioState;
 
 const root = document.getElementById('root');
 if (root)

@@ -10,7 +10,8 @@ import { SEAT_COLORS, TOKENS, type TokenId } from '../../shared/tokens';
 export const MIN_SEATS = 2;
 export const MAX_SEATS = 8;
 
-export const BOT_NAMES = ['Ava', 'Max', 'Ivy', 'Leo', 'Zoe', 'Kai', 'Mia', 'Rex'] as const;
+/** Bot names: common Sri Lankan first names */
+export const BOT_NAMES = ['Nimal', 'Kamala', 'Kasun', 'Dilini', 'Ruwan', 'Sanduni', 'Chamara', 'Nadeesha'] as const;
 
 export const SKILLS: { value: BotSkill; label: string; hint: string }[] = [
   { value: 'easy', label: 'Easy', hint: 'Buys on a whim, never trades' },

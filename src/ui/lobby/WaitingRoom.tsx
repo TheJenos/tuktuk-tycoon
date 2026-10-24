@@ -9,7 +9,7 @@ import { Brand } from '../Brand';
 import { ConfirmButton } from '../ConfirmButton';
 import { friendlyError } from '../errors';
 import { MenuPanel, MenuPlay, MenuRail, type MenuTab } from '../MenuShell';
-import { DEFAULT_DRAFT, roomDraft, roomPatch, RulesForm, RulesSummary } from './RulesForm';
+import { DEFAULT_DRAFT, roomDraft, roomPatch, RulesForm, RulesSummary, rulesTitle } from './RulesForm';
 import { SettingsView } from './SettingsView';
 import { SeatToken, TokenPicker } from './TokenPicker';
 import { SKILLS, skillLabel } from './seats';
@@ -35,7 +35,7 @@ export function WaitingRoom({ room, name }: { room: Room; name: string }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [toast, setToast] = useState<{ n: number; text: string } | null>(null);
-  const [newBot, setNewBot] = useState<BotSkill>('normal');
+  const [newBot, setNewBot] = useState<BotSkill | null>(null);
   const [editing, setEditing] = useState<SeatId | null>(null);
   const toastTimer = useRef(0);
   useEffect(() => () => clearTimeout(toastTimer.current), []);
@@ -50,6 +50,8 @@ export function WaitingRoom({ room, name }: { room: Room; name: string }) {
   const here = (pid: string) => !!pid && (!!v.presence[pid] || lobby?.members?.[pid] !== undefined);
   const watchers = Object.entries(v.presence).filter(([pid, p]) => !p.seat && !seats.some((s) => s.ctrl === pid)).map(([, p]) => p.name);
   const rules = v.setup ? roomDraft(v.setup.rules) : DEFAULT_DRAFT;
+  // The level picker follows the room's default bot level until the owner picks another
+  const nextBot = newBot ?? rules.botSkill;
   const canStart = seats.length >= MIN_START;
   // Inside Discord the App has no name of its own: the one this room knows us by
   const myName = v.presence[me]?.name || mine?.name || name;
@@ -94,7 +96,7 @@ export function WaitingRoom({ room, name }: { room: Room; name: string }) {
 
   const tabs: MenuTab[] = [
     { id: 'players', label: 'Players', short: 'Players', sub: `${seats.length} of ${max} seats`, icon: '◈' },
-    { id: 'rules', label: 'Rules', short: 'Rules', sub: rules.speedDie ? 'Classic + Speed Die' : 'Classic', icon: '▤' },
+    { id: 'rules', label: 'Rules', short: 'Rules', sub: rulesTitle(rules, true), icon: '▤' },
     { id: 'settings', label: 'Settings', short: 'Settings', sub: 'Graphics, motion, sound', icon: '⚙' },
   ];
 
@@ -170,11 +172,11 @@ export function WaitingRoom({ room, name }: { room: Room; name: string }) {
               <div className="add-bot">
                 <label>
                   <span className="sr-only">Level of the next bot</span>
-                  <select value={newBot} onChange={(e) => setNewBot(e.target.value as BotSkill)}>
+                  <select value={nextBot} onChange={(e) => setNewBot(e.target.value as BotSkill)}>
                     {SKILLS.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}
                   </select>
                 </label>
-                <button type="button" disabled={seats.length >= max || !!busy} onClick={() => void act('bot', () => conn.addBot(newBot))}>
+                <button type="button" disabled={seats.length >= max || !!busy} onClick={() => void act('bot', () => conn.addBot(nextBot))}>
                   ＋ Add bot
                 </button>
               </div>
@@ -192,7 +194,7 @@ export function WaitingRoom({ room, name }: { room: Room; name: string }) {
                         <span className="seat-badges">
                           {s.kind === 'human' && s.ctrl === me && <span className="badge accent">You</span>}
                           {s.kind === 'human' && s.ctrl === v.owner?.id && <span className="badge">Host</span>}
-                          {s.kind === 'bot' && <span className="badge bot">Bot · {skillLabel(s.skill)}</span>}
+                          {s.kind === 'bot' && <span className="badge bot" title="Bot">{skillLabel(s.skill)}</span>}
                         </span>
                       </span>
                       {s.kind === 'human' && (

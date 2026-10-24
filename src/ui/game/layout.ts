@@ -49,7 +49,7 @@ export function cellOf(i: number, spaces = 40): { row: number; col: number } {
 /** Which side of the board a space is on (0 bottom, 1 left, 2 top, 3 right), for the band's position */
 export const sideOf = (i: number, spaces = 40): number => Math.floor(i / (spaces / 4)) % 4;
 
-export type Shortcut = 'roll' | 'endTurn' | 'buy' | 'auction' | 'manage' | 'trade' | 'log' | 'recenter' | 'menu';
+export type Shortcut = 'roll' | 'endTurn' | 'buy' | 'auction' | 'manage' | 'trade' | 'log' | 'recenter' | 'mute' | 'menu';
 
 const KEYS: Record<string, Shortcut> = {
   r: 'roll',
@@ -60,6 +60,7 @@ const KEYS: Record<string, Shortcut> = {
   t: 'trade',
   l: 'log',
   c: 'recenter',
+  n: 'mute',
   escape: 'menu',
 };
 

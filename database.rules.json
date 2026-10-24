@@ -26,6 +26,9 @@
         "speedDie": {
           ".validate": "newData.isBoolean()"
         },
+        "board": {
+          ".validate": "newData.val() === 'lanka' || newData.val() === 'colombo' || newData.val() === 'hill' || newData.val() === 'south'"
+        },
         "maxSeats": {
           ".validate": "newData.isNumber() && newData.val() >= 2 && newData.val() <= 8"
         },
@@ -33,6 +36,12 @@
           ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 8"
         },
         "public": {
+          ".validate": "newData.isBoolean()"
+        },
+        "spectators": {
+          ".validate": "newData.isBoolean()"
+        },
+        "lateJoin": {
           ".validate": "newData.isBoolean()"
         },
         "lastMoveAt": {
@@ -59,6 +68,9 @@
             "speedDie": {
               ".validate": "newData.isBoolean()"
             },
+            "board": {
+              ".validate": "newData.val() === 'lanka' || newData.val() === 'colombo' || newData.val() === 'hill' || newData.val() === 'south'"
+            },
             "startCash": {
               ".validate": "newData.isNumber() && newData.val() >= 100 && newData.val() <= 20000"
             },
@@ -70,6 +82,78 @@
             },
             "turnLimit": {
               ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 2000"
+            },
+            "goSalary": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000"
+            },
+            "incomeFlat": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000"
+            },
+            "incomePct": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+            },
+            "jailFine": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000"
+            },
+            "mortgagePct": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+            },
+            "houses": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 200"
+            },
+            "hotels": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+            },
+            "doubleGoLanding": {
+              ".validate": "newData.isBoolean()"
+            },
+            "jackpot": {
+              ".validate": "newData.isBoolean()"
+            },
+            "incomeTaxMode": {
+              ".validate": "newData.val() === 'choice' || newData.val() === 'flat' || newData.val() === 'percent'"
+            },
+            "auctions": {
+              ".validate": "newData.isBoolean()"
+            },
+            "buyAfterFirstLap": {
+              ".validate": "newData.isBoolean()"
+            },
+            "jailRent": {
+              ".validate": "newData.isBoolean()"
+            },
+            "threeDoublesJail": {
+              ".validate": "newData.isBoolean()"
+            },
+            "dealProperties": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 3"
+            },
+            "endMode": {
+              ".validate": "newData.val() === 'lastStanding' || newData.val() === 'firstBankrupt'"
+            },
+            "trading": {
+              ".validate": "newData.val() === 'on' || newData.val() === 'off' || newData.val() === 'afterLap'"
+            },
+            "tradeAfterLap": {
+              ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 20"
+            },
+            "afkStrikes": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10"
+            },
+            "botPace": {
+              ".validate": "newData.val() === 0.5 || newData.val() === 1 || newData.val() === 2"
+            },
+            "botSkill": {
+              ".validate": "newData.val() === 'easy' || newData.val() === 'normal' || newData.val() === 'hard' || newData.val() === 'expert'"
+            },
+            "spectators": {
+              ".validate": "newData.isBoolean()"
+            },
+            "lateJoin": {
+              ".validate": "newData.isBoolean()"
+            },
+            "timeLimit": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 600"
             },
             "turnTimer": {
               ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 600"

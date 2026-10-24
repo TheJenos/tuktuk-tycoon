@@ -1,4 +1,4 @@
-import { type Ctx, activeSeats, emit, err, isActive, player, rs, setPhase } from './ctx';
+import { type Ctx, emit, err, isActive, player, propBidders, rs, setPhase } from './ctx';
 import { type Handler, isInt, seatAction, systemAction } from './handler';
 import { maxRaise, pay, transfer } from './money';
 import type { AuctionPhase, BoardDef, GameState, Lot, Phase, RuleError, SeatId } from './types';
@@ -57,7 +57,7 @@ export function closeAuction(c: Ctx): void {
       emit(c, { t: 'owner', space: ph.lot.space, to: win.seat, via: 'auction' });
     }
     const [next, ...rest] = ph.queue;
-    if (next !== undefined) startAuction(c, { k: 'prop', space: next }, activeSeats(c.s), ph.resume, rest);
+    if (next !== undefined) startAuction(c, { k: 'prop', space: next }, propBidders(c.s), ph.resume, rest);
     else setPhase(c, ph.resume);
   } else {
     // A building unit from a shortage contest: the winner places it next, then the contest goes on.

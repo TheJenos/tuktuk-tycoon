@@ -85,6 +85,10 @@ export function resolveClaim(c: Ctx): void {
       placeChain(c, ph.kind, others, ph.resume);
       return;
     }
+    if (!s.cfg.auctions) {
+      grantInRequestOrder(c, ph, want);
+      return;
+    }
     ph.auctioning = true;
     emit(c, { t: 'claimEnd', kind: ph.kind, outcome: 'auction' });
   }
@@ -109,6 +113,34 @@ export function resolveClaim(c: Ctx): void {
     return;
   }
   startAuction(c, { k: ph.kind }, seats, ph);
+}
+
+/**
+ * Auctions off and more wanted than the bank holds: the requests are granted in the order they were made (the
+ * starter's first) until the supply runs out. The starter's build goes up as asked when it got every unit it needs;
+ * otherwise everyone places the units they got one at a time at the normal price.
+ */
+function grantInRequestOrder(c: Ctx, ph: BuildClaimPhase, want: (seat: SeatId) => number): void {
+  const s = c.s;
+  let rest = supplyOf(s, ph.kind);
+  // req keeps insertion order: the starter's entry, then each requestBuild as it came
+  const entries = (Object.keys(ph.req) as SeatId[])
+    .filter((seat) => want(seat) > 0)
+    .map((seat): [SeatId, number] => {
+      const n = Math.min(want(seat), rest);
+      rest -= n;
+      return [seat, n];
+    });
+  emit(c, { t: 'claimEnd', kind: ph.kind, outcome: 'granted' });
+  setPhase(c, ph.resume);
+  let place = entries;
+  const starter = entries.find(([seat]) => seat === ph.by);
+  if (ph.build && starter && starter[1] === want(ph.by)) {
+    const plan = planBuild(s, c.b, ph.by, ph.build.group, ph.build.levels);
+    if (!('code' in plan) && player(s, ph.by).cash >= plan.cost) applyBuild(c, ph.by, plan);
+    place = entries.filter(([seat]) => seat !== ph.by);
+  }
+  placeChain(c, ph.kind, place, ph.resume);
 }
 
 /**

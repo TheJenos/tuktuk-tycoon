@@ -1,7 +1,7 @@
 import { startAuction } from './auction';
 import { deckOf, groupOf, propertyAt } from './board';
 import { applySell, clearBuildings, groupLevels, planSell } from './buildings';
-import { type Ctx, activeSeats, emit, err, levelOf, ownedBy, phaseChain, player, prop, setPhase } from './ctx';
+import { type Ctx, emit, err, levelOf, ownedBy, phaseChain, player, prop, propBidders, setPhase } from './ctx';
 import { type Handler, seatAction } from './handler';
 import { cleanOwed, creditors, maxRaise, owedTotal, payAll, transfer } from './money';
 import { mortgageNow, mortgageProblem, startXfer } from './mortgage';
@@ -140,11 +140,12 @@ function toPlayer(c: Ctx, seat: SeatId, cred: SeatId, resigned: boolean): void {
   }
   const mortgaged = spaces.filter((space) => prop(c.s, space)?.mortgaged);
   retire(c, seat, cred, resigned);
-  if (checkOver(c)) return;
+  if (checkOver(c, true)) return;
   startXfer(c, cred, mortgaged);
 }
 
-function toBank(c: Ctx, seat: SeatId, resigned: boolean): void {
+/** `broke`: a bankruptcy (it ends a cfg.endMode 'firstBankrupt' game), not a plain resignation */
+function toBank(c: Ctx, seat: SeatId, resigned: boolean, broke: boolean): void {
   const spaces = ownedBy(c.s, seat);
   clearBuildings(c, spaces);
   transfer(c, seat, 'bank', player(c.s, seat).cash, 'bankrupt');
@@ -160,8 +161,9 @@ function toBank(c: Ctx, seat: SeatId, resigned: boolean): void {
     emit(c, { t: 'owner', space, from: seat, via: 'bankrupt' });
   }
   retire(c, seat, 'bank', resigned);
-  if (checkOver(c)) return;
-  queueAuctions(c, spaces);
+  if (checkOver(c, broke)) return;
+  // Auctions off: the bank simply keeps the property
+  if (c.s.cfg.auctions) queueAuctions(c, spaces);
 }
 
 /** The bank auctions property it took over, one space at a time, before play goes on */
@@ -173,7 +175,7 @@ function queueAuctions(c: Ctx, spaces: number[]): void {
     ph.queue.push(...spaces);
     return;
   }
-  startAuction(c, { k: 'prop', space: first }, activeSeats(c.s), ph, rest);
+  startAuction(c, { k: 'prop', space: first }, propBidders(c.s), ph, rest);
 }
 
 export function goBankrupt(c: Ctx, seat: SeatId, owed: Owed, why: CashWhy, resigned: boolean): void {
@@ -189,7 +191,7 @@ export function goBankrupt(c: Ctx, seat: SeatId, owed: Owed, why: CashWhy, resig
     raiseCash(c, seat, Number.MAX_SAFE_INTEGER);
     for (const to of list) transfer(c, seat, to, Math.min(clean[to] ?? 0, player(c.s, seat).cash), why);
   }
-  toBank(c, seat, resigned);
+  toBank(c, seat, resigned, true);
 }
 
 const currentDebt = (c: { s: { phase: Phase } }, seat: SeatId): DebtPhase | undefined =>
@@ -238,6 +240,6 @@ export const resign: Handler<'resign'> = seatAction(
       debt.owed = {};
       emit(c, { t: 'debtPaid', debtor: seat });
     }
-    toBank(c, seat, true);
+    toBank(c, seat, true, false);
   },
 );

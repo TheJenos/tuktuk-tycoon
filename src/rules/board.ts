@@ -1,12 +1,32 @@
+import { COLOMBO } from './data/colombo';
+import { HILL } from './data/hill';
 import { LANKA } from './data/lanka';
+import { SOUTH } from './data/south';
 import type { BoardDef, CardDef, Deck, GroupDef, PropertyDef, SpaceDef, StreetDef } from './types';
 
-const BOARDS: Record<string, BoardDef> = { [LANKA.id]: LANKA };
+/** Every board, in picker order (the first is the default). Same rules and numbers; only the theme differs. */
+const ALL: readonly BoardDef[] = [LANKA, COLOMBO, HILL, SOUTH];
 
-export const hasBoard = (id: string): boolean => id in BOARDS;
+const REGISTRY: Record<string, BoardDef> = Object.fromEntries(ALL.map((b) => [b.id, b]));
+
+/** The board ids a room or save may name */
+export const BOARD_IDS: readonly string[] = ALL.map((b) => b.id);
+
+/** What the board picker and the Rooms list show: id, name and a one-line blurb */
+export interface BoardInfo {
+  id: string;
+  name: string;
+  blurb: string;
+}
+export const BOARDS: readonly BoardInfo[] = ALL.map((b) => ({ id: b.id, name: b.display.name, blurb: b.display.blurb }));
+
+export const hasBoard = (id: string): boolean => Object.prototype.hasOwnProperty.call(REGISTRY, id);
 
 /** The board data for a config's `board` id (unknown ids fall back to the default board) */
-export const getBoard = (id: string): BoardDef => BOARDS[id] ?? LANKA;
+export const getBoard = (id: string): BoardDef => (hasBoard(id) ? REGISTRY[id] : undefined) ?? LANKA;
+
+/** A board's display name ("All Island" for unknown ids) */
+export const boardName = (id: string): string => getBoard(id).display.name;
 
 export const isProperty = (sp: SpaceDef | undefined): sp is PropertyDef =>
   sp?.k === 'street' || sp?.k === 'rail' || sp?.k === 'utility';

@@ -1,4 +1,13 @@
-import { apply, awaiting, defaultAction, legalActions, type Action, type GameState, type SeatId } from '../rules';
+import {
+  apply,
+  awaiting,
+  defaultAction,
+  legalActions,
+  tradingClosed,
+  type Action,
+  type GameState,
+  type SeatId,
+} from '../rules';
 import type { BotSkill } from '../net/types';
 import { auctionChoice } from './auction';
 import { claimChoice, placeChoice, postRollChoice, xferChoice } from './build';
@@ -27,6 +36,8 @@ export function choose(c: BotCtx): Action | null {
   for (const id of Object.keys(s.trades).sort()) {
     const t = s.trades[id];
     if (!t || t.to !== c.seat) continue;
+    // The trading rule would refuse it anyway (cannot normally happen: such offers are never made)
+    if (tradingClosed(s, t.from, t.to)) return { k: 'reject', id };
     const calm = ACCEPT_PHASES.has(s.phase.k);
     if ((deep ? searchRespond(c, t, calm) : respond(c, t)) === 'reject') return { k: 'reject', id };
     if (calm) return { k: 'accept', id };

@@ -1,10 +1,12 @@
 import { createRoot } from 'react-dom/client';
+import { initAudio } from './audio';
 import { App } from './ui/App';
 import { ErrorBoundary } from './ui/ErrorBoundary';
 import { watchReducedMotion } from './ui/settings';
 import './style.css';
 
 watchReducedMotion();
+initAudio();
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Missing #root in index.html');

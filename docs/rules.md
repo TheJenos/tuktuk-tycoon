@@ -122,3 +122,20 @@ The rulebook is silent or ambiguous on these points. Each is a config option whe
 | Turn limit counting and rankings | Every player's turn counts; the game ends when turn number `turnLimit` ends. Rankings (turn limit, Finish now) order the players still in by net worth (a mortgaged property counts its price minus the cost of lifting it; ties in turn order), then the others, last out first. |
 | Money rounding | The 10% Income Tax rounds down; mortgage interest rounds up; selling a building refunds half its cost, rounded down. A hotel costs the street's house price, on top of the four houses it replaces. |
 | Timeouts | An auction that runs out of time closes (the high bid wins; no bids, the bank keeps it), and so does a shortage contest (whoever has not answered passes). Online, any other decision that runs out of time plays the safe default: roll; the largest Bus move; for a triple the next bank-owned property ahead, else GO; decline the purchase (it goes to auction); the cheaper Income Tax; the first legal place for a building; keep received mortgages mortgaged (pay the 10%); auto-raise; end the turn. Offline only auctions have a clock. |
+
+### Optional room rules
+
+Off (classic) by default; each is a `RulesConfig` field the room owner can change.
+
+| Option | Config | Effect |
+|---|---|---|
+| Double salary on Start | `doubleGoLanding` (off) | Landing exactly on Start pays twice the salary; passing it pays once. |
+| Tuk-Tuk Stand jackpot | `jackpot` (off) | Taxes, fines and card payments to the Bank go into a pot (also when paid late, once a debt settles); landing on the Tuk-Tuk Stand wins all of it. |
+| Inland Revenue | `incomeTaxMode` (`choice`) | `flat` or `percent` charges that amount at once, with no choice to make. |
+| Auctions | `auctions` (on) | Off: a declined property and a bankrupt's property to the Bank stay with the Bank; in a building shortage, requests are granted in the order they were made until the supply runs out. |
+| First lap | `buyAfterFirstLap` (off) | No buying or bidding until the player has collected a Start salary once (a landing on a Bank property, Tuk-Tuk Uncle's included, then does nothing). |
+| Rent while jailed | `jailRent` (on) | Off: a jailed owner collects no rent (Tuk-Tuk Uncle's rent branch skips its property). |
+| Three doubles | `threeDoublesJail` (on) | Off: a third (or later) doubles just rolls again. |
+| Quick-start deal | `dealProperties` (0) | 1-3 random properties dealt free to each player after the opening roll, round-robin in turn order. |
+| Game end | `endMode` (`lastStanding`) | `firstBankrupt`: the first bankruptcy (not a plain resignation) ends the game once the creditor has the assets, ranked by net worth. A room time limit ends it the same way ("Time is up"). |
+| Trading | `trading` (`on`), `tradeAfterLap` (1) | `off`: no trades; `afterLap`: trades only once both players have collected `tradeAfterLap` Start salaries. |

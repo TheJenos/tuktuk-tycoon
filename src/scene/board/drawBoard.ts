@@ -1,6 +1,7 @@
 import { formatMoney, type BoardDef, type RulesConfig, type SpaceDef } from '../../rules';
 import { drawLines, fitText, roundRect } from '../textures/canvas';
 import { CARD_H, CARD_W, DECKS } from './centre';
+import { diamondWidth } from './diamond';
 import { drawIcon } from './icons';
 import { BAND, CORNER, HALF, INNER, JAIL_CELL, SIDE, TILE_D, TILE_W, localCenter, sideOf, toWorld } from './layout';
 
@@ -101,9 +102,34 @@ function drawCorner(ctx: CanvasRenderingContext2D, sp: SpaceDef, rules: PaintRul
   };
   switch (sp.k) {
     case 'go':
-      fitText(ctx, `COLLECT ${money(rules.goSalary)} SALARY AS YOU PASS`, 0, -0.5, 0.11, CORNER * 0.86, { weight: 700 });
-      fitText(ctx, sp.name.toUpperCase(), 0, -0.05, 0.62, CORNER * 0.8, { weight: 900, color: '#c92a2a' });
-      drawIcon(ctx, 'arrow', 0, 0.48, 1.1, '#c92a2a');
+      // Read from the outer corner like the other corners: salary (two lines), START, then an arrow pointing the
+      // way play goes (along the bottom row, the reader's left). The stack is laid out by height around t = 0.
+      diagonal(() => {
+        // Lines sit on their baselines so the stack is laid out by cap heights, not em boxes
+        const cap = 0.72;
+        const salary = 0.11;
+        const name = 0.42;
+        const arrow = 0.7;
+        const arrowH = arrow * 0.6; // the arrow path fills y 20..80 of its 100 box
+        const gap = 0.13;
+        const lines = [salary * cap, salary * cap, name * cap];
+        const gaps = [salary * 0.45, gap, gap];
+        const total = lines.reduce((a, b) => a + b, 0) + gaps.reduce((a, b) => a + b, 0) + arrowH;
+        let t = -total / 2;
+        const base = lines.map((h, k) => {
+          t += h;
+          const at = t;
+          t += gaps[k]!;
+          return at;
+        });
+        const [line1 = 0, line2 = 0, nameBase = 0] = base;
+        const opts = { weight: 700, baseline: 'alphabetic' as const };
+        const w = (b: number, h: number) => diamondWidth(b - h / 2, h);
+        fitText(ctx, `COLLECT ${money(rules.goSalary)}`, 0, line1, salary, w(line1, lines[0]!), opts);
+        fitText(ctx, 'SALARY AS YOU PASS', 0, line2, salary, w(line2, lines[1]!), opts);
+        fitText(ctx, sp.name.toUpperCase(), 0, nameBase, name, w(nameBase, lines[2]!), { ...opts, weight: 900, color: '#c92a2a' });
+        drawIcon(ctx, 'arrow', 0, t + arrowH / 2, arrow, '#c92a2a');
+      });
       break;
     case 'jail': {
       // The cell sits in the inner corner; Just Visiting is the L-shaped strip along the two outer edges.
@@ -123,35 +149,38 @@ function drawCorner(ctx: CanvasRenderingContext2D, sp: SpaceDef, rules: PaintRul
       ctx.save();
       ctx.translate(x0 + cell / 2, x0 + cell / 2);
       ctx.rotate(-Math.PI / 4);
+      // The name on a plate across the cell, on two lines (its half-width plus half-height stays inside the cell)
       ctx.fillStyle = PAPER;
-      ctx.fillRect(-0.42, -0.1, 0.84, 0.2);
-      fitText(ctx, sp.name.toUpperCase(), 0, 0, 0.15, 0.78, { weight: 800 });
+      ctx.fillRect(-0.45, -0.17, 0.9, 0.34);
+      drawLines(ctx, sp.name.toUpperCase(), 0, 0, 0.14, 0.8, 2, { weight: 800 });
       ctx.restore();
+      // JUST and VISITING each centred on their own leg of the strip, beside the cell (not the shared corner square)
       const strip = h - (x0 + cell);
       const mid = x0 + cell + strip / 2;
-      fitText(ctx, 'VISITING', (x0 + h) / 2 - 0.1, mid, 0.17, CORNER - strip - 0.1, { weight: 800 });
+      const leg = x0 + cell / 2;
+      fitText(ctx, 'VISITING', leg, mid, 0.17, cell - 0.1, { weight: 800 });
       ctx.save();
-      ctx.translate(mid, (x0 + h) / 2 - 0.1);
+      ctx.translate(mid, leg);
       ctx.rotate(-Math.PI / 2);
-      fitText(ctx, 'JUST', 0, 0, 0.17, CORNER - strip - 0.1, { weight: 800 });
+      fitText(ctx, 'JUST', 0, 0, 0.17, cell - 0.1, { weight: 800 });
       ctx.restore();
       break;
     }
     case 'parking':
       diagonal(() => {
         const [first = '', ...rest] = sp.name.toUpperCase().split(' ');
-        fitText(ctx, first, 0, -0.46, 0.22, CORNER * 0.9, { weight: 800 });
+        fitText(ctx, first, 0, -0.46, 0.22, diamondWidth(-0.46, 0.22), { weight: 800 });
         drawIcon(ctx, 'car', 0, 0.02, 0.78, '#c92a2a');
-        fitText(ctx, rest.join(' '), 0, 0.46, 0.22, CORNER * 0.9, { weight: 800 });
+        fitText(ctx, rest.join(' '), 0, 0.46, 0.22, diamondWidth(0.46, 0.22), { weight: 800 });
       });
       break;
     case 'goToJail':
       diagonal(() => {
         const words = sp.name.toUpperCase().split(' ');
         const last = words.pop() ?? '';
-        fitText(ctx, words.join(' '), 0, -0.46, 0.22, CORNER * 0.9, { weight: 800 });
+        fitText(ctx, words.join(' '), 0, -0.46, 0.22, diamondWidth(-0.46, 0.22), { weight: 800 });
         drawIcon(ctx, 'lock', 0, 0.02, 0.6, '#1c5ba8');
-        fitText(ctx, last, 0, 0.46, 0.22, CORNER * 0.9, { weight: 800 });
+        fitText(ctx, last, 0, 0.46, 0.22, diamondWidth(0.46, 0.22), { weight: 800 });
       });
       break;
     default:
@@ -188,6 +217,15 @@ function drawCentre(ctx: CanvasRenderingContext2D, b: BoardDef): void {
   ctx.fill();
   ctx.stroke();
   fitText(ctx, b.display.title.toUpperCase(), 0, 0.04, 1.0, len - 0.6, { weight: 900, color: '#ffffff' });
+  // The board's name on a smaller ribbon tucked under the banner
+  if (b.display.subtitle) {
+    const sub = 3.8;
+    ctx.fillStyle = '#173f31';
+    roundRect(ctx, -sub / 2, 0.7, sub, 0.56, 0.1);
+    ctx.fill();
+    ctx.stroke();
+    fitText(ctx, b.display.subtitle.toUpperCase(), 0, 0.99, 0.36, sub - 0.5, { weight: 800, color: '#f8f9fa' });
+  }
   ctx.restore();
 }
 

@@ -10,6 +10,8 @@ const WHY = {
   lastStanding: 'Last player standing',
   turnLimit: 'Turn limit reached: ranked by net worth',
   endGame: 'Finished early: ranked by net worth',
+  firstBankrupt: 'First bankruptcy: ranked by net worth',
+  timeUp: 'Time is up: ranked by net worth',
 } as const;
 
 /** The winner and the standings, with the way back to the lobby and (for the room's owner) a rematch */

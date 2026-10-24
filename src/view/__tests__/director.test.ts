@@ -270,3 +270,53 @@ describe('connectDirector', () => {
     expect(director.view.get().game).toBeNull();
   });
 });
+
+describe('director listeners (onPlay)', () => {
+  it('report each animated event as it starts and once it is done, in order', async () => {
+    const d = createDirector({ animSpeed: () => 'normal', hidden: () => false });
+    const { first, rest } = batches(6);
+    d.enqueue(first);
+    const seen: string[] = [];
+    d.onPlay((ev, info) => seen.push(`${info.phase}:${ev.t}`));
+    for (const b of rest) d.enqueue(b);
+    for (let guard = 0; guard < 100 && !d.idle.get(); guard++) await tick();
+    const all = rest.flatMap((b) => b.events);
+    expect(seen).toHaveLength(all.length * 2);
+    expect(seen.filter((s) => s.startsWith('start:')).map((s) => s.slice(6))).toEqual(all.map((e) => e.t));
+    expect(seen[0]).toBe(`start:${all[0]!.t}`);
+    expect(seen[1]).toBe(`done:${all[0]!.t}`);
+  });
+
+  it("report folded events as 'instant' with Instant animations, but nothing for a hidden tab, a snap or fastForward", async () => {
+    let anim: AnimSpeed = 'instant';
+    let hidden = false;
+    const d = createDirector({ animSpeed: () => anim, hidden: () => hidden });
+    const { first, rest } = batches(6);
+    d.enqueue(first);
+    const seen: string[] = [];
+    const off = d.onPlay((_ev, info) => seen.push(info.phase));
+    d.enqueue(rest[0]!);
+    expect(seen.length).toBe(rest[0]!.events.length);
+    expect(new Set(seen)).toEqual(new Set(['instant']));
+
+    seen.length = 0;
+    hidden = true;
+    d.enqueue(rest[1]!);
+    expect(seen).toEqual([]);
+
+    hidden = false;
+    anim = 'normal';
+    d.register('tokens', fakeTokens().api); // walks never finish on their own
+    for (const b of rest.slice(2)) d.enqueue(b);
+    const before = seen.length;
+    d.fastForward();
+    expect(seen.length).toBe(before);
+    d.snap(rest.at(-1)!.state, rest.at(-1)!.seq + 5);
+    expect(seen.length).toBe(before);
+
+    off();
+    anim = 'instant';
+    d.enqueue({ ...rest[0]!, seq: rest.at(-1)!.seq + 6, state: rest.at(-1)!.state });
+    expect(seen.length).toBe(before);
+  });
+});

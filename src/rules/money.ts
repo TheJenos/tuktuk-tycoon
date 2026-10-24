@@ -68,9 +68,16 @@ export function creditors(s: GameState, debtor: SeatId, owed: Owed): Creditor[] 
   return (owed.bank ?? 0) > 0 ? [...seats, 'bank'] : seats;
 }
 
-/** Moves cash and emits the event. The caller has checked the payer can afford it. */
+/** Payments to the bank that feed the parking jackpot (cfg.jackpot) */
+export const JACKPOT_WHY: ReadonlySet<CashWhy> = new Set<CashWhy>(['tax', 'fine', 'card']);
+
+/**
+ * Moves cash and emits the event. The caller has checked the payer can afford it. With cfg.jackpot, taxes, fines and
+ * card payments to the bank also go into the pot (whenever they are paid: on the spot or when a debt settles).
+ */
 export function transfer(c: Ctx, from: Creditor, to: Creditor, amount: number, why: CashWhy, space?: number): void {
   if (amount <= 0 || from === to) return;
+  if (to === 'bank' && from !== 'bank' && c.s.cfg.jackpot && JACKPOT_WHY.has(why)) c.s.pot += amount;
   const after: Partial<Record<SeatId, number>> = {};
   if (from !== 'bank') {
     const p = player(c.s, from);

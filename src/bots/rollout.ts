@@ -1,4 +1,14 @@
-import { apply, awaiting, defaultAction, type Action, type Command, type GameState, type SeatId } from '../rules';
+import {
+  apply,
+  awaiting,
+  defaultAction,
+  DEFAULT_RULES,
+  type Action,
+  type Command,
+  type GameState,
+  type RulesConfig,
+  type SeatId,
+} from '../rules';
 import { type BotCtx, makeCtx } from './ctx';
 import { choose } from './decide';
 import { cashOf, modelOf, propAt, value, valueWith } from './model';
@@ -65,10 +75,52 @@ function hash(text: string): number {
  * sequence numbers), so an auction asks once however many bids are made: bids move no money until the hammer falls.
  */
 export function stateKey(s: GameState, stable = false): string {
-  if (!stable) return JSON.stringify(s);
+  const k = keyed(s);
+  if (!stable) return JSON.stringify(k);
   const ph = s.phase;
   const phase = ph.k === 'auction' ? { k: ph.k, lot: ph.lot, queue: ph.queue, resume: ph.resume } : ph;
-  return JSON.stringify({ ...s, seq: 0, since: 0, phase });
+  return JSON.stringify({ ...k, seq: 0, since: 0, phase });
+}
+
+/** Optional rules that came after the rest: left out of the key while they hold their default */
+const OPTIONAL: (keyof RulesConfig)[] = [
+  'doubleGoLanding',
+  'jackpot',
+  'incomeTaxMode',
+  'auctions',
+  'buyAfterFirstLap',
+  'jailRent',
+  'threeDoublesJail',
+  'dealProperties',
+  'endMode',
+  'trading',
+  'tradeAfterLap',
+];
+
+/**
+ * The state as the key sees it: without what no rule in play reads (laps unless the first-lap or trading-after-lap
+ * rule is on, the jackpot pot with the jackpot off, optional rules at their default). Under the default rules the
+ * key, and so the playouts' dice, are what they were before those options existed.
+ */
+function keyed(s: GameState): object {
+  const cfg = s.cfg;
+  const laps = cfg.buyAfterFirstLap || cfg.trading === 'afterLap';
+  const { pot, ...rest } = s;
+  const c: Partial<RulesConfig> = { ...cfg };
+  for (const key of OPTIONAL) if (c[key] === DEFAULT_RULES[key]) delete c[key];
+  const out: Record<string, unknown> = { ...rest, cfg: c };
+  if (cfg.jackpot) out.pot = pot;
+  if (!laps) {
+    const players: Record<string, unknown> = {};
+    for (const [seat, p] of Object.entries(s.players)) {
+      if (!p) continue;
+      const q: Record<string, unknown> = { ...p };
+      delete q.laps;
+      players[seat] = q;
+    }
+    out.players = players;
+  }
+  return out;
 }
 
 type Step = Command | ((s: GameState) => Command | null);

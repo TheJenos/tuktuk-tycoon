@@ -174,7 +174,14 @@ kbd, .kbd {
 
 #hud { position: fixed; inset: 0; z-index: 10; pointer-events: none; user-select: none; --ui-scale: 1; }
 #hud :is(.panel, .chip, button, a, input, select, [role='dialog']) { pointer-events: auto; }
-#hud .panel { zoom: var(--ui-scale); }
+#hud .panel { zoom: calc(var(--ui-scale) * var(--phone-zoom, 1)); }
+/* Phones: everything a little smaller (multiplies the player's own panel size setting) */
+@media (max-width: 640px) {
+  #hud { --phone-zoom: 0.86; }
+  /* The action bar keeps full-size 44px tap targets */
+  #hud .action-bar.panel { zoom: var(--ui-scale); }
+  #lobby { zoom: 0.86; }
+}
 
 /* A glass panel of the game screen: players, the turn, the action bar, a deed */
 .panel {
@@ -618,6 +625,7 @@ button.chip:hover { background: rgba(255, 255, 255, 0.1); }
 #room-list .meta { display: flex; flex-direction: column; gap: 3px; font-size: 14px; color: var(--muted); }
 #room-list .meta .line { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 #room-list .code { padding: 1px 7px; border-radius: 6px; background: rgba(255, 255, 255, 0.07); color: var(--text); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 1.5px; }
+#room-list .room-board { color: var(--accent); font-weight: 600; }
 #room-list .playing { display: inline-flex; align-items: center; gap: 6px; color: var(--good); font-weight: 600; }
 #room-list .names { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 #room-list .join { min-height: 44px; min-width: 96px; font-weight: 700; color: var(--accent); background: rgba(255, 181, 71, 0.1); border-color: rgba(255, 181, 71, 0.45); }
@@ -1081,6 +1089,12 @@ html.reduce-motion .spinner { animation: none; border-right-color: currentColor;
   .action-bar kbd { display: none; }
 }
 .action-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+/* Block action buttons wrap inside their box rather than spill out of it (buttons stay on one line elsewhere) */
+:is(.prompt .action-row, .inspector-action, .bid-row .action-row, .dialog-foot) button, .mortgage-toggle { white-space: normal; min-width: 0; line-height: 1.2; text-align: center; overflow-wrap: break-word; }
+/* An amount in a label wraps as a whole, digits lined up */
+.amt { font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* Long labels: the amount on a smaller second line */
+.inspector-action .amt, .bid-row button .amt { display: block; font-size: 0.85em; }
 /* One row where there is room; a narrow dock (a large Panel size) takes a second rather than spill out of it */
 .action-row.tools { justify-content: center; }
 .action-row.tools button:not(.icon-button) { min-height: 40px; }
@@ -1123,22 +1137,22 @@ button.link:hover { background: none; filter: brightness(1.1); }
 .owed-list li { font-weight: 700; }
 
 /* Title deed */
-.title-deed { border-radius: 10px; overflow: hidden; background: #f4f1e6; color: #1a1a1a; border: 1px solid rgba(0, 0, 0, 0.3); max-width: 340px; width: 100%; margin-inline: auto; }
-.deed-head { position: relative; padding: 8px 12px 10px; text-align: center; background: #333; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); }
+.title-deed { border-radius: 10px; overflow: hidden; padding-bottom: 8px; background: #f4f1e6; color: #1a1a1a; border: 1px solid rgba(0, 0, 0, 0.3); max-width: 340px; width: 100%; margin-inline: auto; }
+.deed-head { position: relative; padding: 14px 18px 14px; text-align: center; background: #333; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); }
 .title-deed.street .deed-head { border-bottom: 2px solid #1a1a1a; }
 .title-deed.rail .deed-head, .title-deed.utility .deed-head { background: #e9e4d4; color: #1a1a1a; text-shadow: none; border-bottom: 1px solid #bbb; }
 .deed-kicker { display: block; font-size: 10px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; opacity: 0.85; }
 .deed-head h3 { margin: 2px 0 0; font-family: var(--display); font-size: 20px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
-.deed-price { position: absolute; right: 10px; top: 8px; font-size: 12px; font-weight: 800; }
+.deed-price { position: absolute; right: 16px; top: 12px; font-size: 12px; font-weight: 800; }
 .deed-stamp { margin: 6px auto 0 !important; width: fit-content; padding: 2px 10px; border: 2px solid #b3261e; border-radius: 4px; color: #b3261e; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; transform: rotate(-4deg); }
 .title-deed table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.title-deed th { text-align: left; font-weight: 500; padding: 3px 12px; }
-.title-deed td { text-align: right; padding: 3px 12px; }
-.deed-rent { margin-top: 4px; }
+.title-deed th { text-align: left; font-weight: 500; padding: 5px 18px; }
+.title-deed td { text-align: right; padding: 5px 18px; }
+.deed-rent { margin-top: 8px; }
 .deed-rent tr.active { background: rgba(255, 181, 71, 0.45); font-weight: 800; }
 .deed-rent tr.active th { font-weight: 800; }
-.deed-costs { border-top: 1px solid rgba(0, 0, 0, 0.15); margin-top: 4px; }
-.title-deed .deed-note { padding: 4px 12px 8px; font-size: 12px; color: #555; }
+.deed-costs { border-top: 1px solid rgba(0, 0, 0, 0.15); margin-top: 8px; padding-top: 4px; }
+.title-deed .deed-note { padding: 6px 18px 4px; font-size: 12px; color: #555; }
 .title-deed.mortgaged .deed-rent { opacity: 0.55; }
 
 /* Dialogs */
@@ -1262,7 +1276,7 @@ button.link:hover { background: none; filter: brightness(1.1); }
 
 /* The previewed property's information: a compact deed and who owns it */
 .preview-card { display: flex; flex-direction: column; gap: 6px; }
-.preview-card .title-deed { max-width: none; }
+.preview-card .title-deed { max-width: none; padding-bottom: 4px; }
 .preview-card .deed-head { padding: 5px 10px 6px; }
 .preview-card .deed-head h3 { font-size: 16px; }
 .preview-card .deed-price { position: static; display: block; }
@@ -1310,6 +1324,13 @@ button.link:hover { background: none; filter: brightness(1.1); }
   .mini-board .name-long { display: none; }
   .mini-board .name-short { display: inline; }
 }
+/* Cells too small for a price (a phone's board): the colour band, owner dot and tokens only; a tap shows the rest.
+   Tokens there sit two to a row without line boxes, so four still fit a corner. */
+@container (max-width: 24px) {
+  .mini-board .cell-price { display: none; }
+  .mini-board .cell-tokens > span { display: flex; }
+  .mini-board .cell-tokens svg { width: 6px; }
+}
 .mini-board .cell:hover, .mini-board .cell.hover { background: #eef5ea; }
 .mini-board .cell.corner { background: #cbdcc4; font-weight: 700; }
 .mini-board .cell.mortgaged { background-image: repeating-linear-gradient(45deg, rgba(0, 0, 0, 0.16) 0 3px, transparent 3px 7px); }
@@ -1350,6 +1371,7 @@ button.link:hover { background: none; filter: brightness(1.1); }
 .game-settings input[type='range'] { flex: 1; min-width: 0; padding: 0; accent-color: var(--accent); }
 .game-settings input[type='checkbox'] { width: 20px; height: 20px; margin: 0; accent-color: var(--accent); }
 .game-settings .number-readout { width: 56px; font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.game-settings .setting-hint { margin: 0 0 8px; font-size: 13px; }
 
 /* Tablets and narrow windows: the players along the top, the context panel down the right */
 @media (max-width: 1023px) {
@@ -1398,6 +1420,10 @@ button.link:hover { background: none; filter: brightness(1.1); }
   .my-prop { min-height: 40px; font-size: 14px; }
   .props-button { display: inline-grid; place-items: center; flex-shrink: 0; }
   .inspector-action button { min-height: 44px; }
+  /* Narrow screens: action labels shrink a little with the screen, and Apply's amount takes a second line */
+  :is(.prompt .action-row, .inspector-action, .bid-row .action-row, .dialog-foot) button { font-size: clamp(13px, 3.6vw, 15px); }
+  .dialog-foot button .amt { display: block; font-size: 0.85em; }
+  .space-row .mortgage-toggle { max-width: 100%; }
   /* Opaque: it lies over the decision in the sheet, which must not show through */
   .game-hud.log-open .event-log { display: flex; position: fixed; z-index: 26; left: 6px; right: 6px; top: 18vh; bottom: calc(80px + env(safe-area-inset-bottom)); background: rgba(13, 16, 22, 0.97); }
   .game-hud.log-open .event-log .log-lines { max-height: none; flex: 1; }

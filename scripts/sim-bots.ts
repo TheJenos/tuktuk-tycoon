@@ -1,15 +1,17 @@
 // Bot-vs-bot games through the engine with invariants checked after every command (Milestones 3 and 8).
 // npm run sim:bots -- [--games 100] [--players 4] [--speed] [--seed 1] [--skills easy,normal,hard,expert] [--turns 400]
-//   [--jobs 1] [--fast] [--expect expert=0.57,...]
+//   [--jobs 1] [--fast] [--expect expert=0.57,...] [--options]
 // --jobs N plays the games on N worker threads (decision times are then only indicative: the threads compete);
 // --fast skips the invariant checks (strength runs); --expect fails the run when a skill wins a smaller share of the
 // games. Exits with code 1 on any illegal or fallen-back bot decision, broken invariant, game that does not end or
-// missed --expect. The Expert check: --players 2 --skills hard,expert --games 600 --jobs 8 --fast --expect expert=0.57
+// missed --expect. --options varies the optional rules (jackpot, auctions off, first lap, quick deal...) game by
+// game. The Expert check: --players 2 --skills hard,expert --games 600 --jobs 8 --fast --expect expert=0.57
 import { availableParallelism } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import type { BotSkill } from '../src/net/types';
 import { type DecisionTimes, type GameReport, SLOW_MS, playGame } from '../src/bots/arena';
+import { variedRules } from '../src/rules/randomPlayer';
 
 const SKILLS: readonly BotSkill[] = ['easy', 'normal', 'hard', 'expert'];
 
@@ -21,6 +23,8 @@ interface Setup {
   speedDie: boolean;
   skills: BotSkill[];
   check: boolean;
+  /** Vary the optional rules game by game */
+  options: boolean;
   /** Least share of the games each listed skill must win */
   expect: Partial<Record<BotSkill, number>>;
 }
@@ -34,7 +38,9 @@ function playSome(st: Setup, from: number, step: number): GameReport[] {
   const out: GameReport[] = [];
   let failures = 0;
   for (let g = from; g < st.games && failures <= 50; g += step) {
-    const r = playGame({ seed: st.seed0 + g, players: st.players, skills: lineup(st, g), speedDie: st.speedDie, turnLimit: st.turnLimit, check: st.check });
+    const seed = st.seed0 + g;
+    const cfg = st.options ? variedRules(seed) : {};
+    const r = playGame({ seed, players: st.players, skills: lineup(st, g), speedDie: st.speedDie, turnLimit: st.turnLimit, check: st.check, cfg });
     failures += r.failures.length;
     out.push(r);
   }
@@ -78,6 +84,7 @@ function setupFromArgs(args: string[]): Setup & { jobs: number } {
     speedDie: args.includes('--speed'),
     skills,
     check: !args.includes('--fast'),
+    options: args.includes('--options'),
     expect,
     jobs: num('jobs', 1, 1, Math.max(1, availableParallelism())),
   };
@@ -140,7 +147,7 @@ async function main(): Promise<void> {
   const pct = (x: number, of: number): string => `${((100 * x) / Math.max(1, of)).toFixed(1)}%`;
   console.log(
     `sim:bots: ${played} games, ${st.players} players, Speed Die ${st.speedDie ? 'on' : 'off'}, turn limit ${st.turnLimit}, ` +
-      `skills ${st.skills.join(',')}${st.check ? '' : ', invariants not checked'}${st.jobs > 1 ? `, ${st.jobs} threads` : ''}`,
+      `skills ${st.skills.join(',')}${st.check ? '' : ', invariants not checked'}${st.options ? ', options varied' : ''}${st.jobs > 1 ? `, ${st.jobs} threads` : ''}`,
   );
   console.log(`  finished: ${played - (ends.stuck ?? 0)}/${played}  ended: ${JSON.stringify(ends)}`);
   console.log(`  turns per game: avg ${(turns / Math.max(1, played)).toFixed(1)}; commands per game ${(commands / Math.max(1, played)).toFixed(0)}`);

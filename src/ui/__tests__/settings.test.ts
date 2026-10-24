@@ -37,6 +37,18 @@ describe('normalizeSettings', () => {
     expect(normalizeSettings({ volume: 3, uiScale: 9 })).toMatchObject({ volume: 1, uiScale: UI_SCALE_MAX });
     expect(normalizeSettings({ volume: -1, uiScale: 0.1 })).toMatchObject({ volume: 0, uiScale: UI_SCALE_MIN });
     expect(normalizeSettings({ volume: 0.25, uiScale: 1.2 })).toMatchObject({ volume: 0.25, uiScale: 1.2 });
+    expect(normalizeSettings({ musicVolume: 2 }).musicVolume).toBe(1);
+    expect(normalizeSettings({ musicVolume: -0.5 }).musicVolume).toBe(0);
+    expect(normalizeSettings({ musicVolume: 0.3 }).musicVolume).toBe(0.3);
+  });
+
+  it('has music on by default, separate from the sound effects', () => {
+    const d = defaultSettings({ coarse: false, reducedMotion: false });
+    expect(d).toMatchObject({ sound: true, music: true });
+    expect(d.musicVolume).toBeGreaterThan(0);
+    expect(d.musicVolume).toBeLessThanOrEqual(1);
+    expect(normalizeSettings({ sound: false, music: true, musicVolume: 0.4 })).toMatchObject({ sound: false, music: true, musicVolume: 0.4 });
+    expect(normalizeSettings({ music: 'loud', musicVolume: 'max' })).toMatchObject({ music: DEFAULTS.music, musicVolume: DEFAULTS.musicVolume });
   });
 
   it('falls back to the default for values of the wrong kind', () => {

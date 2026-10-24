@@ -16,7 +16,6 @@ const FLAGS: { key: Flag; label: string; hint?: string }[] = [
   { key: 'autoCamera', label: 'The camera follows the action', hint: 'Moving it yourself pauses this until Recenter' },
   { key: 'showNetWorth', label: "Show each player's net worth" },
   { key: 'reduceMotion', label: 'Reduce motion', hint: 'No camera sweeps, bounces or pulsing' },
-  { key: 'sound', label: 'Sound' },
 ];
 
 export function SettingsView({ name, onRename }: { name: string; onRename?: (name: string) => void }) {
@@ -30,13 +29,10 @@ export function SettingsView({ name, onRename }: { name: string; onRename?: (nam
         {FLAGS.map((f) => (
           <Toggle key={f.key} label={f.label} hint={f.hint} checked={s[f.key]} onChange={(on) => settings.update({ [f.key]: on } as Partial<Settings>)} />
         ))}
-        <label className={s.sound ? 'lobby-setting range' : 'lobby-setting range disabled'}>
-          <span className="lobby-setting-label">Volume</span>
-          <span className="lobby-range">
-            <input type="range" min={0} max={1} step={0.05} value={s.volume} disabled={!s.sound} onChange={(e) => settings.update({ volume: Number(e.target.value) })} />
-            <span className="muted">{Math.round(s.volume * 100)}%</span>
-          </span>
-        </label>
+        <Toggle label="Sound effects" hint="Dice, coins, cards and buttons" checked={s.sound} onChange={(sound) => settings.update({ sound })} />
+        <VolumeRow label="Effects volume" value={s.volume} disabled={!s.sound} onChange={(volume) => settings.update({ volume })} />
+        <Toggle label="Music" hint="N in a game turns all sound off and on" checked={s.music} onChange={(music) => settings.update({ music })} />
+        <VolumeRow label="Music volume" value={s.musicVolume} disabled={!s.music} onChange={(musicVolume) => settings.update({ musicVolume })} />
         <label className="lobby-setting range">
           <span className="lobby-setting-label">Panel size</span>
           <span className="lobby-range">
@@ -53,6 +49,18 @@ export function SettingsView({ name, onRename }: { name: string; onRename?: (nam
         <a href="/credits.html" target="_blank" rel="noreferrer" className="muted">Credits</a>
       </footer>
     </div>
+  );
+}
+
+function VolumeRow({ label, value, disabled, onChange }: { label: string; value: number; disabled: boolean; onChange(v: number): void }) {
+  return (
+    <label className={disabled ? 'lobby-setting range disabled' : 'lobby-setting range'}>
+      <span className="lobby-setting-label">{label}</span>
+      <span className="lobby-range">
+        <input type="range" min={0} max={1} step={0.05} value={value} disabled={disabled} onChange={(e) => onChange(Number(e.target.value))} />
+        <span className="muted">{Math.round(value * 100)}%</span>
+      </span>
+    </label>
   );
 }
 

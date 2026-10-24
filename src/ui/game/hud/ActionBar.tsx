@@ -2,7 +2,7 @@ import type { SeatId } from '../../../rules';
 import { useBusy, useSend } from '../actions';
 import { useGame } from '../context';
 import { JailPanel } from '../decisions/JailPanel';
-import { speedActive } from '../selectors';
+import { speedActive, tradeLock } from '../selectors';
 
 interface Props {
   /** My turn seat's preRoll / postRoll is up (and the board has caught up) */
@@ -27,6 +27,7 @@ export function ActionBar({ turnSeat, seat, onManage, onTrade, onRecenter, onLog
   const busy = useBusy();
   const phase = s?.phase.k;
   const jailed = !!(turnSeat && s?.players[turnSeat]?.jail);
+  const lock = tradeLock(s, seat);
   return (
     <nav className="action-bar panel" aria-label="Actions">
       {turnSeat && phase === 'preRoll' && jailed && <JailPanel seat={turnSeat} />}
@@ -45,9 +46,11 @@ export function ActionBar({ turnSeat, seat, onManage, onTrade, onRecenter, onLog
         <button type="button" disabled={!seat} onClick={onManage} title="Build, sell and mortgage (M)">
           Manage <kbd>M</kbd>
         </button>
-        <button type="button" disabled={!seat} onClick={onTrade} title="Offer a trade (T)">
-          Trade <kbd>T</kbd>
-        </button>
+        {!lock?.off && (
+          <button type="button" disabled={!seat || !!lock} onClick={onTrade} title={lock ? lock.message : 'Offer a trade (T)'}>
+            Trade <kbd>T</kbd>
+          </button>
+        )}
         {onRecenter && (
           <button type="button" className="icon-button" onClick={onRecenter} aria-label="Recenter the camera" title="Recenter (C)">
             ⌖

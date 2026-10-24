@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { toggleMute } from '../../audio';
 import type { GameSession } from '../../net/types';
 import { boardOf, type SeatId } from '../../rules';
 // The camera's Recenter switch only: it doesn't pull in the 3D scene
@@ -8,7 +9,7 @@ import { uiStore, type UiState } from '../../state/ui';
 import { connectDirector, useIdle } from '../../view';
 import { useSettings } from '../settings';
 import { installGameHooks } from '../testHooks';
-import { inflight, send } from './actions';
+import { inflight, send, toast } from './actions';
 import { priceOf } from './format';
 import { GameSessionProvider, useDoc, useMySeats, useSessionSel } from './context';
 import { AuctionModal } from './decisions/AuctionModal';
@@ -29,7 +30,8 @@ import { TurnBar } from './hud/TurnBar';
 import { fitUiScale, insetsFrom, isTypingTarget, sameInsets, shortcutOf, type Shortcut } from './layout';
 import { ManageProperties } from './manage/ManageProperties';
 import { MiniBoard } from './MiniBoard';
-import { actingSeat, decisionKey, decisionSeat, gateDecision, handOver, myBidders, type HandOver } from './selectors';
+import { actingSeat, decisionKey, decisionSeat, gateDecision, handOver, myBidders, tradeLock, type HandOver } from './selectors';
+import { TableStatus } from './hud/TableStatus';
 import { TradeBuilder, type TradeDraft } from './trade/TradeBuilder';
 import { TradeOffers } from './trade/TradeOffer';
 
@@ -44,6 +46,8 @@ export interface GameViewProps {
   ownerActions?: OwnerActions;
   /** Take an AFK seat of mine back from the bot */
   onTakeBack?: (seat: SeatId) => void;
+  /** Late join (online, spectators): the seats I could take over, and taking one */
+  lateJoin?: { seats: SeatId[]; take(seat: SeatId): void };
 }
 
 /**
@@ -61,7 +65,7 @@ export function GameView(props: GameViewProps) {
 
 const uiSel = (u: UiState) => ({ panel: u.panel, selected: u.selected, gl: u.gl });
 
-function GameScreen({ session, onLeave, onRematch, isOwner = false, ownerActions, onTakeBack }: GameViewProps) {
+function GameScreen({ session, onLeave, onRematch, isOwner = false, ownerActions, onTakeBack, lateJoin }: GameViewProps) {
   useEffect(() => connectDirector(session), [session]);
   useEffect(() => installGameHooks(session), [session]);
   // Nothing of the last game's pickers or panels carries over
@@ -145,9 +149,12 @@ function GameScreen({ session, onLeave, onRematch, isOwner = false, ownerActions
       if (buyDecision) void send(session, buyDecision.turn.seat, { k: 'decline' });
     },
     manage: () => openManage(seat),
-    trade: () => openTrade(seat),
+    trade: () => {
+      if (!tradeLock(s, seat)) openTrade(seat);
+    },
     log: toggleLog,
     recenter,
+    mute: () => toast(toggleMute() ? 'Sound on (N to mute)' : 'Sound off (N to turn it back on)', 'info', 2500),
     menu: openMenu,
   };
   useEffect(() => {
@@ -232,7 +239,9 @@ function GameScreen({ session, onLeave, onRematch, isOwner = false, ownerActions
               </p>
             )}
             {tamper && <p className="hud-banner danger" role="alert">{tamper}</p>}
+            <TableStatus />
             {mine.length === 0 && <p className="hud-banner" role="status">Watching: you have no seat in this game</p>}
+            {mine.length === 0 && lateJoin && lateJoin.seats.length > 0 && <LateJoin {...lateJoin} />}
             {!glOk && <p className="hud-banner" role="status">3D view paused: playing on the 2D board</p>}
             <Toasts />
           </div>
@@ -306,4 +315,28 @@ function useFittedScale(uiScale: number): number {
     return () => window.removeEventListener('resize', onResize);
   }, []);
   return fitUiScale(uiScale, vp.w, vp.h);
+}
+
+/** Late join: a spectator picks a bot's (or an abandoned) seat to play from now on */
+function LateJoin({ seats, take }: { seats: SeatId[]; take(seat: SeatId): void }) {
+  const doc = useDoc();
+  const [pick, setPick] = useState<SeatId | ''>('');
+  const seat = pick && seats.includes(pick) ? pick : seats[0];
+  if (!doc || !seat) return null;
+  const name = (x: SeatId) => doc.seats[x]?.name ?? doc.game.players[x]?.name ?? x;
+  return (
+    <div className="hud-banner late-join" role="group" aria-label="Join the game">
+      {seats.length > 1 ? (
+        <label>
+          <span className="sr-only">Seat to take</span>
+          <select value={seat} onChange={(e) => setPick(e.target.value as SeatId)}>
+            {seats.map((x) => <option key={x} value={x}>{name(x)}{doc.seats[x]?.kind === 'bot' ? ' (bot)' : ' (left)'}</option>)}
+          </select>
+        </label>
+      ) : (
+        <span>{name(seat)}'s seat is free to take over.</span>
+      )}
+      <button type="button" className="primary" onClick={() => take(seat)}>Take a seat</button>
+    </div>
+  );
 }

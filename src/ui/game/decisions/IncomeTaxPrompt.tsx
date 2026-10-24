@@ -35,7 +35,7 @@ export function IncomeTaxPrompt({ seat }: { seat: SeatId }) {
       </p>
       <div className="action-row">
         <button type="button" className="primary" disabled={busy} onClick={() => void choose('flat')}>
-          Pay {money(incomeFlat)}
+          Pay <span className="amt">{money(incomeFlat)}</span>
         </button>
         <button type="button" disabled={busy} onClick={() => void choose('percent')}>
           Pay {incomePct}%

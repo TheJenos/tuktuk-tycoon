@@ -31,15 +31,19 @@ test('lobby Settings are saved as they change, survive a reload, and Reset puts 
   await flag('Reduce motion').check();
   await expect(page.locator('html')).toHaveClass(/reduce-motion/);
   await flag("Show each player's net worth").uncheck();
-  // Sound starts off for the tests: the volume follows it
-  await expect(range(panel, 'Volume')).toBeDisabled();
-  await flag('Sound').check();
-  await expect(range(panel, 'Volume')).toBeEnabled();
-  await setRange(range(panel, 'Volume'), 0.35);
+  // Sound and music start off for the tests (and the e2e build never makes a sound): each volume follows its switch
+  await expect(range(panel, 'Effects volume')).toBeDisabled();
+  await expect(range(panel, 'Music volume')).toBeDisabled();
+  await flag('Sound effects').check();
+  await expect(range(panel, 'Effects volume')).toBeEnabled();
+  await setRange(range(panel, 'Effects volume'), 0.35);
+  await flag('Music').check();
+  await setRange(range(panel, 'Music volume'), 0.2);
   await setRange(range(panel, 'Panel size'), 1.2);
-  await expect(panel.locator('label.lobby-setting.range', { hasText: 'Volume' })).toContainText('35%');
+  await expect(panel.locator('label.lobby-setting.range', { hasText: 'Effects volume' })).toContainText('35%');
+  await expect(panel.locator('label.lobby-setting.range', { hasText: 'Music volume' })).toContainText('20%');
   await expect(panel.locator('label.lobby-setting.range', { hasText: 'Panel size' })).toContainText('120%');
-  expect(await saved(page)).toMatchObject({ quality: 'medium', animSpeed: 'fast', reduceMotion: true, showNetWorth: false, sound: true, volume: 0.35, uiScale: 1.2 });
+  expect(await saved(page)).toMatchObject({ quality: 'medium', animSpeed: 'fast', reduceMotion: true, showNetWorth: false, sound: true, volume: 0.35, music: true, musicVolume: 0.2, uiScale: 1.2 });
 
   await page.reload();
   await openTab(page, 'Settings');
@@ -48,8 +52,10 @@ test('lobby Settings are saved as they change, survive a reload, and Reset puts 
   await expect(flag('Reduce motion')).toBeChecked();
   await expect(page.locator('html')).toHaveClass(/reduce-motion/);
   await expect(flag("Show each player's net worth")).not.toBeChecked();
-  await expect(flag('Sound')).toBeChecked();
-  await expect(range(panel, 'Volume')).toHaveValue('0.35');
+  await expect(flag('Sound effects')).toBeChecked();
+  await expect(range(panel, 'Effects volume')).toHaveValue('0.35');
+  await expect(flag('Music')).toBeChecked();
+  await expect(range(panel, 'Music volume')).toHaveValue('0.2');
   await expect(range(panel, 'Panel size')).toHaveValue('1.2');
 
   await confirm(panel.getByRole('button', { name: 'Reset to defaults' }));

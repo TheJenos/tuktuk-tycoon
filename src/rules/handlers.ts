@@ -11,7 +11,7 @@ import { buy, decline, incomeTax } from './landing';
 import { build, mortgage, sell, unmortgage } from './manage';
 import { transfer } from './money';
 import { settleMortgages } from './mortgage';
-import { endGame } from './over';
+import { endGame, timeUp } from './over';
 import { accept, cancel, propose, reject } from './trade';
 import type { Action, RigRoll, SeatId } from './types';
 
@@ -111,6 +111,7 @@ export const HANDLERS: HandlerTable = {
   closeAuction: closeAuctionAction,
   closeClaim,
   endGame,
+  timeUp,
   forced,
   debugRig,
   debugSetCash,

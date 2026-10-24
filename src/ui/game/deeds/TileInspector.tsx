@@ -63,17 +63,18 @@ function SpaceActionRow({ space }: { space: number }) {
   if (!s || !owner || !mine.includes(owner)) return null;
   const x = spaceActions(s, owner, space);
   if (!x) return null;
-  const items: { key: string; label: string; step: StepAction; primary?: boolean }[] = [];
-  if (x.build) items.push({ key: 'build', label: `Build ${x.build.kind} (${money(x.build.amount)})`, step: x.build, primary: true });
-  if (x.sell) items.push({ key: 'sell', label: `Sell ${x.sell.kind} (+${money(x.sell.amount)})`, step: x.sell });
+  // The amount goes on a smaller second line; the space between keeps the name "Build house (Rs. 5,000)"
+  const items: { key: string; label: string; amount: string; step: StepAction; primary?: boolean }[] = [];
+  if (x.build) items.push({ key: 'build', label: `Build ${x.build.kind}`, amount: `(${money(x.build.amount)})`, step: x.build, primary: true });
+  if (x.sell) items.push({ key: 'sell', label: `Sell ${x.sell.kind}`, amount: `(+${money(x.sell.amount)})`, step: x.sell });
   items.push(
     x.mortgage.kind === 'mortgage'
-      ? { key: 'mortgage', label: `Mortgage (+${money(x.mortgage.amount)})`, step: x.mortgage }
-      : { key: 'mortgage', label: `Lift mortgage (${money(x.mortgage.amount)})`, step: x.mortgage },
+      ? { key: 'mortgage', label: 'Mortgage', amount: `(+${money(x.mortgage.amount)})`, step: x.mortgage }
+      : { key: 'mortgage', label: 'Lift mortgage', amount: `(${money(x.mortgage.amount)})`, step: x.mortgage },
   );
   return (
     <div className="inspector-actions" role="group" aria-label={mine.length > 1 ? `Manage for ${names.seat(owner)}` : 'Manage'}>
-      {items.map(({ key, label, step, primary }) => (
+      {items.map(({ key, label, amount, step, primary }) => (
         <div key={key} className="inspector-action">
           <button
             type="button"
@@ -82,7 +83,7 @@ function SpaceActionRow({ space }: { space: number }) {
             aria-describedby={step.reason ? `why-${key}-${space}` : undefined}
             onClick={() => step.action && void send(x.seat, step.action)}
           >
-            {label}
+            {label}{' '}<span className="amt">{amount}</span>
           </button>
           {step.reason && <small id={`why-${key}-${space}`} className="muted">{step.reason}</small>}
         </div>

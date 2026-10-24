@@ -4,7 +4,7 @@ import type { BoardDef, CardDef, SpaceDef } from '../types';
  * THE swappable data file: a light-hearted Sri Lankan board. Prices, rents and card effects follow the 2007
  * rulebook's board exactly (see docs/rules.md); only names and texts are themed. Money is Sri Lankan rupees
  * (Rs.), shown at display.currency.scale (x100) times the rulebook units the engine counts; card texts print the
- * shown amounts. To play another theme, write another file of this shape and register it in board.ts. Rules logic never
+ * shown amounts. Other themes (colombo.ts, hill.ts, south.ts) are files of this shape registered in board.ts. Rules logic never
  * hard-codes a name, price or card.
  */
 
@@ -154,6 +154,9 @@ export const LANKA: BoardDef = {
   },
   display: {
     title: 'TUK-TUK TYCOON',
+    name: 'All Island',
+    subtitle: 'All Island',
+    blurb: 'The whole island in one lap: Pettah to Galle Face by way of tea hills, beaches and Sigiriya.',
     currency: { symbol: 'Rs.', scale: 100 },
     decks: { chance: "Astrologer's Advice", chest: 'Seettu Pot' },
     groupColours: {

@@ -27,6 +27,7 @@ export function checkInvariants(s: GameState): string[] {
     }
     if (p.out && (p.cash !== 0 || p.goojf.length > 0 || p.jail)) bad(`${seat} is out but still holds assets`);
     if (p.speed && !s.cfg.speedDie) bad(`${seat} has the speed die with the rule off`);
+    if (!Number.isInteger(p.laps) || p.laps < 0) bad(`${seat} laps ${p.laps}`);
   }
   if (Object.keys(s.players).length !== s.order.length) bad('players and order differ');
 
@@ -116,6 +117,8 @@ export function checkInvariants(s: GameState): string[] {
     if (proposers.has(t.from)) bad(`${t.from} has two open offers`);
     proposers.add(t.from);
   }
+  if (!Number.isInteger(s.pot) || s.pot < 0) bad(`pot ${s.pot}`);
+  if (s.pot > 0 && !s.cfg.jackpot) bad('a jackpot pot with the rule off');
   if (s.rig.length && !s.cfg.debug) bad('rigged dice without debug');
   if (!Number.isInteger(s.rng) || s.rng < 0 || s.rng > 0xffffffff) bad(`rng ${s.rng}`);
   return out;

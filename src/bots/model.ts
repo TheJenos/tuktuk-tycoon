@@ -105,6 +105,8 @@ export interface Model {
   /** Opponent turns of rent the valuation counts (shorter near a turn limit) */
   oppTurns: number;
   mortgagePct: number;
+  /** Owners who collect no rent right now (jailed with the jailRent rule off) */
+  noRent: SeatId[];
 }
 
 export function modelOf(s: GameState): Model {
@@ -136,6 +138,7 @@ export function modelOf(s: GameState): Model {
     bankHotels: s.bank.hotels,
     oppTurns: Math.max(1, Math.min(horizon(opponents), left)),
     mortgagePct: s.cfg.mortgagePct,
+    noRent: s.cfg.jailRent ? [] : active.filter((seat) => !!s.players[seat]?.jail),
   };
 }
 
@@ -351,9 +354,11 @@ export function danger(m: Model, seat: SeatId, prof: Profile): number {
   return d;
 }
 
-/** Rent owed on landing at `space` (0 on own, bank or mortgaged property) */
-export const rentOwed = (m: Model, seat: SeatId, space: number): number =>
-  m.owner[space] && m.owner[space] !== seat ? rentAt(m, space) : 0;
+/** Rent owed on landing at `space` (0 on own, bank or mortgaged property, or an owner jailed with jailRent off) */
+export const rentOwed = (m: Model, seat: SeatId, space: number): number => {
+  const o = m.owner[space];
+  return o && o !== seat && !m.noRent.includes(o) ? rentAt(m, space) : 0;
+};
 
 /** Cash the bot keeps back: a base, the rent one throw away (expected and worst), two turns of expected rent */
 export function reserve(m: Model, seat: SeatId, pos: number, prof: Profile): number {

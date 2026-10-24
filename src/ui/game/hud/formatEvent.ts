@@ -41,6 +41,7 @@ function cashText(names: Names, ev: Ev<'cash'>): string {
     case 'trade': return `${from} pays ${to} ${amt} in a trade`;
     case 'bankrupt': return `${from}'s ${amt} goes to ${to}`;
     case 'refund': return `${to} gets ${amt} back`;
+    case 'jackpot': return `${to} wins the ${amt} jackpot${sp ? ` on ${sp}` : ''}!`;
     case 'debug': return `${ev.to === 'bank' ? from : to}'s cash is set (test)`;
     case 'card':
     default:
@@ -75,6 +76,14 @@ function levelEventText(names: Names, ev: Ev<'level'>): string {
   if (ev.to === 0) return `Buildings sold on ${sp}`;
   return `Building sold on ${sp} (now ${levelText(ev.to)})`;
 }
+
+/** Why a game ended early, ahead of "X wins on net worth" */
+const OVER_WHY: Partial<Record<Ev<'over'>['why'], string>> = {
+  turnLimit: 'Turn limit reached',
+  endGame: 'Game finished',
+  firstBankrupt: 'First bankruptcy',
+  timeUp: "Time's up",
+};
 
 /** One line for any engine event */
 export function formatEvent(ev: GameEvent, names: Names): string {
@@ -126,6 +135,7 @@ export function formatEvent(ev: GameEvent, names: Names): string {
         case 'buy': return `${n(ev.to)} now owns ${names.space(ev.space)}`;
         case 'auction': return `${n(ev.to)} takes ${names.space(ev.space)} at auction`;
         case 'trade': return `${names.space(ev.space)} goes to ${n(ev.to)} in a trade`;
+        case 'deal': return `${n(ev.to)} is dealt ${names.space(ev.space)}`;
         default: return `${names.space(ev.space)} goes to ${n(ev.to)}`;
       }
     case 'level': return levelEventText(names, ev);
@@ -159,9 +169,7 @@ export function formatEvent(ev: GameEvent, names: Names): string {
       return `${n(ev.seat)} goes bankrupt to ${partyName(names, ev.to)}`;
     case 'timeout': return `Time's up: ${n(ev.seat)} ${actionText(names, ev.a)}`;
     case 'over':
-      return ev.why === 'lastStanding'
-        ? `${n(ev.winner)} wins the game!`
-        : `${ev.why === 'turnLimit' ? 'Turn limit reached' : 'Game finished'}: ${n(ev.winner)} wins on net worth`;
+      return ev.why === 'lastStanding' ? `${n(ev.winner)} wins the game!` : `${OVER_WHY[ev.why] ?? 'Game finished'}: ${n(ev.winner)} wins on net worth`;
   }
 }
 

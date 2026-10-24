@@ -3,7 +3,7 @@ import { awaiting, defaultAction, timeoutCommand } from './autoplay';
 import { getBoard, siblings } from './board';
 import { activeSeats, levelOf, ownedBy, player } from './ctx';
 import { legalActions } from './legal';
-import type { Action, Bundle, Command, GameState, SeatId } from './types';
+import type { Action, Bundle, Command, GameState, RulesConfig, SeatId } from './types';
 
 /*
  * A seeded random player for the fuzz test and `npm run sim` (not part of the game). It mostly answers what the
@@ -25,6 +25,27 @@ export function randFrom(seed: number): Rand {
 }
 
 const pick = <T>(r: Rand, items: readonly T[]): T | undefined => items[Math.floor(r() * items.length)];
+
+/**
+ * The optional rules varied by seed (fuzz tests and `--options` sims), each one away from its default often enough
+ * that every combination of a few comes up across a run
+ */
+export function variedRules(seed: number): Partial<RulesConfig> {
+  const r = randFrom(seed * 104_729 + 17);
+  return {
+    doubleGoLanding: r() < 0.5,
+    jackpot: r() < 0.5,
+    incomeTaxMode: pick(r, ['choice', 'flat', 'percent'] as const),
+    auctions: r() < 0.6,
+    buyAfterFirstLap: r() < 0.4,
+    jailRent: r() < 0.6,
+    threeDoublesJail: r() < 0.7,
+    dealProperties: pick(r, [0, 0, 1, 2, 3]),
+    endMode: r() < 0.3 ? 'firstBankrupt' : 'lastStanding',
+    trading: pick(r, ['on', 'on', 'off', 'afterLap'] as const),
+    tradeAfterLap: 1 + Math.floor(r() * 3),
+  };
+}
 
 const MANAGE = new Set(['build', 'sell', 'mortgage', 'unmortgage']);
 

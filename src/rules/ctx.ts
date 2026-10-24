@@ -85,6 +85,26 @@ export const interest = (s: GameState, m: number): number => Math.ceil((m * s.cf
 
 export const isOver = (s: GameState): boolean => s.phase.k === 'over';
 
+/** The owner collects rent now (not when jailed with cfg.jailRent off) */
+export const collectsRent = (s: GameState, owner: SeatId): boolean => s.cfg.jailRent || !s.players[owner]?.jail;
+
+/** The seat may buy property and bid for it (cfg.buyAfterFirstLap: only once it has collected a GO salary) */
+export const mayBuy = (s: GameState, seat: SeatId): boolean => !s.cfg.buyAfterFirstLap || (s.players[seat]?.laps ?? 0) > 0;
+
+/** Seats that may bid for a property at auction, in turn order */
+export const propBidders = (s: GameState): SeatId[] => activeSeats(s).filter((seat) => mayBuy(s, seat));
+
+/** The trading rule allows trades between these two seats now (null) or why not */
+export function tradingClosed(s: GameState, a: SeatId, b: SeatId): RuleError | null {
+  const { trading, tradeAfterLap } = s.cfg;
+  if (trading === 'off') return err('tradingOff', 'Trading is off in this game');
+  if (trading === 'afterLap') {
+    const short = [a, b].some((seat) => (s.players[seat]?.laps ?? 0) < tradeAfterLap);
+    if (short) return err('tradingLater', `Trading opens after lap ${tradeAfterLap}`);
+  }
+  return null;
+}
+
 /** The phase and every phase it will resume to, outermost first */
 export function phaseChain(p: Phase): Phase[] {
   const out: Phase[] = [p];

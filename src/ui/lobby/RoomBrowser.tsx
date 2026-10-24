@@ -3,10 +3,11 @@ import { onlineDb } from '../../net/db';
 import { ROOM_CODE_MAX } from '../../net/ids';
 import { watchRooms, type RoomSummary } from '../../net/network';
 import { savedSeats } from '../../net/rejoin';
+import { boardName } from '../../rules';
 import { friendlyError } from '../errors';
 
 /*
- * The open rooms, live: each as a card (name, code, host, seats taken, Speed Die, waiting or playing) with the way
+ * The open rooms, live: each as a card (name, code, board, host, seats taken, Speed Die, waiting or playing) with the way
  * in: Join a waiting room, Watch a running game, or Rejoin one this browser holds a seat in. Plus joining by code.
  */
 
@@ -106,7 +107,11 @@ export function RoomList({ rooms, failed, retry, search, onClearSearch, joining,
         shown.map((room) => {
           const rejoin = mine.has(room.code);
           const full = room.seatsTaken >= room.maxSeats;
-          const action = rejoin ? 'Rejoin' : room.status === 'waiting' && !full ? 'Join' : 'Watch';
+          // Late join: a running game's bot seats can be taken over (from the spectators' seats)
+          const action = rejoin ? 'Rejoin'
+            : room.status === 'waiting' && !full ? 'Join'
+            : room.status === 'playing' && room.lateJoin ? 'Join'
+            : room.spectators ? 'Watch' : null;
           const busy = joining === room.code;
           return (
             <li key={room.code} className={`room-card ${room.status}`}>
@@ -118,6 +123,7 @@ export function RoomList({ rooms, failed, retry, search, onClearSearch, joining,
                 <div className="meta">
                   <span className="line">
                     <span className="code" title="Room code">{room.code}</span>
+                    <span className="room-board" title="Board">{boardName(room.board)}</span>
                     <span>Host: {room.host || '—'}</span>
                     <span className="seats" title="Seats taken">{room.seatsTaken}/{room.maxSeats} seats</span>
                     <span className={`room-status ${room.status}`}>{STATUS[room.status]}</span>
@@ -133,12 +139,12 @@ export function RoomList({ rooms, failed, retry, search, onClearSearch, joining,
               <button
                 type="button"
                 className="join"
-                disabled={disabled || room.otherVersion}
-                title={room.otherVersion ? 'That room runs another version of the game' : undefined}
-                aria-label={`${action} ${room.name} (${room.code})`}
+                disabled={disabled || room.otherVersion || !action}
+                title={room.otherVersion ? 'That room runs another version of the game' : !action ? "This room doesn't allow spectators" : undefined}
+                aria-label={`${action ?? 'No spectators in'} ${room.name} (${room.code})`}
                 onClick={() => onJoin(room.code)}
               >
-                {busy ? <><span className="spinner" aria-hidden="true" />Joining…</> : room.otherVersion ? 'Other version' : action}
+                {busy ? <><span className="spinner" aria-hidden="true" />Joining…</> : room.otherVersion ? 'Other version' : (action ?? 'Full')}
               </button>
             </li>
           );

@@ -462,13 +462,15 @@ export class Session implements GameSession {
       // From the commit, so every driver paces the same; a fresh game has none yet
       const lastAt = doc.recent.at(-1)?.at ?? this.seqSeenAt;
       const wait = animBudget(this.lastEvents);
+      // The room's bot speed when it has one (online rooms, newer local saves), else this session's
+      const pace = doc.botPace ?? this.pace;
       // Receivers of open trade offers first, then every seat the game waits for
       for (const seat of seatsToAsk(doc.game)) {
         const info = doc.seats[seat];
         if (!drivenSeat(info)) continue;
         const id = `${prefix}bot:${seat}`;
         wanted.add(id);
-        const due = lastAt + Math.max(thinkMs(info?.skill ?? 'normal'), wait) * this.pace;
+        const due = lastAt + Math.max(thinkMs(info?.skill ?? doc.botSkill ?? 'normal'), wait) * pace;
         this.arm(id, due, now, () => this.botMove(seat, doc, id));
       }
     }
@@ -477,6 +479,13 @@ export class Session implements GameSession {
       wanted.add(id);
       const due = this.isDriver() ? doc.deadline.at : doc.deadline.at + FALLBACK_MS + FALLBACK_STEP_MS * (this.opts.rank?.() ?? 0);
       this.arm(id, due, now, () => this.fireTimeout(doc, id));
+    }
+    // The room's time limit: the driver ends the game once it runs out (the others stand by, like for timeouts)
+    if (doc.endsAt !== undefined && (this.isDriver() || this.online)) {
+      const id = `${prefix}timeUp`;
+      wanted.add(id);
+      const due = this.isDriver() ? doc.endsAt : doc.endsAt + FALLBACK_MS + FALLBACK_STEP_MS * (this.opts.rank?.() ?? 0);
+      this.arm(id, due, now, () => this.fireTimeUp(doc, id));
     }
     for (const [id, c] of this.chores) {
       if (wanted.has(id)) continue;
@@ -527,7 +536,7 @@ export class Session implements GameSession {
     let a: Action | null;
     if (n === 0 && moves < BOT_MOVES_PER_TURN) {
       try {
-        a = decide(g, seat, info?.skill ?? 'normal', seededRandom(hash32(id)));
+        a = decide(g, seat, info?.skill ?? doc.botSkill ?? 'normal', seededRandom(hash32(id)));
       } catch (err) {
         console.error('Bot failed to decide', err);
         a = defaultAction(g, seat);
@@ -582,6 +591,26 @@ export class Session implements GameSession {
       return;
     }
     this.arm(id, this.serverNow() + 500, this.serverNow(), () => this.fireTimeout(doc, id));
+  }
+
+  private async fireTimeUp(doc: Doc, id: string): Promise<void> {
+    if (!this.stillAt(doc) || doc.endsAt === undefined) return;
+    const now = this.serverNow();
+    if (now < doc.endsAt) {
+      this.arm(id, doc.endsAt, now, () => this.fireTimeUp(doc, id));
+      return;
+    }
+    this.inFlight.add(id);
+    const r = await this.send({ by: 'system', a: { k: 'timeUp' }, basis: doc.seq });
+    this.inFlight.delete(id);
+    const n = (this.tries.get(id) ?? 0) + 1;
+    this.tries.set(id, n);
+    // stale: the next seq plans it again (already due, so at once)
+    if (r.ok || r.code === 'stale' || r.code === 'closed' || n >= 3 || !this.stillAt(doc)) {
+      this.done.add(id);
+      return;
+    }
+    this.arm(id, this.serverNow() + 500, this.serverNow(), () => this.fireTimeUp(doc, id));
   }
 
   // ------------------------------------------------------------------------------------------------ lease

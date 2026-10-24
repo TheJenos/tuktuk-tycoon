@@ -80,12 +80,24 @@ describe('formatEvent', () => {
   });
 
   it('every cash reason and move kind reads cleanly', () => {
-    const whys = ['salary', 'rent', 'buy', 'auction', 'tax', 'card', 'fine', 'build', 'sell', 'mortgage', 'unmortgage', 'interest', 'trade', 'bankrupt', 'refund', 'debug'] as const;
+    const whys = ['salary', 'rent', 'buy', 'auction', 'tax', 'card', 'fine', 'build', 'sell', 'mortgage', 'unmortgage', 'interest', 'trade', 'bankrupt', 'refund', 'jackpot', 'debug'] as const;
     for (const why of whys) {
       clean(formatEvent({ ...SAMPLES.cash, why }, names));
       clean(formatEvent({ ...SAMPLES.cash, why, from: 'bank', to: 's0', space: undefined } as GameEvent, names));
     }
     for (const via of ['dice', 'card', 'uncle', 'triple', 'bus', 'jail', 'back'] as const) clean(formatEvent({ ...SAMPLES.move, via }, names));
+  });
+
+  it('names events of the room options: the jackpot, the quick-start deal and every way a game ends', () => {
+    expect(formatEvent({ ...SAMPLES.cash, why: 'jackpot', from: 'bank', to: 's0', amount: 125, space: 20 } as GameEvent, names))
+      .toBe('Ann wins the Rs. 12,500 jackpot on Tuk-Tuk Stand!');
+    expect(formatEvent({ t: 'owner', space: 39, to: 's0', via: 'deal' }, names)).toBe(`Ann is dealt ${names.space(39)}`);
+    const over = (why: Extract<GameEvent, { t: 'over' }>['why']) => formatEvent({ ...SAMPLES.over, winner: 's0', why }, names);
+    expect(over('lastStanding')).toBe('Ann wins the game!');
+    expect(over('turnLimit')).toBe('Turn limit reached: Ann wins on net worth');
+    expect(over('endGame')).toBe('Game finished: Ann wins on net worth');
+    expect(over('firstBankrupt')).toBe('First bankruptcy: Ann wins on net worth');
+    expect(over('timeUp')).toBe("Time's up: Ann wins on net worth");
   });
 
   it('knows the quiet, money and per-seat events', () => {

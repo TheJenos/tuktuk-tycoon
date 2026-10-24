@@ -11,7 +11,7 @@ import {
   type SeatId,
 } from '../rules';
 import { animBudget, AUCTION_BID_SECS, OFFLINE_TIMERS, phaseSecs, type TimerRules } from '../shared/timing';
-import type { Batch, Doc, Envelope, PlayerId, SeatInfo } from './types';
+import type { Batch, BotSkill, Doc, Envelope, PlayerId, SeatInfo } from './types';
 
 /*
  * The transacted game document around the engine: who controls each seat, the envelope id ring, the last few
@@ -21,8 +21,10 @@ import type { Batch, Doc, Envelope, PlayerId, SeatInfo } from './types';
 
 export const IDS_RING = 16;
 export const RECENT_MAX = 8;
-/** Timeouts in a row that hand a seat to the driver */
+/** Timeouts in a row that hand a seat to the driver (the default; a room may pick another, or 0 = never) */
 export const AFK_STRIKES = 2;
+export const BOT_SKILLS: readonly BotSkill[] = ['easy', 'normal', 'hard', 'expert'];
+export const BOT_PACES: readonly number[] = [0.5, 1, 2];
 
 export interface NetError {
   code: string;
@@ -49,7 +51,41 @@ export interface CreateDocOptions {
   seed: number;
   /** Server ms the game starts at (the first deadline runs from here); defaults to now */
   at?: number;
+  /** Timeouts in a row before the driver plays a seat (0 = never; default AFK_STRIKES) */
+  afkStrikes?: number;
+  /** Bot thinking time multiplier (0.5, 1 or 2) */
+  botPace?: number;
+  /** Skill for seats played by the driver that name none */
+  botSkill?: BotSkill;
+  /** Minutes until the game ends ranked by net worth (0 / absent = no limit) */
+  timeLimit?: number;
 }
+
+/** The room-level extras of a doc (what createDoc takes besides the engine rules), validated */
+function docExtras(o: Pick<CreateDocOptions, 'afkStrikes' | 'botPace' | 'botSkill' | 'timeLimit'>, at: number): Partial<Doc> {
+  const out: Partial<Doc> = {};
+  if (typeof o.afkStrikes === 'number' && Number.isFinite(o.afkStrikes) && o.afkStrikes !== AFK_STRIKES) {
+    out.afkStrikes = Math.max(0, Math.min(10, Math.round(o.afkStrikes)));
+  }
+  if (typeof o.botPace === 'number' && BOT_PACES.includes(o.botPace) && o.botPace !== 1) out.botPace = o.botPace;
+  if (o.botSkill && BOT_SKILLS.includes(o.botSkill) && o.botSkill !== 'normal') out.botSkill = o.botSkill;
+  if (typeof o.timeLimit === 'number' && Number.isFinite(o.timeLimit) && o.timeLimit > 0) {
+    out.timeLimit = o.timeLimit;
+    out.endsAt = at + Math.round(o.timeLimit * 60_000);
+  }
+  return out;
+}
+
+/** The room-level fields a doc carries from one command to the next */
+const carried = (doc: Doc): Partial<Doc> => {
+  const out: Partial<Doc> = {};
+  if (doc.afkStrikes !== undefined) out.afkStrikes = doc.afkStrikes;
+  if (doc.botPace !== undefined) out.botPace = doc.botPace;
+  if (doc.botSkill !== undefined) out.botSkill = doc.botSkill;
+  if (doc.endsAt !== undefined) out.endsAt = doc.endsAt;
+  if (doc.timeLimit !== undefined) out.timeLimit = doc.timeLimit;
+  return out;
+};
 
 /** A new game document at seq 0. Throws on a bad seat list (2-8 unique seat ids), like createGame. */
 export function createDoc(o: CreateDocOptions): Doc {
@@ -57,8 +93,9 @@ export function createDoc(o: CreateDocOptions): Doc {
   const seats: Partial<Record<SeatId, SeatInfo>> = {};
   for (const s of o.seats) seats[s.seat] = cleanSeat(s);
   const timers = { ...(o.timers ?? OFFLINE_TIMERS) };
-  const doc: Doc = { gid: o.gid, seq: state.seq, game: state, seats, ids: [], recent: [], timers, strikes: {} };
-  const deadline = nextDeadline(undefined, state, events, o.at ?? Date.now(), timers);
+  const at = o.at ?? Date.now();
+  const doc: Doc = { gid: o.gid, seq: state.seq, game: state, seats, ids: [], recent: [], timers, strikes: {}, ...docExtras(o, at) };
+  const deadline = nextDeadline(undefined, state, events, at, timers);
   if (deadline) doc.deadline = deadline;
   return doc;
 }
@@ -136,6 +173,10 @@ export function applyEnvelope(doc: Doc, env: Envelope): ApplyOutcome {
   if (env.cmd.by === 'system' && typeof a?.k === 'string' && TIMEOUT_ACTIONS.has(a.k)) {
     if (!doc.deadline || env.at < doc.deadline.at) return fail('early', 'Time is not up yet');
   }
+  // The room's time limit: only once it has run out (a room without one never ends this way)
+  if (env.cmd.by === 'system' && a?.k === 'timeUp' && (doc.endsAt === undefined || env.at < doc.endsAt)) {
+    return fail('early', 'Time is not up yet');
+  }
 
   const r = apply(doc.game, env.cmd);
   if (!r.ok) return fail(r.error.code, r.error.message);
@@ -150,12 +191,13 @@ export function applyEnvelope(doc: Doc, env: Envelope): ApplyOutcome {
     delete strikes[by];
     if (own.afk) seats[by] = cleanSeat({ ...own, afk: false });
   }
+  const limit = doc.afkStrikes ?? AFK_STRIKES;
   for (const ev of r.events) {
     if (ev.t !== 'timeout') continue;
     const n = (strikes[ev.seat] ?? 0) + 1;
     strikes[ev.seat] = n;
     const info = seats[ev.seat];
-    if (n >= AFK_STRIKES && info && info.kind === 'human' && !info.afk) seats[ev.seat] = { ...info, afk: true };
+    if (limit > 0 && n >= limit && info && info.kind === 'human' && !info.afk) seats[ev.seat] = { ...info, afk: true };
   }
 
   const next: Doc = {
@@ -167,6 +209,7 @@ export function applyEnvelope(doc: Doc, env: Envelope): ApplyOutcome {
     recent: [...doc.recent, env].slice(-RECENT_MAX),
     timers: doc.timers,
     strikes,
+    ...carried(doc),
   };
   const sv = deepEqual(seats, doc.seats) ? doc.sv : (doc.sv ?? 0) + 1;
   if (sv) next.sv = sv;
@@ -219,6 +262,12 @@ export function decodeDoc(text: string): Doc {
     strikes: raw.strikes ?? {},
   };
   if (typeof raw.sv === 'number' && raw.sv > 0) doc.sv = raw.sv;
+  // Room options (absent in older documents: the defaults)
+  if (typeof raw.afkStrikes === 'number' && raw.afkStrikes >= 0) doc.afkStrikes = raw.afkStrikes;
+  if (typeof raw.botPace === 'number' && BOT_PACES.includes(raw.botPace)) doc.botPace = raw.botPace;
+  if (typeof raw.botSkill === 'string' && BOT_SKILLS.includes(raw.botSkill)) doc.botSkill = raw.botSkill;
+  if (typeof raw.endsAt === 'number' && Number.isFinite(raw.endsAt)) doc.endsAt = raw.endsAt;
+  if (typeof raw.timeLimit === 'number' && raw.timeLimit > 0) doc.timeLimit = raw.timeLimit;
   if (raw.deadline && typeof raw.deadline.at === 'number' && typeof raw.deadline.key === 'string') doc.deadline = raw.deadline;
   return doc;
 }

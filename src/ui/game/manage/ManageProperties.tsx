@@ -96,7 +96,7 @@ export function ManageProperties({ seat: initial, onClose, covered }: Props) {
             Reset
           </button>
           <button type="button" className="primary" disabled={planEmpty(plan) || busy || applying || sum.problems.length > 0} onClick={() => void apply()}>
-            Apply{sum.cash !== 0 ? ` (${signedMoney(sum.cash)})` : ''}
+            Apply{sum.cash !== 0 && <>{' '}<span className="amt">({signedMoney(sum.cash)})</span></>}
           </button>
         </>
       }
@@ -188,9 +188,17 @@ function SpaceRow({ s, seat, plan, space, names, onPlan, buildable }: {
         aria-pressed={changedM}
         onClick={() => onPlan(toggleMortgage(s, seat, plan, space))}
       >
-        {changedM
-          ? mortgaged ? `Mortgage +${money(sp.mortgage)} (undo)` : `Lift −${money(unmortgageCost(s, space))} (undo)`
-          : mortgaged ? `Lift for ${money(unmortgageCost(s, space))}` : `Mortgage for ${money(sp.mortgage)}`}
+        {/* One inline run inside the flex chip, so it wraps like text with each amount kept whole; the spaces keep
+            the names ("Mortgage for Rs. 10,000") */}
+        <span>
+          {changedM
+            ? mortgaged
+              ? <>Mortgage{' '}<span className="amt">+{money(sp.mortgage)}</span>{' '}(undo)</>
+              : <>Lift{' '}<span className="amt">−{money(unmortgageCost(s, space))}</span>{' '}(undo)</>
+            : mortgaged
+              ? <>Lift for{' '}<span className="amt">{money(unmortgageCost(s, space))}</span></>
+              : <>Mortgage for{' '}<span className="amt">{money(sp.mortgage)}</span></>}
+        </span>
       </button>
     </li>
   );

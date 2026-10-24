@@ -27,9 +27,14 @@ export function decode(text: string): GameState {
   s.props ??= {};
   s.trades ??= {};
   s.rig ??= [];
+  s.pot ??= 0;
   s.decks ??= { chance: [], chest: [] };
   s.decks.chance ??= [];
   s.decks.chest ??= [];
-  for (const p of Object.values(s.players)) if (p) p.goojf ??= [];
+  for (const p of Object.values(s.players)) {
+    if (!p) continue;
+    p.goojf ??= [];
+    p.laps ??= 0;
+  }
   return s;
 }

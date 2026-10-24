@@ -2,7 +2,7 @@ import { hasBoard } from './board';
 import type { RulesConfig } from './types';
 
 /** Bumped whenever the state shape or a rule changes, so old saves and rooms are recognised */
-export const RULES_VERSION = 2;
+export const RULES_VERSION = 3;
 
 export const DEFAULT_RULES: RulesConfig = {
   board: 'lanka',
@@ -19,6 +19,17 @@ export const DEFAULT_RULES: RulesConfig = {
   mortgagePct: 10,
   triplesRollAgain: true,
   turnLimit: 0,
+  doubleGoLanding: false,
+  jackpot: false,
+  incomeTaxMode: 'choice',
+  auctions: true,
+  buyAfterFirstLap: false,
+  jailRent: true,
+  threeDoublesJail: true,
+  dealProperties: 0,
+  endMode: 'lastStanding',
+  trading: 'on',
+  tradeAfterLap: 1,
   debug: false,
 };
 
@@ -35,7 +46,29 @@ const RANGES: { [K in keyof RulesConfig]?: [number, number] } = {
   hotels: [0, 100],
   mortgagePct: [0, 100],
   turnLimit: [0, 100_000],
+  dealProperties: [0, 3],
+  tradeAfterLap: [1, 20],
 };
+
+/** Boolean fields */
+const BOOLS = [
+  'speedDie',
+  'triplesRollAgain',
+  'doubleGoLanding',
+  'jackpot',
+  'auctions',
+  'buyAfterFirstLap',
+  'jailRent',
+  'threeDoublesJail',
+  'debug',
+] as const satisfies readonly (keyof RulesConfig)[];
+
+/** String enum fields and their allowed values */
+const ENUMS = {
+  incomeTaxMode: ['choice', 'flat', 'percent'],
+  endMode: ['lastStanding', 'firstBankrupt'],
+  trading: ['on', 'off', 'afterLap'],
+} as const satisfies { [K in keyof RulesConfig]?: readonly RulesConfig[K][] };
 
 const int = (v: unknown, fallback: number, [min, max]: [number, number]): number =>
   typeof v === 'number' && Number.isFinite(v) ? Math.min(max, Math.max(min, Math.round(v))) : fallback;
@@ -50,9 +83,11 @@ export function normalizeConfig(raw?: Partial<RulesConfig> | null): RulesConfig 
     const range = RANGES[key];
     if (range) (out as Record<string, unknown>)[key] = int(r[key], DEFAULT_RULES[key] as number, range);
   }
-  out.speedDie = bool(r.speedDie, DEFAULT_RULES.speedDie);
-  out.triplesRollAgain = bool(r.triplesRollAgain, DEFAULT_RULES.triplesRollAgain);
-  out.debug = bool(r.debug, DEFAULT_RULES.debug);
+  for (const key of BOOLS) out[key] = bool(r[key], DEFAULT_RULES[key]);
+  for (const key of Object.keys(ENUMS) as (keyof typeof ENUMS)[]) {
+    const v = r[key];
+    (out as Record<string, unknown>)[key] = (ENUMS[key] as readonly unknown[]).includes(v) ? v : DEFAULT_RULES[key];
+  }
   out.board = typeof r.board === 'string' && hasBoard(r.board) ? r.board : DEFAULT_RULES.board;
   return out;
 }

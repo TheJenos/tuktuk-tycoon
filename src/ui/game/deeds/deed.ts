@@ -106,13 +106,21 @@ export function spaceBlurb(b: BoardDef, sp: SpaceDef | undefined, s: GameState |
   const start = b.spaces[0]?.name ?? 'Start';
   const jail = b.spaces[b.jailIndex]?.name ?? 'jail';
   switch (sp?.k) {
-    case 'go': return `Collect ${money(cfg?.goSalary ?? 200)} salary every time you land on or pass ${start}.`;
+    case 'go':
+      return cfg?.doubleGoLanding
+        ? `Collect ${money(cfg.goSalary)} salary every time you pass ${start}, and ${money(cfg.goSalary * 2)} for landing on it.`
+        : `Collect ${money(cfg?.goSalary ?? 200)} salary every time you land on or pass ${start}.`;
     case 'jail': return `Just visiting, unless you were sent here. Leave by rolling doubles, using a Get Out of Jail Free card, or paying ${money(cfg?.jailFine ?? 50)}.`;
-    case 'parking': return `${sp.name}: nothing happens here.`;
+    case 'parking':
+      return cfg?.jackpot
+        ? `${sp.name}: land here to win the jackpot of taxes, fines and card payments, now ${money(s?.pot ?? 0)}.`
+        : `${sp.name}: nothing happens here.`;
     case 'goToJail': return `Go directly to the ${jail}. Do not pass ${start}, do not collect your salary.`;
     case 'chance': return `Draw the top ${deckName(b, 'chance')} card and do what it says.`;
     case 'chest': return `Draw the top ${deckName(b, 'chest')} card and do what it says.`;
     case 'tax':
+      if (sp.tax === 'income' && cfg?.incomeTaxMode === 'flat') return `${sp.name}: pay ${money(cfg.incomeFlat)}.`;
+      if (sp.tax === 'income' && cfg?.incomeTaxMode === 'percent') return `${sp.name}: pay ${cfg.incomePct}% of your total worth.`;
       return sp.tax === 'income'
         ? `Pay ${money(cfg?.incomeFlat ?? 200)} or ${cfg?.incomePct ?? 10}% of your total worth. You choose before adding it up.`
         : `${sp.name}: pay ${money(cfg?.luxuryTax ?? 75)}.`;
