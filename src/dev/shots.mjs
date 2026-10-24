@@ -1,0 +1,89 @@
+// DEV TOOL: drives the scene harness (scene.html) in headless Chromium and prints behaviour checks, saving
+// screenshots to <outDir>. Run: node src/dev/shots.mjs <outDir> [query, default "quality=high"]
+import { createServer } from 'vite';
+import { chromium } from '@playwright/test';
+
+const out = process.argv[2] ?? '.';
+const query = process.argv[3] ?? 'quality=high';
+const server = await createServer({ server: { port: 5400 + Math.floor(Math.random() * 400) }, logLevel: 'error' });
+await server.listen();
+const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+const logs = [];
+page.on('console', (m) => ['error', 'warning'].includes(m.type()) && logs.push(`${m.type()}: ${m.text()}`));
+page.on('pageerror', (e) => logs.push(`pageerror: ${e.message}`));
+await page.addInitScript(() => {
+  window.rafCount = 0;
+  const raf = window.requestAnimationFrame.bind(window);
+  window.requestAnimationFrame = (cb) => (window.rafCount++, raf(cb));
+});
+await page.goto(`${server.resolvedUrls.local[0]}src/dev/scene.html?${query}`);
+await page.waitForFunction(() => !!window.harness && document.querySelector('canvas'), null, { timeout: 60000 });
+await page.waitForTimeout(4000);
+const shot = (name) => page.screenshot({ path: `${out}/${name}.png` });
+const idleRafs = await page.evaluate(async () => {
+  const a = window.rafCount;
+  await new Promise((r) => setTimeout(r, 2000));
+  return window.rafCount - a;
+});
+console.log('frames requested in 2 s idle:', idleRafs);
+await shot('1-overview');
+
+// A turn: the dice, the walk, the drawn card (the harness rigs the first roll onto Chance)
+await page.evaluate(() => window.harness.step());
+await page.waitForTimeout(400);
+await shot('2-dice');
+await page.waitForFunction(() => window.cardAt !== undefined, null, { timeout: 30000 }).catch(() => {});
+await page.waitForTimeout(500);
+await shot('3-card');
+await page.waitForFunction(() => window.harness.director.idle.get(), null, { timeout: 30000 });
+for (const tile of [39, 10, 18]) {
+  await page.evaluate((t) => window.harness.director.api('camera').focus(t, new AbortController().signal), tile);
+  await page.waitForTimeout(2000);
+  await shot(`4-tile${tile}`);
+}
+await page.evaluate(() => window.harness.director.api('camera').focus(null, new AbortController().signal));
+await page.waitForTimeout(2000);
+
+// Pointing at tiles through the one picking plane, and the picker's highlights
+await page.mouse.move(965, 640);
+await page.waitForTimeout(600);
+const hoverGo = await page.evaluate(() => window.harness.ui.get().hover);
+await page.mouse.move(640, 360);
+await page.waitForTimeout(600);
+console.log('hover over GO:', hoverGo, '/ over the middle:', await page.evaluate(() => window.harness.ui.get().hover));
+await page.evaluate(() => window.harness.ui.update({ picker: { kind: 'space', legal: [5, 6, 8, 9, 11, 12], ghost: 8 } }));
+await page.waitForTimeout(2500);
+await shot('5-picker');
+await page.evaluate(() => window.harness.ui.update({ picker: null }));
+
+// Every throw shows the engine's values
+const rolls = await page.evaluate(async () => {
+  const h = window.harness;
+  const res = [];
+  for (let i = 0; i < 30; i++) {
+    const roll = h.state().phase.k === 'preRoll';
+    h.step();
+    await new Promise((r) => { const t = setInterval(() => h.director.idle.get() && (clearInterval(t), r()), 50); });
+    const d = h.director.view.get().dice;
+    if (roll && d) res.push({ want: [...d.w, ...(d.s === undefined ? [] : [d.s])].join(), shown: h.dice().join() });
+  }
+  return res;
+});
+console.log('rolls checked:', rolls.length, 'mismatches:', JSON.stringify(rolls.filter((r) => r.want !== r.shown)));
+
+const lost = await page.evaluate(async () => {
+  const ext = document.querySelector('canvas').getContext('webgl2').getExtension('WEBGL_lose_context');
+  ext.loseContext();
+  await new Promise((r) => setTimeout(r, 500));
+  const during = window.harness.ui.get().gl;
+  ext.restoreContext();
+  await new Promise((r) => setTimeout(r, 2000));
+  return `${during} -> ${window.harness.ui.get().gl}`;
+});
+console.log('context loss:', lost);
+await page.waitForTimeout(1500);
+await shot('6-restored');
+console.log(logs.filter((l) => !l.includes('THREE.Clock')).slice(0, 20).join('\n'));
+await browser.close();
+await server.close();

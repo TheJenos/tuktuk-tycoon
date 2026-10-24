@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Simplified Tuk-Tuk Tycoon mark for tiny sizes: the house only, no gradients -->
+  <rect width="64" height="64" rx="15" fill="#151a24"/>
+  <rect x="40" y="13" width="7" height="13" rx="1.5" fill="#1f8a4c"/>
+  <path d="M32 11 L54 31 L49 31 L49 52 L15 52 L15 31 L10 31 Z" fill="#3fbf6e" stroke="#3fbf6e" stroke-width="2" stroke-linejoin="round"/>
+  <rect x="27" y="37" width="10" height="15" rx="2" fill="#ffb547"/>
+</svg>

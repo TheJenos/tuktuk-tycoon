@@ -1,0 +1,216 @@
+{
+  "rules": {
+    "lobby": {
+      ".read": true,
+      "$room": {
+        ".write": "$room.matches(/^[A-Z0-9]{5,8}$/)",
+        ".validate": "newData.hasChildren(['name', 'hostId', 'createdAt', 'status'])",
+        "name": {
+          ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 24"
+        },
+        "host": {
+          ".validate": "newData.isString() && newData.val().length <= 16"
+        },
+        "hostId": {
+          ".validate": "newData.isString() && newData.val().matches(/^[pdb]_[A-Za-z0-9_-]{6,40}$/)"
+        },
+        "createdAt": {
+          ".validate": "newData.isNumber() && newData.val() <= now + 5000"
+        },
+        "status": {
+          ".validate": "newData.val() === 'waiting' || newData.val() === 'playing' || newData.val() === 'finished'"
+        },
+        "v": {
+          ".validate": "newData.isNumber() && newData.val() >= 1"
+        },
+        "speedDie": {
+          ".validate": "newData.isBoolean()"
+        },
+        "maxSeats": {
+          ".validate": "newData.isNumber() && newData.val() >= 2 && newData.val() <= 8"
+        },
+        "seatsTaken": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 8"
+        },
+        "public": {
+          ".validate": "newData.isBoolean()"
+        },
+        "lastMoveAt": {
+          ".validate": "newData.isNumber() && newData.val() <= now + 5000"
+        },
+        "members": {
+          "$pid": {
+            ".validate": "$pid.matches(/^[pdb]_[A-Za-z0-9_-]{6,40}$/) && newData.isString() && newData.val().length >= 1 && newData.val().length <= 16"
+          }
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+    "rooms": {
+      "$room": {
+        ".read": true,
+        ".write": "$room.matches(/^[A-Z0-9]{5,8}$/)",
+        "setup": {
+          ".validate": "newData.hasChildren(['rules', 'locked'])",
+          "rules": {
+            ".validate": "newData.hasChildren(['speedDie'])",
+            "speedDie": {
+              ".validate": "newData.isBoolean()"
+            },
+            "startCash": {
+              ".validate": "newData.isNumber() && newData.val() >= 100 && newData.val() <= 20000"
+            },
+            "luxuryTax": {
+              ".validate": "newData.val() === 75 || newData.val() === 100"
+            },
+            "triplesRollAgain": {
+              ".validate": "newData.isBoolean()"
+            },
+            "turnLimit": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 2000"
+            },
+            "turnTimer": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 600"
+            },
+            "decisionTimer": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 600"
+            },
+            "auctionTimer": {
+              ".validate": "newData.isNumber() && newData.val() >= 3 && newData.val() <= 60"
+            },
+            "debtTimer": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1200"
+            },
+            "debug": {
+              ".validate": "data.exists() && newData.val() === data.val()"
+            },
+            "$other": {
+              ".validate": false
+            }
+          },
+          "locked": {
+            ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^g_[A-Za-z0-9_-]{1,40}$/))"
+          },
+          "op": {
+            ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9]{4,16}$/)"
+          },
+          "seats": {
+            "$seat": {
+              ".validate": "$seat.matches(/^s[0-7]$/) && newData.hasChildren(['seat', 'name', 'token', 'color', 'kind', 'ctrl']) && newData.child('seat').val() === $seat",
+              "seat": {
+                ".validate": "newData.isString()"
+              },
+              "name": {
+                ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 16"
+              },
+              "token": {
+                ".validate": "newData.val() === 'hat' || newData.val() === 'car' || newData.val() === 'boat' || newData.val() === 'rocket' || newData.val() === 'crown' || newData.val() === 'anchor' || newData.val() === 'teapot' || newData.val() === 'knight'"
+              },
+              "color": {
+                ".validate": "newData.isString() && newData.val().matches(/^#[0-9a-fA-F]{6}$/)"
+              },
+              "kind": {
+                ".validate": "newData.val() === 'human' || newData.val() === 'bot'"
+              },
+              "ctrl": {
+                ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^[pdb]_[A-Za-z0-9_-]{6,40}$/))"
+              },
+              "skill": {
+                ".validate": "newData.val() === 'easy' || newData.val() === 'normal' || newData.val() === 'hard' || newData.val() === 'expert'"
+              },
+              "afk": {
+                ".validate": "newData.isBoolean()"
+              },
+              "$other": {
+                ".validate": false
+              }
+            }
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "state": {
+          ".validate": "newData.hasChildren(['gid', 'seq', 'v', 'at', 'data']) && (data.exists() && newData.child('gid').val() === data.child('gid').val() ? (newData.child('seq').val() === data.child('seq').val() + 1 || newData.child('seq').val() === data.child('seq').val()) && newData.child('at').val() >= data.child('at').val() : newData.child('seq').val() === 0 && root.child('lobby/' + $room + '/status').val() === 'waiting')",
+          "gid": {
+            ".validate": "newData.isString() && newData.val().matches(/^g_[A-Za-z0-9_-]{1,40}$/)"
+          },
+          "seq": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "v": {
+            ".validate": "newData.isNumber() && newData.val() >= 1"
+          },
+          "at": {
+            ".validate": "newData.isNumber() && newData.val() <= now + 5000"
+          },
+          "data": {
+            ".validate": "newData.isString() && newData.val().length <= 65536"
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "driver": {
+          ".validate": "newData.hasChildren(['pid', 'until'])",
+          "pid": {
+            ".validate": "newData.isString() && newData.val().matches(/^[pdb]_[A-Za-z0-9_-]{6,40}$/)"
+          },
+          "until": {
+            ".validate": "newData.isNumber() && newData.val() <= now + 10000"
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "presence": {
+          "$pid": {
+            ".validate": "$pid.matches(/^[pdb]_[A-Za-z0-9_-]{6,40}$/) && newData.hasChildren(['name', 'seat', 'vis', 'at'])",
+            "name": {
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 16"
+            },
+            "seat": {
+              ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^s[0-7]$/))"
+            },
+            "vis": {
+              ".validate": "newData.isBoolean()"
+            },
+            "at": {
+              ".validate": "newData.isNumber() && newData.val() <= now + 5000"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        "log": {
+          "$gid": {
+            ".validate": "$gid.matches(/^g_[A-Za-z0-9_-]{1,40}$/)",
+            "$k": {
+              ".validate": "$k.matches(/^m[0-9]{6}$/) && !data.exists() && newData.hasChildren(['env', 'h'])",
+              "env": {
+                ".validate": "newData.isString() && newData.val().length <= 8192"
+              },
+              "h": {
+                ".validate": "newData.isString() && newData.val().length <= 16"
+              },
+              "$other": {
+                ".validate": false
+              }
+            }
+          }
+        },
+        "kicked": {
+          "$pid": {
+            ".validate": "$pid.matches(/^[pdb]_[A-Za-z0-9_-]{6,40}$/) && newData.isBoolean()"
+          }
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    }
+  }
+}

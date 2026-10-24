@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Tuk-Tuk Tycoon">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#252e40"/>
+      <stop offset="1" stop-color="#0c0f15"/>
+    </linearGradient>
+    <linearGradient id="wall" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6be39a"/>
+      <stop offset="1" stop-color="#1f8a4c"/>
+    </linearGradient>
+    <linearGradient id="roof" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5ce08a"/>
+      <stop offset="1" stop-color="#2fa35a"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.55" r="0.5">
+      <stop offset="0" stop-color="#ffb547" stop-opacity="0.2"/>
+      <stop offset="1" stop-color="#ffb547" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- Tile -->
+  <rect width="512" height="512" rx="112" fill="url(#tile)"/>
+  <rect x="8" y="8" width="496" height="496" rx="105" fill="none" stroke="#ffb547" stroke-opacity="0.22" stroke-width="4"/>
+  <circle cx="256" cy="280" r="200" fill="url(#glow)"/>
+  <!-- The board's edge the house stands on -->
+  <rect x="84" y="404" width="344" height="18" rx="9" fill="#ffb547"/>
+  <!-- House: chimney, walls, roof, door, window -->
+  <rect x="322" y="112" width="44" height="96" rx="8" fill="#1f8a4c"/>
+  <rect x="140" y="236" width="232" height="168" fill="url(#wall)"/>
+  <path d="M256 92 L420 242 Q426 250 416 252 L96 252 Q86 250 92 242 Z" fill="url(#roof)"/>
+  <rect x="226" y="310" width="60" height="94" rx="10" fill="#ffb547"/>
+  <circle cx="274" cy="360" r="5" fill="#1a1205"/>
+  <rect x="166" y="282" width="40" height="40" rx="6" fill="#0c0f15" fill-opacity="0.55"/>
+  <rect x="306" y="282" width="40" height="40" rx="6" fill="#0c0f15" fill-opacity="0.55"/>
+</svg>
