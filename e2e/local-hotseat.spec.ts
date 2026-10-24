@@ -31,7 +31,7 @@ test('Local game from the wizard: two players at this screen and two bots take t
   await openTab(page, 'Local game');
   const panel = page.getByRole('tabpanel', { name: 'Local game' });
   await expect(panel.getByRole('radiogroup', { name: 'Starting cash' })).toBeVisible();
-  await panel.getByRole('radio', { name: 'Rs. 2,000' }).click();
+  await panel.getByRole('radio', { name: 'Rs. 200,000' }).click();
   await panel.getByRole('button', { name: /^Next: Seats/ }).click();
 
   // You, Player 2 and two bots to begin with
@@ -83,11 +83,11 @@ test('hot-seat: the device is passed before the next player sees their turn, bot
   await expect(hana).toBeVisible();
   await expect(kofi).toBeVisible();
   await expect(passCard(page)).toHaveCount(0);
-  await hana.getByRole('button', { name: 'Hana: Bid Rs. 10', exact: true }).click();
+  await hana.getByRole('button', { name: 'Hana: Bid Rs. 1,000', exact: true }).click();
   await expect(hana.locator('.badge', { hasText: 'Holds the high bid' })).toBeVisible();
   await kofi.getByRole('button', { name: 'Pass' }).click();
   await expect(auction).toBeHidden();
-  await expect(gameLog(page)).toContainText('Hana wins Maradana Lane for Rs. 10');
+  await expect(gameLog(page)).toContainText('Hana wins Maradana Lane for Rs. 1,000');
   await expect(swatch(page, 'Hana', 'Maradana Lane')).toBeVisible();
 
   // Kofi's turn waits behind the hand-over card: no Roll until he says he's ready
@@ -99,7 +99,7 @@ test('hot-seat: the device is passed before the next player sees their turn, bot
   await expect(passCard(page)).toHaveCount(0);
   await expect(turnBar(page)).toContainText("Kofi's turn");
   await rollButton(page).click();
-  await buyPrompt(page).getByRole('button', { name: /^Buy for Rs\. 200/ }).click();
+  await buyPrompt(page).getByRole('button', { name: /^Buy for Rs\. 20,000/ }).click();
   await expect(swatch(page, 'Kofi', 'Colombo Fort Station')).toBeVisible();
 
   // Turn the hand-over card off in the game menu: Hana's turn then comes straight up

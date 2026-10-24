@@ -1,4 +1,4 @@
-import type { BoardDef, RulesConfig, SpaceDef } from '../../rules';
+import { formatMoney, type BoardDef, type RulesConfig, type SpaceDef } from '../../rules';
 import { drawLines, fitText, roundRect } from '../textures/canvas';
 import { CARD_H, CARD_W, DECKS } from './centre';
 import { drawIcon } from './icons';
@@ -17,7 +17,8 @@ const PAPER = '#d9ead3';
 const INK = '#141414';
 const LINE = 0.018;
 
-const money = (n: number) => `Rs. ${n.toLocaleString('en-US')}`;
+/** Shown rupees (engine units x 100): "Rs. 6,000"; fitText shrinks a long amount to its tile */
+const money = (n: number) => formatMoney(n);
 
 function frameFor(ctx: CanvasRenderingContext2D, i: number): void {
   const [lx, lz] = localCenter(i);

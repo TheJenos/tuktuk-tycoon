@@ -4,6 +4,7 @@ import { useDoc, useMySeats, useNames } from '../context';
 import { activeDeadline, phaseLabel, speedActive } from '../selectors';
 import { TokenIcon } from '../tokenIcons';
 import { TimerRing } from './TimerRing';
+import { DEFAULT_TOKEN } from '../../../shared/tokens';
 
 /**
  * Top centre: whose turn it is, what the game waits for, the turn timer and the Speed Die badge. It reads what the
@@ -28,7 +29,7 @@ export function TurnBar() {
   return (
     <div className={yours ? 'turn-bar panel yours' : 'turn-bar panel'} data-testid="turn-bar">
       <span className="turn-who" style={{ color: safeColor(info?.color) }}>
-        <TokenIcon token={info?.token ?? 'hat'} size={22} />
+        <TokenIcon token={info?.token ?? DEFAULT_TOKEN} color={info?.color} size={22} />
       </span>
       <div className="turn-text">
         <strong>{title}</strong>

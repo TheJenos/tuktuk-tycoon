@@ -26,8 +26,11 @@ if (r.ok) { state = r.state; play(r.events); } else showError(r.error.message);
 - **Randomness lives in the state** (`state.rng`, a mulberry32 uint32). Only `createGame` (deck shuffles, opening
   roll), `roll` and the Nearest Utility card's fresh throw consume it, so nobody can change future dice by slipping in
   a free action first. The seed and deck order are readable by anyone holding the state (a known, accepted limit).
-- **JSON-safe state**: no `null`, `undefined`, `NaN` or class instances anywhere; whole rupees; optional fields are
+- **JSON-safe state**: no `null`, `undefined`, `NaN` or class instances anywhere; whole money units; optional fields are
   absent rather than undefined. `encode()` is `JSON.stringify`.
+- **Money is in rulebook units** (start 1500, prices 60..400): state, actions, events, configs and bots all use
+  them. Players see and type rupees at `board.display.currency.scale` (x100): `formatMoney(1500)` is
+  `"Rs. 150,000"` and `toUnits(6049)` is 60. The engine's own error messages format through it too.
 - **One data file**: `data/lanka.ts` holds every name, price, rent, card and label. Logic never hard-codes them.
 
 ## Commands
@@ -262,7 +265,7 @@ Dev only (not exported from `index.ts`): `randomPlayer.ts` (`randFrom`, `randomC
   `bank supply - this build's need < sum of the others' capacity`. Capacity = units they could put up now, limited by
   cash, cheapest groups first (houses: up to 4 per street; hotels: streets whose whole group has 4 houses). The window
   freezes building, selling and mortgaging. Granted units are placed one `place` action at a time at the normal price;
-  auctioned units (from Rs. 1) are paid by the bid and placed free; a unit nobody bids on ends the contest; an auctioned
+  auctioned units (from a bid of 1) are paid by the bid and placed free; a unit nobody bids on ends the contest; an auctioned
   unit that cannot be placed is refunded. Once the remaining requests fit the supply they are granted.
 - **Triples**: choosing Go To Jail sends the player straight to jail (no walk, no salary). The timeout picks the
   next bank-owned property ahead, else GO.

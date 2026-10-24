@@ -6,7 +6,7 @@ import { BOX_GROUP_FACE, WHITE_FACES } from './remap';
 
 /*
  * Die face textures drawn on canvases: pips on the white dice; on the red Speed Die pips for 1-3, a bus silhouette
- * and a generic top-hat glyph for Tuk-Tuk Uncle, with the data file's labels under the pictures.
+ * and a tuk-tuk glyph for Tuk-Tuk Uncle, with the data file's labels under the pictures.
  */
 
 const SIZE = 256;
@@ -68,7 +68,7 @@ export function speedDieMaterials(faces: readonly SpeedFace[], labels: Record<st
       typeof f === 'number'
         ? pips(f, '#ffffff')
         : (ctx: CanvasRenderingContext2D) => {
-            drawIcon(ctx, f === 'bus' ? 'bus' : 'hat', 0.5, 0.42, 0.62, '#ffffff', '#c1121f');
+            drawIcon(ctx, f === 'bus' ? 'bus' : 'tuktuk', 0.5, 0.42, 0.62, '#ffffff', '#c1121f');
             fitText(ctx, (labels[f] ?? f).toUpperCase(), 0.5, 0.82, 0.13, 0.84, { weight: 800, color: '#ffffff' });
           };
     mats = BOX_GROUP_FACE.map((i) => faceMaterial(face('#c1121f', draw(faces[i] ?? 1))));

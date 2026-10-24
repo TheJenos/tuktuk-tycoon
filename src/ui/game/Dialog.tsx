@@ -16,13 +16,15 @@ interface Props {
   covered?: boolean;
   /** Keep focus where it was when closing (the game takes the keys back) */
   restoreFocus?: boolean;
+  /** The camera keeps the board clear of the box (data-inset, its edge from CSS --edge), as of a HUD panel */
+  inset?: boolean;
 }
 
 /**
  * The game screen's modal: a glass box over the dimmed board (a bottom sheet on phones), role=dialog with
  * aria-modal, focus moved in, trapped and given back, and one layer of Esc.
  */
-export function Dialog({ title, onClose, children, className, id, aside, footer, covered = false, restoreFocus = true }: Props) {
+export function Dialog({ title, onClose, children, className, id, aside, footer, covered = false, restoreFocus = true, inset = false }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const titleId = useId();
   useDialogFocus(box, restoreFocus, covered);
@@ -36,6 +38,7 @@ export function Dialog({ title, onClose, children, className, id, aside, footer,
         role="dialog"
         aria-modal={covered ? undefined : true}
         aria-labelledby={titleId}
+        data-inset={inset ? '' : undefined}
       >
         <header className="dialog-head">
           <h2 id={titleId}>{title}</h2>

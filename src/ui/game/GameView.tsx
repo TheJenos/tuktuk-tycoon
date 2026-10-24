@@ -22,6 +22,7 @@ import { hotSeatCards } from './hotSeat';
 import { ActionBar } from './hud/ActionBar';
 import { DiceReadout } from './hud/DiceReadout';
 import { EventLog } from './hud/EventLog';
+import { MyProperties } from './hud/MyProperties';
 import { PlayersPanel } from './hud/PlayersPanel';
 import { Announcer, Toasts } from './hud/Toasts';
 import { TurnBar } from './hud/TurnBar';
@@ -64,7 +65,7 @@ function GameScreen({ session, onLeave, onRematch, isOwner = false, ownerActions
   useEffect(() => connectDirector(session), [session]);
   useEffect(() => installGameHooks(session), [session]);
   // Nothing of the last game's pickers or panels carries over
-  useEffect(() => () => uiStore.update({ picker: null, selected: null, panel: null, hover: null }), []);
+  useEffect(() => () => uiStore.update({ picker: null, selected: null, preview: null, panel: null, hover: null }), []);
 
   const doc = useDoc();
   const s = doc?.game ?? null;
@@ -116,6 +117,7 @@ function GameScreen({ session, onLeave, onRematch, isOwner = false, ownerActions
   }, []);
   const closePanel = useCallback(() => uiStore.update({ panel: null }), []);
   const toggleLog = useCallback(() => uiStore.update({ panel: uiStore.get().panel === 'log' ? null : 'log' }), []);
+  const toggleProps = useCallback(() => uiStore.update({ panel: uiStore.get().panel === 'props' ? null : 'props' }), []);
   const openMenu = useCallback(() => uiStore.update({ panel: 'menu' }), []);
 
   const menuOpen = ui.panel === 'menu';
@@ -165,28 +167,45 @@ function GameScreen({ session, onLeave, onRematch, isOwner = false, ownerActions
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // The panels' footprint, so the camera frames the board in the space left free
+  // The panels' footprint, so the camera frames the board in the space left free. Panels that come and go (the
+  // trade dialog, a preview card) are picked up as they are added, or move (a new data-inset value).
   const hud = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const root = hud.current;
     if (!root || typeof ResizeObserver === 'undefined') return;
+    let observed = new Set<HTMLElement>();
     const measure = () => {
-      const els = [...root.querySelectorAll<HTMLElement>('[data-inset]')];
-      const items = els.map((el) => ({ edge: getComputedStyle(el).getPropertyValue('--edge').trim(), rect: el.getBoundingClientRect() }));
+      const items = [...observed].map((el) => ({ edge: getComputedStyle(el).getPropertyValue('--edge').trim(), rect: el.getBoundingClientRect() }));
       const next = insetsFrom(items, window.innerWidth, window.innerHeight);
       if (!sameInsets(next, uiStore.get().insets)) uiStore.update({ insets: next });
     };
     const ro = new ResizeObserver(measure);
-    root.querySelectorAll<HTMLElement>('[data-inset]').forEach((el) => ro.observe(el));
+    const scan = () => {
+      const now = new Set(root.querySelectorAll<HTMLElement>('[data-inset]'));
+      for (const el of observed) if (!now.has(el)) ro.unobserve(el);
+      for (const el of now) if (!observed.has(el)) ro.observe(el);
+      observed = now;
+      measure();
+    };
+    let frame = 0;
+    const mo = typeof MutationObserver === 'undefined' ? null : new MutationObserver(() => {
+      frame ||= requestAnimationFrame(() => {
+        frame = 0;
+        scan();
+      });
+    });
+    mo?.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-inset'] });
     window.addEventListener('resize', measure);
-    measure();
+    scan();
     return () => {
       ro.disconnect();
+      mo?.disconnect();
+      cancelAnimationFrame(frame);
       window.removeEventListener('resize', measure);
     };
   }, [doc === null]);
 
-  const classes = ['game-hud', menuOpen && 'paused', ui.panel === 'log' && 'log-open', (!glOk || mini) && 'mini-on'].filter(Boolean).join(' ');
+  const classes = ['game-hud', menuOpen && 'paused', ui.panel === 'log' && 'log-open', ui.panel === 'props' && 'props-open', (!glOk || mini) && 'mini-on'].filter(Boolean).join(' ');
   return (
     <div id="hud" ref={hud} className={classes} style={{ '--ui-scale': scale } as CSSProperties}>
       <Announcer />
@@ -198,7 +217,15 @@ function GameScreen({ session, onLeave, onRematch, isOwner = false, ownerActions
       ) : (
         <>
           <div className="hud-top" data-inset>
-            <TurnBar />
+            <div className="turn-row">
+              <TurnBar />
+              {/* Phones only (CSS): My properties is on demand there */}
+              {mine.length > 0 && (
+                <button type="button" className="icon-button props-button" onClick={toggleProps} aria-pressed={ui.panel === 'props'} aria-label="My properties" title="My properties">
+                  ⌂
+                </button>
+              )}
+            </div>
             {session.online && !connected && (
               <p className="hud-banner danger" role="alert">
                 <span className="spinner" aria-hidden="true" />Connection lost: reconnecting…
@@ -223,6 +250,7 @@ function GameScreen({ session, onLeave, onRematch, isOwner = false, ownerActions
               <Decisions shown={shown} mine={mine} onManage={openManage} onTrade={openTrade} />
               <TradeOffers onCounter={(from, draft) => openTrade(from, draft)} />
             </div>
+            <MyProperties onClose={closePanel} />
             <EventLog expanded={ui.panel === 'log'} onToggle={toggleLog} />
           </aside>
           <div className="hud-dock" data-inset>

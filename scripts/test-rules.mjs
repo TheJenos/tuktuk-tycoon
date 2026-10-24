@@ -45,8 +45,8 @@ const roomRules = {
   speedDie: false, startCash: 1500, luxuryTax: 75, triplesRollAgain: true, turnLimit: 0,
   turnTimer: 60, decisionTimer: 45, auctionTimer: 8, debtTimer: 120,
 };
-const human = { seat: 's0', name: 'Tester', token: 'hat', color: '#e8a33d', kind: 'human', ctrl: pid };
-const bot = { seat: 's1', name: 'Ava', token: 'car', color: '#3d8fe8', kind: 'bot', ctrl: '', skill: 'expert' };
+const human = { seat: 's0', name: 'Tester', token: 'tuktuk', color: '#e8a33d', kind: 'human', ctrl: pid };
+const bot = { seat: 's1', name: 'Ava', token: 'elephant', color: '#3d8fe8', kind: 'bot', ctrl: '', skill: 'expert' };
 const state = (over = {}) => ({ gid: 'g_GAME000001', seq: 0, v: 1, at: now, data: '{"game":{}}', ...over });
 const presence = { name: 'Tester', seat: 's0', vis: true, at: now };
 

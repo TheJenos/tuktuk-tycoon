@@ -15,7 +15,7 @@ import {
 } from '../manage/buildPlan';
 import { act, game, own } from './helpers';
 
-const LIGHT_BLUE = [6, 8, 9]; // Oriental, Vermont, Connecticut: houses Rs. 50
+const LIGHT_BLUE = [6, 8, 9]; // Oriental, Vermont, Connecticut: houses Rs. 5,000
 const BROWN = [1, 3];
 const ORANGE = [16, 18, 19];
 const READING = 5;
@@ -137,7 +137,7 @@ describe('buildPlan', () => {
     let p: Plan = EMPTY_PLAN;
     for (const space of LIGHT_BLUE) p = stepLevel(s, 's0', p, space, 1);
     const sum = planSummary(s, 's0', p);
-    expect(sum.problems).toEqual(['You need Rs. 90 more', 'The bank has only 2 houses']);
+    expect(sum.problems).toEqual(['You need Rs. 9,000 more', 'The bank has only 2 houses']);
   });
 
   it('checks the bank step by step, as the engine does, not just the net change', () => {

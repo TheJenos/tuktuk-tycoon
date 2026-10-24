@@ -117,7 +117,7 @@ describe('phaseLabel', () => {
     expect(phaseLabel(s, names, ['s0'])).toBe('You: buy Galle Face Penthouse or auction it');
     expect(phaseLabel(s, names, ['s1'])).toBe('Ann decides on Galle Face Penthouse');
     s.phase = { k: 'debt', debtor: 's1', owed: { s0: 120, bank: 30 }, why: 'rent', resume: { k: 'postRoll' } };
-    expect(phaseLabel(s, names, ['s0'])).toBe('Bob must raise cash to pay Rs. 150');
+    expect(phaseLabel(s, names, ['s0'])).toBe('Bob must raise cash to pay Rs. 15,000');
   });
 });
 

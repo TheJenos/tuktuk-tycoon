@@ -3,7 +3,8 @@ import type { BoardDef, CardDef, SpaceDef } from '../types';
 /*
  * THE swappable data file: a light-hearted Sri Lankan board. Prices, rents and card effects follow the 2007
  * rulebook's board exactly (see docs/rules.md); only names and texts are themed. Money is Sri Lankan rupees
- * (Rs.). To play another theme, write another file of this shape and register it in board.ts. Rules logic never
+ * (Rs.), shown at display.currency.scale (x100) times the rulebook units the engine counts; card texts print the
+ * shown amounts. To play another theme, write another file of this shape and register it in board.ts. Rules logic never
  * hard-codes a name, price or card.
  */
 
@@ -39,7 +40,7 @@ const SPACES: SpaceDef[] = [
   { k: 'chest', name: 'Seettu Pot' },
   street('Nuwara Eliya Tea Estate', 'orange', 180, [14, 70, 200, 550, 750, 950], 100),
   street('Horton Plains Viewpoint', 'orange', 200, [16, 80, 220, 600, 800, 1000], 100),
-  { k: 'parking', name: 'Free Tuk-Tuk Stand' },
+  { k: 'parking', name: 'Tuk-Tuk Stand' },
   street('Mirissa Whale Watch', 'red', 220, [18, 90, 250, 700, 875, 1050], 150),
   { k: 'chance', name: "Astrologer's Advice" },
   street('Unawatuna Beach Hut', 'red', 220, [18, 90, 250, 700, 875, 1050], 150),
@@ -49,7 +50,7 @@ const SPACES: SpaceDef[] = [
   street('Dambulla Veg Market', 'yellow', 260, [22, 110, 330, 800, 975, 1150], 150),
   utility('Water Board'),
   street('Kandy Lake Promenade', 'yellow', 280, [24, 120, 360, 850, 1025, 1200], 150),
-  { k: 'goToJail', name: 'Caught Without a Helmet' },
+  { k: 'goToJail', name: 'License please?' },
   street('Bambalapitiya Flats', 'green', 300, [26, 130, 390, 900, 1100, 1275], 200),
   street('Havelock Town', 'green', 300, [26, 130, 390, 900, 1100, 1275], 200),
   { k: 'chest', name: 'Seettu Pot' },
@@ -61,12 +62,12 @@ const SPACES: SpaceDef[] = [
   street('Galle Face Penthouse', 'darkBlue', 400, [50, 200, 600, 1400, 1700, 2000], 200),
 ];
 
-const PASS_START = 'If you pass Start, collect Rs. 200.';
-const TO_BENCH = 'Go directly to the Police Station Bench. Do not pass Start, do not collect Rs. 200.';
+const PASS_START = 'If you pass Start, collect Rs. 20,000.';
+const TO_BENCH = 'Go directly to the Police Station Bench. Do not pass Start, do not collect Rs. 20,000.';
 
 /** "Astrologer's Advice" (the rulebook's Chance deck) */
 const CHANCE: CardDef[] = [
-  { id: 'ch-go', text: 'The astrologer says the auspicious time is NOW. Advance to Start. Collect Rs. 200.', fx: { k: 'advance', to: 0 } },
+  { id: 'ch-go', text: 'The astrologer says the auspicious time is NOW. Advance to Start. Collect Rs. 20,000.', fx: { k: 'advance', to: 0 } },
   { id: 'ch-galle', text: `Your horoscope says "travel south". Advance to Galle Fort Ramparts. ${PASS_START}`, fx: { k: 'advance', to: 24 } },
   { id: 'ch-negombo', text: `A lucky day to buy fish. Advance to Negombo Fish Market. ${PASS_START}`, fx: { k: 'advance', to: 11 } },
   {
@@ -86,44 +87,44 @@ const CHANCE: CardDef[] = [
     text: 'Your planets favour a window seat. Advance to the nearest Station and pay the owner twice the fare they are otherwise owed. If unowned, you may buy it.',
     fx: { k: 'nearest', kind: 'rail' },
   },
-  { id: 'ch-dividend', text: 'Your lottery ticket finally wins something. Collect Rs. 50.', fx: { k: 'cash', amount: 50 } },
+  { id: 'ch-dividend', text: 'Your lottery ticket finally wins something. Collect Rs. 5,000.', fx: { k: 'cash', amount: 50 } },
   { id: 'ch-goojf', text: 'Your cousin knows the inspector. Leave the Police Station Bench free. Keep this card until needed, or sell it.', fx: { k: 'goojf' } },
   { id: 'ch-back3', text: 'Bad omen: a cat crossed your path. Go back 3 spaces.', fx: { k: 'back', n: 3 } },
   { id: 'ch-jail', text: `The astrologer did warn you. ${TO_BENCH}`, fx: { k: 'jail' } },
   {
     id: 'ch-repairs',
-    text: 'The monsoon leaks into everything: pay Rs. 25 for each house and Rs. 100 for each hotel.',
+    text: 'The monsoon leaks into everything: pay Rs. 2,500 for each house and Rs. 10,000 for each hotel.',
     fx: { k: 'repairs', house: 25, hotel: 100 },
   },
-  { id: 'ch-poortax', text: 'A traffic policeman spots your expired licence. Pay Rs. 15.', fx: { k: 'cash', amount: -15 } },
+  { id: 'ch-poortax', text: 'A traffic policeman spots your expired licence. Pay Rs. 1,500.', fx: { k: 'cash', amount: -15 } },
   { id: 'ch-fort', text: `Catch the early train. Advance to Colombo Fort Station. ${PASS_START}`, fx: { k: 'advance', to: 5 } },
   { id: 'ch-penthouse', text: 'Dress up for a Galle Face sunset. Advance to Galle Face Penthouse.', fx: { k: 'advance', to: 39 } },
-  { id: 'ch-chairman', text: 'You are elected treasurer of the cricket club. Pay each player Rs. 50.', fx: { k: 'each', amount: -50 } },
-  { id: 'ch-loan', text: 'Your seettu turn comes up early. Collect Rs. 150.', fx: { k: 'cash', amount: 150 } },
+  { id: 'ch-chairman', text: 'You are elected treasurer of the cricket club. Pay each player Rs. 5,000.', fx: { k: 'each', amount: -50 } },
+  { id: 'ch-loan', text: 'Your seettu turn comes up early. Collect Rs. 15,000.', fx: { k: 'cash', amount: 150 } },
 ];
 
 /** "Seettu Pot" (the rulebook's Community Chest deck) */
 const CHEST: CardDef[] = [
-  { id: 'cc-go', text: 'The seettu aunty pays out on time, for once. Advance to Start. Collect Rs. 200.', fx: { k: 'advance', to: 0 } },
-  { id: 'cc-bankerror', text: 'Bank error in your favour (the teller was watching the cricket). Collect Rs. 200.', fx: { k: 'cash', amount: 200 } },
-  { id: 'cc-doctor', text: 'That ayurvedic massage went too far. Pay Rs. 50.', fx: { k: 'cash', amount: -50 } },
-  { id: 'cc-stock', text: 'You sell your extra king coconuts. Collect Rs. 45.', fx: { k: 'cash', amount: 45 } },
+  { id: 'cc-go', text: 'The seettu aunty pays out on time, for once. Advance to Start. Collect Rs. 20,000.', fx: { k: 'advance', to: 0 } },
+  { id: 'cc-bankerror', text: 'Bank error in your favour (the teller was watching the cricket). Collect Rs. 20,000.', fx: { k: 'cash', amount: 200 } },
+  { id: 'cc-doctor', text: 'That ayurvedic massage went too far. Pay Rs. 5,000.', fx: { k: 'cash', amount: -50 } },
+  { id: 'cc-stock', text: 'You sell your extra king coconuts. Collect Rs. 4,500.', fx: { k: 'cash', amount: 45 } },
   { id: 'cc-goojf', text: 'Your uncle is a lawyer. Leave the Police Station Bench free. Keep this card until needed, or sell it.', fx: { k: 'goojf' } },
   { id: 'cc-jail', text: `You argued with a bus conductor. ${TO_BENCH}`, fx: { k: 'jail' } },
-  { id: 'cc-wedding', text: "It's your daughter's wedding. Collect Rs. 50 from every player as gifts.", fx: { k: 'each', amount: 50 } },
-  { id: 'cc-avurudu', text: 'Your New Year bonus arrives. Collect Rs. 100.', fx: { k: 'cash', amount: 100 } },
-  { id: 'cc-taxrefund', text: 'An Inland Revenue refund. Miracles happen. Collect Rs. 20.', fx: { k: 'cash', amount: 20 } },
-  { id: 'cc-deposit', text: 'Your fixed deposit matures. Collect Rs. 100.', fx: { k: 'cash', amount: 100 } },
-  { id: 'cc-hospital', text: 'Too many isso vadai at the beach. Pay the hospital Rs. 100.', fx: { k: 'cash', amount: -100 } },
-  { id: 'cc-school', text: 'School development fee, again. Pay Rs. 150.', fx: { k: 'cash', amount: -150 } },
-  { id: 'cc-services', text: "You fixed the neighbour's TV antenna. Collect Rs. 25.", fx: { k: 'cash', amount: 25 } },
+  { id: 'cc-wedding', text: "It's your daughter's wedding. Collect Rs. 5,000 from every player as gifts.", fx: { k: 'each', amount: 50 } },
+  { id: 'cc-avurudu', text: 'Your New Year bonus arrives. Collect Rs. 10,000.', fx: { k: 'cash', amount: 100 } },
+  { id: 'cc-taxrefund', text: 'An Inland Revenue refund. Miracles happen. Collect Rs. 2,000.', fx: { k: 'cash', amount: 20 } },
+  { id: 'cc-deposit', text: 'Your fixed deposit matures. Collect Rs. 10,000.', fx: { k: 'cash', amount: 100 } },
+  { id: 'cc-hospital', text: 'Too many isso vadai at the beach. Pay the hospital Rs. 10,000.', fx: { k: 'cash', amount: -100 } },
+  { id: 'cc-school', text: 'School development fee, again. Pay Rs. 15,000.', fx: { k: 'cash', amount: -150 } },
+  { id: 'cc-services', text: "You fixed the neighbour's TV antenna. Collect Rs. 2,500.", fx: { k: 'cash', amount: 25 } },
   {
     id: 'cc-repairs',
-    text: 'The road outside is dug up again: pay Rs. 40 per house and Rs. 115 per hotel.',
+    text: 'The road outside is dug up again: pay Rs. 4,000 per house and Rs. 11,500 per hotel.',
     fx: { k: 'repairs', house: 40, hotel: 115 },
   },
-  { id: 'cc-contest', text: 'Second place in the New Year festival contest. Collect Rs. 10.', fx: { k: 'cash', amount: 10 } },
-  { id: 'cc-dubai', text: 'Your aunty in Dubai sends a gift. Collect Rs. 100.', fx: { k: 'cash', amount: 100 } },
+  { id: 'cc-contest', text: 'Second place in the New Year festival contest. Collect Rs. 1,000.', fx: { k: 'cash', amount: 10 } },
+  { id: 'cc-dubai', text: 'Your aunty in Dubai sends a gift. Collect Rs. 10,000.', fx: { k: 'cash', amount: 100 } },
 ];
 
 export const LANKA: BoardDef = {
@@ -153,6 +154,7 @@ export const LANKA: BoardDef = {
   },
   display: {
     title: 'TUK-TUK TYCOON',
+    currency: { symbol: 'Rs.', scale: 100 },
     decks: { chance: "Astrologer's Advice", chest: 'Seettu Pot' },
     groupColours: {
       brown: '#8b4c2c',

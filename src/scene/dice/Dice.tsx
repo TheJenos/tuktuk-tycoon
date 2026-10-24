@@ -14,6 +14,7 @@ import { kinematicThrow, type Throw } from './kinematic';
 import { correction, faceFor, WHITE_FACES } from './remap';
 import { showDiceFrom } from './shown';
 import { DIE_HALF, loadRapier, rapierReady, simulateThrow, SIM_HZ, type Recording } from './simulate';
+import { dimWithSpotlight } from '../dimmable';
 
 /*
  * Two white dice and, when the roll has one, the red Speed Die. Each die is a body group (the recorded or tumbled
@@ -42,6 +43,10 @@ export function Dice({ tier }: { tier: Tier }) {
   const boardId = useView((v) => v.game?.cfg.board ?? 'lanka');
   const board = getBoard(boardId);
   const speedMats = useMemo(() => speedDieMaterials(board.speedDie.faces, board.speedDie.labels), [board]);
+  useEffect(() => {
+    dimWithSpotlight(whiteDieMaterials());
+    dimWithSpotlight(speedMats);
+  }, [speedMats]);
   const bodies = useRef<(Group | null)[]>([null, null, null]);
   const meshes = useRef<(Mesh | null)[]>([null, null, null]);
   const roll = useRef<Roll | null>(null);

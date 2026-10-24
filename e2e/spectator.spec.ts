@@ -27,9 +27,9 @@ test('joining a running game by code: watching, with no seat, and every move sho
 
   await alice.rig([1, 2]);
   await rollButton(alice.page).click();
-  await buyPrompt(alice.page).getByRole('button', { name: /^Buy for Rs\. 60/ }).click();
+  await buyPrompt(alice.page).getByRole('button', { name: /^Buy for Rs\. 6,000/ }).click();
   await expect(swatch(carol.page, alice.name, 'Maradana Lane')).toBeVisible();
-  await expect(cashOn(carol.page, alice.name)).toHaveText('Rs. 1,440');
+  await expect(cashOn(carol.page, alice.name)).toHaveText('Rs. 144,000');
   // Alice's own screen may hear about her purchase after Carol's does: compare the two once hers shows it too
   await expect(swatch(alice.page, alice.name, 'Maradana Lane')).toBeVisible();
   await alice.waitIdle();

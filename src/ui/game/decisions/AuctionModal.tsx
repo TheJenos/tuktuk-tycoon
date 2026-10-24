@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { minBid, type AuctionPhase, type GameState, type SeatId } from '../../../rules';
+import { MONEY_SCALE, minBid, toRupees, toUnits, type AuctionPhase, type GameState, type SeatId } from '../../../rules';
 import { safeColor } from '../../colors';
 import { useBusy, useSend } from '../actions';
 import { useDoc, useGame, useMySeats, useNames } from '../context';
@@ -9,6 +9,7 @@ import { lotText, money, priceOf } from '../format';
 import { TimerBar } from '../hud/TimerRing';
 import { activeDeadline } from '../selectors';
 
+/** Quick raises in engine units: +Rs. 100 / +Rs. 1,000 / +Rs. 10,000 as shown */
 const RAISES = [1, 10, 100];
 
 /**
@@ -89,7 +90,9 @@ function BidRow({ seat, s, ph, many, onRaise }: { seat: SeatId; s: GameState; ph
   const high = ph.high?.amount ?? 0;
   const isHigh = ph.high?.seat === seat;
   const min = minBid(s) ?? high + 1;
-  const amount = Number.parseInt(custom, 10);
+  // The box takes shown rupees (step Rs. 100); the bid is sent in engine units, rounded to the nearest unit
+  const typed = Number(custom);
+  const amount = custom.trim() !== '' && Number.isFinite(typed) ? toUnits(typed) : NaN;
   const customOk = Number.isInteger(amount) && amount >= min && amount <= cash && !isHigh;
   const bid = (n: number) => void send(seat, { k: 'bid', amount: n });
   const submit = (e: FormEvent) => {
@@ -134,9 +137,9 @@ function BidRow({ seat, s, ph, many, onRaise }: { seat: SeatId; s: GameState; ph
           id={`bid-${seat}`}
           type="number"
           inputMode="numeric"
-          min={min}
-          max={cash}
-          step={1}
+          min={toRupees(min)}
+          max={toRupees(cash)}
+          step={MONEY_SCALE}
           placeholder={`${money(min)} or more`}
           value={custom}
           disabled={isHigh}

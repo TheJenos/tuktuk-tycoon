@@ -15,7 +15,8 @@ export const ANIM = {
   moveMax: 2200,
   /** A single jump (to jail) */
   jump: 700,
-  card: 1800,
+  /** Long enough to read the card: it holds in front of the camera for about 60% of this */
+  card: 4500,
   owner: 300,
   level: 350,
   mortgage: 250,

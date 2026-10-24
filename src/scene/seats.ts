@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { SEAT_IDS, type SeatId } from '../rules';
 import type { SeatInfo } from '../net/types';
 import { useSessionView } from '../state/session';
-import { SEAT_COLORS, TOKENS, isTokenId, type TokenId } from '../shared/tokens';
+import { SEAT_COLORS, TOKENS, isTokenId, type TokenId, DEFAULT_TOKEN } from '../shared/tokens';
 import { safeColor } from '../ui/colors';
 
 /** How a seat looks on the board: its token and its colour */
@@ -15,7 +15,7 @@ export interface SeatLook {
 export function seatLook(seat: SeatId, info: SeatInfo | undefined): SeatLook {
   const i = Math.max(0, SEAT_IDS.indexOf(seat));
   return {
-    token: info && isTokenId(info.token) ? info.token : (TOKENS[i % TOKENS.length]?.id ?? 'hat'),
+    token: info && isTokenId(info.token) ? info.token : (TOKENS[i % TOKENS.length]?.id ?? DEFAULT_TOKEN),
     color: info ? safeColor(info.color) : (SEAT_COLORS[i % SEAT_COLORS.length] ?? '#888888'),
   };
 }
@@ -34,7 +34,7 @@ export function useSeatLooks(): Record<SeatId, SeatLook> {
     key.split(',').forEach((part, i) => {
       const [token, color] = part.split(':');
       const seat = SEAT_IDS[i] as SeatId;
-      out[seat] = { token: isTokenId(token) ? token : 'hat', color: color ?? '#888888' };
+      out[seat] = { token: isTokenId(token) ? token : DEFAULT_TOKEN, color: color ?? '#888888' };
     });
     return out;
   }, [key]);

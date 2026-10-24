@@ -5,7 +5,7 @@ import { localSeats, SOLO_SAVE_KEY } from '../net/local';
 import { apply, RULES_VERSION, timer, type Action, type GameState, type SeatId } from '../rules';
 import { Stage } from '../scene/Stage';
 import { phaseSecs } from '../shared/timing';
-import { SEAT_COLORS, TOKENS } from '../shared/tokens';
+import { SEAT_COLORS, TOKENS, DEFAULT_TOKEN } from '../shared/tokens';
 import { sessionStore } from '../state/session';
 import { GameView } from '../ui/game';
 import { settings, type AnimSpeed, type Quality } from '../ui/settings';
@@ -14,10 +14,11 @@ import { settings, type AnimSpeed, type Quality } from '../ui/settings';
  * DEV TOOL (not part of the app or its build): the whole game screen (3D stage + GameView) over a local session,
  * for checking the HUD without the lobby.
  *   npx vite, then open /src/dev/game.html?seats=hhbb&speed=1[&quality=low][&anim=fast][&seed=7][&gl=0][&pace=20]
- *   [&scenario=start|buy|tax|bus|triple|auction|jail|debt|xfer|claim|over][&presence=1][&reduced=1]
+ *   [&scenario=start|buy|tax|bus|triple|auction|jail|debt|xfer|claim|trades|build|over][&presence=1][&reduced=1]
  *   seats: one letter per seat, h = human (all played from this tab: hot-seat), b = bot. The rules have debug on,
  *   so window.game.test.rig() works. A scenario starts the game mid-way at that decision for s0 (saved as the solo
- *   game, then resumed).
+ *   game, then resumed). `trades` leaves offers open between other seats and to s0: add &pace=500 so the bots
+ *   take their time answering them.
  */
 
 const q = new URLSearchParams(location.search);
@@ -32,7 +33,7 @@ if (q.get('gl') === '0') delete (window as Partial<Window & typeof globalThis>).
 const letters = (q.get('seats') ?? 'hbbb').split('');
 const seats: LocalSeat[] = letters.map((l, i) => ({
   name: l === 'h' ? `Human${i + 1}` : `Bot${i + 1}`,
-  token: TOKENS[i % TOKENS.length]?.id ?? 'hat',
+  token: TOKENS[i % TOKENS.length]?.id ?? DEFAULT_TOKEN,
   color: SEAT_COLORS[i] ?? '#888',
   kind: l === 'h' ? 'human' : 'bot',
 }));
@@ -87,6 +88,22 @@ const SCENARIOS: Record<string, (s: GameState, run: Run) => void> = {
     s.bank.houses = 4;
     run('s0', { k: 'build', group: 'brown', levels: [1, 1] });
   },
+  // Everyone owns a little; open offers between the others (s1 to s2, s2 to s3) and one to s0, s0 to roll
+  trades: (s, run) => {
+    own(s, 's0', [1, 3, 6]);
+    own(s, 's1', [8, 9, 11]);
+    own(s, 's2', [16, 18, 5]);
+    own(s, 's3', [21, 23, 39]);
+    run('s1', { k: 'propose', to: 's2', give: { cash: 0, props: [11], cards: [] }, get: { cash: 200, props: [16], cards: [] } });
+    run('s2', { k: 'propose', to: 's3', give: { cash: 0, props: [5, 18], cards: [] }, get: { cash: 0, props: [39], cards: [] } });
+    run('s3', { k: 'propose', to: 's0', give: { cash: 0, props: [21], cards: [] }, get: { cash: 0, props: [6], cards: [] } });
+  },
+  // s0 owns a full colour set (ready to build), part of another, a station, a mortgaged station and a board
+  build: (s) => {
+    own(s, 's0', [6, 8, 9]);
+    own(s, 's0', [1, 5, 12]);
+    own(s, 's0', [15], 0, true);
+  },
   // One End turn from the game's end: everyone else is out
   over: (s) => {
     for (const seat of ['s1', 's2', 's3'] as const) if (s.players[seat]) s.players[seat].out = 'bankrupt';
@@ -110,7 +127,7 @@ if (scenario && SCENARIOS[scenario]) {
   SCENARIOS[scenario](s, (seat, a) => {
     // An accept needs the offer's id, known only once proposed
     run(seat, a);
-    if (a.k === 'propose') {
+    if (a.k === 'propose' && scenario === 'xfer') {
       const t = Object.values(s.trades ?? {})[0] as { id: string } | undefined;
       if (t) run('s0', { k: 'accept', id: t.id });
     }

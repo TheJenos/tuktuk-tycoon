@@ -40,8 +40,8 @@ test('on a phone: the lobby fits, and a turn plays from the bottom sheet with ta
   await expect(buy).toBeInViewport();
   const sheet = (await buy.boundingBox())!;
   expect(sheet.y + sheet.height).toBeLessThanOrEqual((await bar.boundingBox())!.y + 1);
-  await buy.getByRole('button', { name: /^Buy for Rs\. 60/ }).tap();
-  await expect(cashOn(page, 'Tess')).toHaveText('Rs. 1,440');
+  await buy.getByRole('button', { name: /^Buy for Rs\. 6,000/ }).tap();
+  await expect(cashOn(page, 'Tess')).toHaveText('Rs. 144,000');
 
   // Manage comes up as a sheet from the bottom, the full width of the screen
   await bar.getByRole('button', { name: /^Manage/ }).tap();

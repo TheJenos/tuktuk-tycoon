@@ -4,7 +4,6 @@ import {
   BoxGeometry,
   Color,
   ConeGeometry,
-  CylinderGeometry,
   InstancedMesh,
   Matrix4,
   MeshBasicMaterial,
@@ -20,13 +19,13 @@ import { ANIM } from '../../shared/timing';
 import { director, useView, type BoardEvent } from '../../view';
 import { useSeatLooks } from '../seats';
 import { fitText, makeCanvas, toTexture } from '../textures/canvas';
-import { BOARD_TOP, buildingPos, chipPos, tileCenter, tileRotation, TILE_D, TILE_W } from './layout';
+import { BOARD_TOP, buildingPos, chipPos, FRAME, tileCenter, tileRotation, TILE_D, TILE_W } from './layout';
 import { pieceChanges, piecesOf, type Pieces as PieceList } from './pieceList';
 
 /*
- * Houses, hotels, owner chips and mortgage stamps, each kind one InstancedMesh rebuilt from the displayed state
+ * Houses, hotels, owner bars and mortgage stamps, each kind one InstancedMesh rebuilt from the displayed state
  * (only when it changes or something animates). The 'board' scene API plays the change an event just made: a house
- * drops in or shrinks away, a chip pops up, a stamp lands.
+ * drops in or shrinks away, an owner bar pops up, a stamp lands.
  */
 
 const merged = (parts: BufferGeometry[]): BufferGeometry => {
@@ -43,7 +42,8 @@ export const hotelGeo = merged([
   new BoxGeometry(0.4, 0.13, 0.2).translate(0, 0.065, 0),
   new ConeGeometry(0.29, 0.08, 4).rotateY(Math.PI / 4).scale(1, 1, 0.55).translate(0, 0.17, 0),
 ]);
-const chipGeo = new CylinderGeometry(0.12, 0.12, 0.04, 24).translate(0, 0.02, 0);
+/** The owner bar: a thick strip in the owner's colour along the frame outside the tile, as wide as the tile */
+const chipGeo = new BoxGeometry(TILE_W * 0.86, 0.045, FRAME * 0.72).translate(0, 0.0225, 0);
 const stampGeo = new PlaneGeometry(TILE_W * 0.92, TILE_D * 0.94).rotateX(-Math.PI / 2);
 
 export const houseMat = new MeshStandardMaterial({ color: '#2f9e44', roughness: 0.45 });
@@ -231,7 +231,7 @@ export function Pieces() {
         if (n >= 40) return;
         const s = step(key, false);
         const [x, z] = chipPos(space);
-        put(c, n, x, BOARD_TOP, z, 0, s.scale);
+        put(c, n, x, BOARD_TOP, z, tileRotation(space), s.scale);
         tmp.c.set(color);
         if (dim) tmp.c.lerp(new Color('#555555'), 0.65);
         c.setColorAt(n++, tmp.c);

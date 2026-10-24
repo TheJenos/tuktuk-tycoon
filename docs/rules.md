@@ -4,10 +4,13 @@ This is a paraphrased checklist of the rulebook the game implements. Every rule 
 (`src/rules`) and by a test. Where the rulebook is silent or ambiguous, the decision is listed under
 [Rules decisions](#rules-decisions).
 
+Amounts are the rupees the game shows, 100 times the rulebook's (Rs. 150,000 here is the rulebook's 1,500); the
+engine itself counts the rulebook's units.
+
 ## Speed Die (optional, a room setting)
 
-1. Each player gets an extra Rs. 1,000 at the start.
-2. A player doesn't use the Speed Die until they first land on or pass GO and collect Rs. 200. From then on they roll it
+1. Each player gets an extra Rs. 100,000 at the start.
+2. A player doesn't use the Speed Die until they first land on or pass GO and collect Rs. 20,000. From then on they roll it
    with the two white dice every turn (so players start using it at different times).
 3. Faces: `1`, `2`, `3`, `Bus`, `Tuk-Tuk Uncle`, `Tuk-Tuk Uncle`.
    - **1, 2 or 3:** add it to the white dice total.
@@ -27,16 +30,16 @@ This is a paraphrased checklist of the rulebook the game implements. Every rule 
 
 - **Object:** become the wealthiest player through buying, renting and selling property. The last player left in the
   game (not bankrupt) wins.
-- **Preparation:** Chance and Community Chest decks shuffled face down. Each player starts with Rs. 1,500
-  (2×Rs. 500, 2×Rs. 100, 2×Rs. 50, 6×Rs. 20, 5×Rs. 10, 5×Rs. 5, 5×Rs. 1).
+- **Preparation:** Chance and Community Chest decks shuffled face down. Each player starts with Rs. 150,000
+  (2×Rs. 50,000, 2×Rs. 10,000, 2×Rs. 5,000, 6×Rs. 2,000, 5×Rs. 1,000, 5×Rs. 500, 5×Rs. 100).
 - **The Bank:** holds the Title Deeds, 32 houses and 12 hotels. It pays salaries and bonuses, sells and auctions
   properties, sells houses and hotels, and lends money only through mortgages. It collects taxes, fines, loans and
   interest. It never goes broke.
 - **Play:** everyone rolls; the highest total starts. Play passes to the left. Move clockwise by the dice total. Several
   tokens may share a space.
 - **Doubles:** move, resolve the space, then roll again. Three doubles in a row: go directly to jail.
-- **GO:** collect Rs. 200 every time you land on or pass GO, by dice or by card. Passing GO and then drawing "Advance to GO"
-  (from Community Chest 2 spaces past GO, or Chance 7 spaces past GO) pays Rs. 200 twice.
+- **GO:** collect Rs. 20,000 every time you land on or pass GO, by dice or by card. Passing GO and then drawing "Advance to GO"
+  (from Community Chest 2 spaces past GO, or Chance 7 spaces past GO) pays Rs. 20,000 twice.
 - **Buying property:** landing on an unowned property, you may buy it at the printed price. If you don't, the Bank
   auctions it to the highest bidder. Anyone may bid, including the player who declined. Bidding may start at any price.
   The winner pays the bid in cash.
@@ -47,15 +50,15 @@ This is a paraphrased checklist of the rulebook the game implements. Every rule 
 - **Chance / Community Chest:** take the top card, follow it, put it face down at the bottom. "Get Out of Jail Free" is
   kept until used, then returned to the bottom of its deck. It may be sold to another player at any time for an agreed
   price.
-- **Income Tax:** choose **before** adding up your worth: pay Rs. 200, or pay 10% of your total worth. Worth = cash +
+- **Income Tax:** choose **before** adding up your worth: pay Rs. 20,000, or pay 10% of your total worth. Worth = cash +
   printed price of every property (mortgaged or not) + cost of all your buildings.
 - **Jail:** you go to jail by (1) landing on Go To Jail, (2) drawing a Go to Jail card, or (3) rolling doubles three
   times in a row. You never collect GO salary on that move; your turn ends. Landing on Jail normally is "Just Visiting"
   with no penalty.
   - Getting out: (1) roll doubles on any of your next three turns, then move by that roll (no extra roll for the
-    doubles); (2) use a Get Out of Jail Free card; (3) buy that card from another player and use it; (4) pay Rs. 50 before
+    doubles); (2) use a Get Out of Jail Free card; (3) buy that card from another player and use it; (4) pay Rs. 5,000 before
     rolling on either of your next two turns.
-  - If you haven't rolled doubles by the third turn, you must pay Rs. 50, then move by that throw.
+  - If you haven't rolled doubles by the third turn, you must pay Rs. 5,000, then move by that throw.
   - While in jail you can still buy and sell property and buildings, and collect rent.
 - **Free Parking:** nothing happens.
 - **Houses:** with every property in a colour group, you may buy houses for any of them at the Title Deed price, at any
@@ -90,15 +93,15 @@ The rulebook is silent or ambiguous on these points. Each is a config option whe
 
 | Topic | Decision |
 |---|---|
-| Income Tax amount | Rs. 200 or 10% (the scanned PDF's OCR reads "Rs. 900", a scan error). The 10% rounds down. |
-| Luxury Tax | Rs. 75 (this era's board). Config: 75 or 100. |
+| Income Tax amount | Rs. 20,000 or 10% (the scanned PDF's OCR reads "Rs. 90,000", a scan error). The 10% rounds down. |
+| Luxury Tax | Rs. 7,500 (this era's board). Config: Rs. 7,500 or Rs. 10,000. |
 | Rent | Collected automatically. The "ask before the second following player rolls" window is not used. |
-| Auctions | Timed open bidding: anyone still in may raise at any time; the countdown resets on each bid; it closes early when everyone else has passed. Minimum bid Rs. 1. |
-| Triples | Move to any of the other 39 spaces, then roll again (the white dice are doubles, so triples also count toward the three-doubles jail rule). Passing GO on the way pays Rs. 200. Config `triplesRollAgain`. |
+| Auctions | Timed open bidding: anyone still in may raise at any time; the countdown resets on each bid; it closes early when everyone else has passed. Minimum bid Rs. 100. |
+| Triples | Move to any of the other 39 spaces, then roll again (the white dice are doubles, so triples also count toward the three-doubles jail rule). Passing GO on the way pays Rs. 20,000. Config `triplesRollAgain`. |
 | Speed Die unlock | Takes effect from the next roll after the first GO salary (including a doubles re-roll). |
 | Nearest Utility card | If owned: throw the dice (white dice, plus the speed die when the roller has it active; Bus / Tuk-Tuk Uncle = 0) and pay 10× the total. |
 | Mortgaged railroads/utilities | Still count toward the number owned for rent. |
-| Unmortgage cost | Mortgage value + `ceil(10%)` (Power Cut Board: Rs. 83). |
+| Unmortgage cost | Mortgage value + `ceil(10%)` (Power Cut Board: Rs. 8,300). |
 | Mortgaged property changing hands | The new owner chooses at once, per property: lift now (mortgage + 10%) or pay 10% now and keep it mortgaged. |
 | Shortage auction | When buildings are short and more than one player wants them, every eligible builder may state how many they want; if the total fits, all are granted, otherwise units are auctioned one at a time. |
 | Bankruptcy to the Bank | Mortgages are cleared before the Bank auctions the properties. |
@@ -108,7 +111,7 @@ The rulebook is silent or ambiguous on these points. Each is a config option whe
 | Turn limit | Off by default. When on (used in bot simulations), the game ends ranked by net worth. |
 | The high bidder | Can neither pass nor raise its own bid, and the auction doesn't wait for it. A seat that couldn't beat the high bid even by selling and mortgaging everything is passed automatically. |
 | Raising cash during an auction | Selling buildings and mortgaging are allowed while an auction runs; building and lifting mortgages are not. A winner whose cash fell below its bid meanwhile owes the bid as a debt. |
-| Shortage contest details | It starts when a build would leave the bank with fewer units of that kind than the other players could put up right now (as far as their cash goes). While it is open nobody may build, sell or mortgage. Granted units are placed one at a time at the normal price; auctioned units start at Rs. 1, cost the winning bid and are placed free; a unit nobody bids on ends the contest; a won unit that can't be placed is refunded. |
+| Shortage contest details | It starts when a build would leave the bank with fewer units of that kind than the other players could put up right now (as far as their cash goes). While it is open nobody may build, sell or mortgage. Granted units are placed one at a time at the normal price; auctioned units start at Rs. 100, cost the winning bid and are placed free; a unit nobody bids on ends the contest; a won unit that can't be placed is refunded. |
 | Triples onto Go To Jail | Picking the Go To Jail space sends the player straight to jail: no walk, no salary. |
 | Get Out of Jail Free timing | The card may be used before rolling on any of the three jail turns. The fine forced after the third failed roll can't be replaced by a card. Paying the fine by choice needs the cash (it never opens a debt). |
 | Tuk-Tuk Uncle when the bank owns nothing | The token goes to the next unmortgaged property of another active player and pays rent; on a utility the rent uses the white dice (Tuk-Tuk Uncle counts 0). This branch runs only when the bank owns no property at all: if the bank's only property is the one the player stands on (declined, no bids), the token stays put. |

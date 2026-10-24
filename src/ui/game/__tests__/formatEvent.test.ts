@@ -4,7 +4,7 @@ import { makeNames } from '../format';
 import { diceText, eventSeats, formatEvent, moneyEvent, quietEvent } from '../hud/formatEvent';
 import { game } from './helpers';
 
-const names = makeNames(null, { seats: { s0: { seat: 's0', name: 'Ann', token: 'hat', color: '#e8a33d', kind: 'human', ctrl: 'p_x' } } }, LANKA);
+const names = makeNames(null, { seats: { s0: { seat: 's0', name: 'Ann', token: 'tuktuk', color: '#e8a33d', kind: 'human', ctrl: 'p_x' } } }, LANKA);
 const trade = { id: 't1', from: 's0' as const, to: 's1' as const, give: { cash: 100, props: [39], cards: [] }, get: { cash: 0, props: [37], cards: ['ch-goojf'] } };
 
 /** One event of every kind: the mapped type makes tsc fail when the engine adds a kind this test lacks */
@@ -17,7 +17,7 @@ const SAMPLES: { [K in GameEvent['t']]: Extract<GameEvent, { t: K }> } = {
   salary: { t: 'salary', seat: 's0', amount: 200 },
   land: { t: 'land', seat: 's0', space: 39 },
   cash: { t: 'cash', from: 's0', to: 's1', amount: 50, why: 'rent', after: { s0: 1450, s1: 1550 }, space: 39 },
-  card: { t: 'card', seat: 's0', deck: 'chance', cardId: 'ch-go', text: 'Advance to Start. Collect Rs. 200.', kept: false },
+  card: { t: 'card', seat: 's0', deck: 'chance', cardId: 'ch-go', text: 'Advance to Start. Collect Rs. 20,000.', kept: false },
   cardReturn: { t: 'cardReturn', deck: 'chest', cardId: 'cc-goojf', seat: 's1' },
   cardGive: { t: 'cardGive', cardId: 'cc-goojf', from: 's0', to: 's1' },
   jail: { t: 'jail', seat: 's0', reason: 'doubles' },
@@ -60,14 +60,14 @@ describe('formatEvent', () => {
   });
 
   it('uses the room seat names, the engine names and the board names', () => {
-    expect(formatEvent(SAMPLES.cash, names)).toBe('Ann pays s1 Rs. 50 rent for Galle Face Penthouse');
+    expect(formatEvent(SAMPLES.cash, names)).toBe('Ann pays s1 Rs. 5,000 rent for Galle Face Penthouse');
     const withGame = makeNames(game(), null);
-    expect(formatEvent(SAMPLES.bid, withGame)).toBe('Bob bids Rs. 120');
-    expect(formatEvent(SAMPLES.auctionEnd, withGame)).toBe('Bob wins Galle Face Penthouse for Rs. 120');
+    expect(formatEvent(SAMPLES.bid, withGame)).toBe('Bob bids Rs. 12,000');
+    expect(formatEvent(SAMPLES.auctionEnd, withGame)).toBe('Bob wins Galle Face Penthouse for Rs. 12,000');
     expect(formatEvent(SAMPLES.tradeDone, withGame)).toBe(
-      'Ann and Bob trade: Rs. 100 and Galle Face Penthouse for Cinnamon Gardens and a Get Out of Jail Free card',
+      'Ann and Bob trade: Rs. 10,000 and Galle Face Penthouse for Cinnamon Gardens and a Get Out of Jail Free card',
     );
-    expect(formatEvent(SAMPLES.debt, withGame)).toBe('Ann owes Bob and the bank Rs. 350 and must raise cash');
+    expect(formatEvent(SAMPLES.debt, withGame)).toBe('Ann owes Bob and the bank Rs. 35,000 and must raise cash');
     expect(formatEvent(SAMPLES.bus, withGame)).toBe('Ann takes the bus: move 3, 4 or 7');
     expect(formatEvent(SAMPLES.timeout, withGame)).toBe("Time's up: Bob declines to buy");
     expect(formatEvent(SAMPLES.level, withGame)).toBe('Hotel built on Galle Face Penthouse');

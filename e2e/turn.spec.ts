@@ -21,9 +21,9 @@ test('a turn: Alice rolls, buys and ends her turn; Bob sees each step, then roll
   await rollButton(alice.page).click();
   await expect(gameLog(bob.page)).toContainText(`${alice.name} rolls 1 + 2`);
   await expect(turnBar(bob.page)).toContainText(`${alice.name} decides on Maradana Lane`);
-  await buyPrompt(alice.page).getByRole('button', { name: /^Buy for Rs\. 60/ }).click();
+  await buyPrompt(alice.page).getByRole('button', { name: /^Buy for Rs\. 6,000/ }).click();
   await expect(swatch(bob.page, alice.name, 'Maradana Lane')).toBeVisible();
-  await expect(cashOn(bob.page, alice.name)).toHaveText('Rs. 1,440');
+  await expect(cashOn(bob.page, alice.name)).toHaveText('Rs. 144,000');
 
   await endTurnButton(alice.page).click();
   await expect(rollButton(bob.page)).toBeVisible();

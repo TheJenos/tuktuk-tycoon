@@ -30,8 +30,8 @@ test('the Local game wizard starts a Speed Die game: the bonus cash and the rule
   await p.waitStarted();
   const s = await p.state();
   expect(s.cfg.speedDie).toBe(true);
-  // Rs. 1,500 and the Speed Die's Rs. 1,000 each
-  await expect(cashOn(page, 'Rita')).toHaveText('Rs. 2,500');
+  // Rs. 150,000 and the Speed Die's Rs. 100,000 each
+  await expect(cashOn(page, 'Rita')).toHaveText('Rs. 250,000');
   await p.openGameMenu();
   await openTab(page, 'Rules');
   await expect(p.gameMenu.locator('.rules-list')).toContainText('Classic with the Speed Die');
@@ -59,7 +59,7 @@ test('rigged Speed Die: triples pick any space and roll again, the Bus picks a m
   await expect(spaces.getByRole('option', { name: /^Galle Face Penthouse/ })).toHaveAttribute('aria-selected', 'true');
   await prompt(page).getByRole('button', { name: 'Move to Galle Face Penthouse' }).click();
   await expect(buyPrompt(page).getByRole('heading', { level: 2 })).toHaveText('Buy Galle Face Penthouse?');
-  await buyPrompt(page).getByRole('button', { name: /^Buy for Rs\. 400/ }).click();
+  await buyPrompt(page).getByRole('button', { name: /^Buy for Rs\. 40,000/ }).click();
   await expect(swatch(page, 'Rita', 'Galle Face Penthouse')).toBeVisible();
 
   // The Bus: either white die or their sum, each shown with where it lands
@@ -72,9 +72,9 @@ test('rigged Speed Die: triples pick any space and roll again, the Bus picks a m
   await expect(moves.nth(2)).toContainText('Move 7Kottu Street');
   await moves.nth(2).click();
   await expect(gameLog(page)).toContainText('Rita takes the bus to Kottu Street');
-  await buyPrompt(page).getByRole('button', { name: /^Buy for Rs\. 100/ }).click();
-  // Rs. 2,500 − Rs. 400 + Rs. 200 (passing Start) − Rs. 100
-  await expect(cashOn(page, 'Rita')).toHaveText('Rs. 2,200');
+  await buyPrompt(page).getByRole('button', { name: /^Buy for Rs\. 10,000/ }).click();
+  // Rs. 250,000 − Rs. 40,000 + Rs. 20,000 (passing Start) − Rs. 10,000
+  await expect(cashOn(page, 'Rita')).toHaveText('Rs. 220,000');
 
   await endTurn(p, [space('Negombo Fish Market')]);
 
@@ -85,7 +85,7 @@ test('rigged Speed Die: triples pick any space and roll again, the Bus picks a m
   await expect(buyPrompt(page)).toContainText('Tuk-Tuk Uncle brought you here.');
   await expect(gameLog(page)).toContainText('Tuk-Tuk Uncle: Rita heads to Negombo Fish Market (for sale)');
   await expect(page.getByTestId('dice-readout')).toContainText('Tuk-Tuk Uncle');
-  await buyPrompt(page).getByRole('button', { name: /^Buy for Rs\. 140/ }).click();
+  await buyPrompt(page).getByRole('button', { name: /^Buy for Rs\. 14,000/ }).click();
   await expect(swatch(page, 'Rita', 'Negombo Fish Market')).toBeVisible();
   seen.check();
 });

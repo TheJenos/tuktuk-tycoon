@@ -19,6 +19,7 @@ import { useSeatLooks, type SeatLook } from '../seats';
 import { makeCanvas } from '../textures/canvas';
 import { movePoints, moveMs, poseAt, type MoveMode, type Pose } from './hop';
 import { ringGeometry, tokenGeometry } from './shapes';
+import { tokenMaterial, trimMaterial } from './materials';
 
 /*
  * The players' tokens. Where each one rests comes from the displayed state (director.view); a move runs as a
@@ -28,17 +29,7 @@ import { ringGeometry, tokenGeometry } from './shapes';
 /** Where each token is drawn right now (floating labels rise from here) */
 export const tokenPositions = new Map<SeatId, Vector3>();
 
-const pewter = new MeshStandardMaterial({ color: '#a9afb7', metalness: 0.85, roughness: 0.28 });
 const ghostMat = new MeshStandardMaterial({ color: '#ffffff', metalness: 0.2, roughness: 0.5, transparent: true, opacity: 0.42, depthWrite: false });
-const ringMats = new Map<string, MeshStandardMaterial>();
-const ringMat = (color: string) => {
-  let m = ringMats.get(color);
-  if (!m) {
-    m = new MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.35, roughness: 0.4 });
-    ringMats.set(color, m);
-  }
-  return m;
-};
 
 let blob: MeshBasicMaterial | null = null;
 /** A soft round shadow for low quality, where there is no shadow map */
@@ -248,8 +239,8 @@ export function Tokens({ tier }: { tier: Tier }) {
         const look = looks[seat];
         return (
           <group key={seat} ref={refFor(seat)}>
-            <mesh geometry={tokenGeometry(look.token)} material={pewter} castShadow />
-            <mesh geometry={ringGeometry()} material={ringMat(look.color)} />
+            <mesh geometry={tokenGeometry(look.token)} material={tokenMaterial(look.color)} castShadow />
+            <mesh geometry={ringGeometry()} material={trimMaterial} />
             {tier.shadowMap === 0 && <mesh geometry={blobGeo} material={blobMat()} />}
           </group>
         );

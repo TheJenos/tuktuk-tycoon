@@ -152,7 +152,7 @@ export function RulesSummary({ value, online = false }: { value: RulesDraft; onl
   );
 }
 
-/** One line: "Classic · Rs. 1,500" / "Speed Die · Rs. 2,000 · 200 turns" */
+/** One line: "Classic · Rs. 150,000" / "Speed Die · Rs. 200,000 · 200 turns" */
 export function rulesLine(d: RulesDraft): string {
   return [d.speedDie ? 'Speed Die' : 'Classic', money(d.startCash), d.turnLimit > 0 ? `${d.turnLimit} turns` : null].filter(Boolean).join(' · ');
 }

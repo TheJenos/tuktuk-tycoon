@@ -10,7 +10,7 @@ import { useNames } from '../context';
 import { deckName } from '../format';
 
 /** How long the 3D card's caption stays once the card has gone back to its deck */
-const SHOW_MS = 6000;
+const SHOW_MS = 9000;
 
 /** The card drawn this turn, if any (scanning back no further than the turn's start) */
 function recentCard(log: ViewState['log']): LogEntry | null {

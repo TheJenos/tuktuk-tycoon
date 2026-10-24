@@ -3,6 +3,7 @@ import type { GameEvent } from '../../../rules';
 import { useView } from '../../../view';
 import { useMySeats, useNames } from '../context';
 import { eventSeats, formatEvent, moneyEvent, quietEvent } from './formatEvent';
+import { splitMoney } from './logText';
 
 /*
  * What has happened, as the board played it (the director's log, newest last): filters for everything, only my
@@ -84,7 +85,11 @@ export function EventLog({ expanded, onToggle }: { expanded: boolean; onToggle()
         {rows.map(({ e, i }) => (
           <li key={`${e.seq}:${i}`} className={`log-line t-${e.ev.t}`}>
             <span className="log-icon" aria-hidden="true">{iconOf(e.ev)}</span>
-            <span>{formatEvent(e.ev, names)}</span>
+            <span>
+              {splitMoney(formatEvent(e.ev, names)).map((p, j) =>
+                p.money ? <span key={j} className={`log-money ${p.money}`}>{p.text}</span> : p.text,
+              )}
+            </span>
           </li>
         ))}
       </ol>

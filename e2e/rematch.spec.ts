@@ -39,7 +39,7 @@ test('Finish now ranks by net worth on both screens; the owner\'s Rematch starts
     await expect(gameOver(p.page)).toHaveCount(0);
     await expect.poll(async () => (await p.state()).phase.k).not.toBe('over');
     await expect(turnBar(p.page)).toContainText('Turn 1');
-    await expect(cashOn(p.page, bob.name)).toHaveText('Rs. 1,500');
+    await expect(cashOn(p.page, bob.name)).toHaveText('Rs. 150,000');
   }
   expect(await alice.mySeats()).toEqual(['s0']);
   expect(await bob.mySeats()).toEqual(['s1']);

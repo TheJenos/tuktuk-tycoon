@@ -9,6 +9,7 @@ import { levelText, money, shortSpaceName } from './format';
 import { diceText } from './hud/formatEvent';
 import { cellOf, sideOf } from './layout';
 import { TokenIcon } from './tokenIcons';
+import { DEFAULT_TOKEN } from '../../shared/tokens';
 
 /**
  * The board in 2D: an 11x11 grid of the 40 spaces (GO bottom right, clockwise), with owners, buildings, mortgages
@@ -92,7 +93,7 @@ export function MiniBoard() {
               <span className="cell-tokens" aria-hidden="true">
                 {tokens.map((seat) => (
                   <span key={seat} style={{ color: safeColor(doc?.seats[seat]?.color) }}>
-                    <TokenIcon token={doc?.seats[seat]?.token ?? 'hat'} size={14} />
+                    <TokenIcon token={doc?.seats[seat]?.token ?? DEFAULT_TOKEN} size={14} />
                   </span>
                 ))}
               </span>

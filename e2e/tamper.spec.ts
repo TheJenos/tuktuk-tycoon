@@ -7,7 +7,7 @@ import { roomPosition } from './support/positions';
 
 /*
  * Every client replays each move it receives through the rules: a move written to the database that the rules
- * don't give (here, ending a turn before rolling, with Rs. 3,500 more for the mover) shows the tamper banner on every
+ * don't give (here, ending a turn before rolling, with Rs. 350,000 more for the mover) shows the tamper banner on every
  * screen, naming the move and who it claims to be from.
  */
 

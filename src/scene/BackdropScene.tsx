@@ -1,7 +1,6 @@
 import { useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useMemo } from 'react';
-import { MeshStandardMaterial } from 'three';
-import { SEAT_COLORS, TOKENS } from '../shared/tokens';
+import { useEffect } from 'react';
+import { DEFAULT_TOKEN, SEAT_COLORS, TOKENS } from '../shared/tokens';
 import { useSelector } from '../state/store';
 import { settings } from '../ui/settings';
 import { Board, paintKey } from './board/Board';
@@ -10,6 +9,7 @@ import { BOARD_TOP, buildingPos, slotPos, tileRotation, travelYaw } from './boar
 import { Lights, Table } from './Lights';
 import type { Tier } from './quality';
 import { ringGeometry, tokenGeometry } from './tokens/shapes';
+import { tokenMaterial, trimMaterial } from './tokens/materials';
 
 /*
  * The lobby's backdrop: the board with a few tokens and buildings, the camera slowly circling it (one turn in
@@ -19,7 +19,6 @@ import { ringGeometry, tokenGeometry } from './tokens/shapes';
 const ORBIT_S = 150;
 const DEMO_TOKENS: [number, number][] = [[0, 0], [24, 1], [39, 2], [11, 3], [16, 4]];
 const DEMO_HOUSES: [number, number][] = [[37, 3], [39, 5], [21, 2], [23, 2], [24, 3]];
-const pewter = new MeshStandardMaterial({ color: '#a9afb7', metalness: 0.85, roughness: 0.28 });
 const COARSE = typeof matchMedia === 'function' && matchMedia('(hover: none) and (pointer: coarse)').matches;
 
 export function BackdropScene({ tier }: { tier: Tier }) {
@@ -27,7 +26,6 @@ export function BackdropScene({ tier }: { tier: Tier }) {
   const invalidate = useThree((s) => s.invalidate);
   const reduced = useSelector(settings, (s) => s.reduceMotion);
   const still = tier.shadowMap === 0 || reduced || COARSE;
-  const rings = useMemo(() => SEAT_COLORS.map((c) => new MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.35 })), []);
 
   useEffect(() => {
     invalidate();
@@ -49,11 +47,11 @@ export function BackdropScene({ tier }: { tier: Tier }) {
       <Board tier={tier} paint={paintKey(null)} />
       {DEMO_TOKENS.map(([tile, seat]) => {
         const [x, z] = slotPos(tile, 1, 0);
-        const id = TOKENS[seat]?.id ?? 'hat';
+        const id = TOKENS[seat]?.id ?? DEFAULT_TOKEN;
         return (
           <group key={tile} position={[x, BOARD_TOP, z]} rotation-y={travelYaw(tile)}>
-            <mesh geometry={tokenGeometry(id)} material={pewter} castShadow />
-            <mesh geometry={ringGeometry()} material={rings[seat]} />
+            <mesh geometry={tokenGeometry(id)} material={tokenMaterial(SEAT_COLORS[seat] ?? '#888888')} castShadow />
+            <mesh geometry={ringGeometry()} material={trimMaterial} />
           </group>
         );
       })}

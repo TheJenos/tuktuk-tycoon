@@ -89,17 +89,17 @@ test('rigged dice: a card, a purchase, jail on the third doubles, the fine, and 
   await p.rig([1, 1], [2, 2], [3, 3]);
   // Doubles onto the Seettu Pot: the card shows, and doubles roll again
   await rollButton(page).click();
-  await expect(cardShown(page)).toContainText('Bank error in your favour (the teller was watching the cricket). Collect Rs. 200.');
-  await expect(cashOn(page, 'Rita')).toHaveText('Rs. 1,700');
+  await expect(cardShown(page)).toContainText('Bank error in your favour (the teller was watching the cricket). Collect Rs. 20,000.');
+  await expect(cashOn(page, 'Rita')).toHaveText('Rs. 170,000');
   await cardShown(page).getByRole('button', { name: 'OK' }).click();
   await expect(cardShown(page)).toBeHidden();
 
   // Doubles again, onto Kottu Street: buy it
   await rollButton(page).click();
   await expect(buyPrompt(page).getByRole('heading', { level: 2 })).toHaveText('Buy Kottu Street?');
-  await buyPrompt(page).getByRole('button', { name: /^Buy for Rs\. 100/ }).click();
+  await buyPrompt(page).getByRole('button', { name: /^Buy for Rs\. 10,000/ }).click();
   await expect(swatch(page, 'Rita', 'Kottu Street')).toBeVisible();
-  await expect(cashOn(page, 'Rita')).toHaveText('Rs. 1,600');
+  await expect(cashOn(page, 'Rita')).toHaveText('Rs. 160,000');
 
   // A third doubles: straight to jail, without moving on
   await rollButton(page).click();
@@ -118,8 +118,8 @@ test('rigged dice: a card, a purchase, jail on the third doubles, the fine, and 
   await endTurn(p);
   // In jail: pay the fine before rolling, then roll as usual
   await expect(jailPanel(page)).toContainText('try 1 of 3');
-  await jailPanel(page).getByRole('button', { name: 'Pay Rs. 50' }).click();
-  await expect(cashOn(page, 'Rita')).toHaveText('Rs. 1,550');
+  await jailPanel(page).getByRole('button', { name: 'Pay Rs. 5,000' }).click();
+  await expect(cashOn(page, 'Rita')).toHaveText('Rs. 155,000');
   await expect(jailPanel(page)).toBeHidden();
   await expect(badge(page, 'Rita', 'Jail')).toBeHidden();
 
@@ -130,9 +130,9 @@ test('rigged dice: a card, a purchase, jail on the third doubles, the fine, and 
   await buyPrompt(page).getByRole('button', { name: /^Auction/ }).click();
   const auction = auctionDialog(page);
   await expect(auction.getByRole('heading', { name: 'Auction: Pinnawala Elephant Walk' })).toBeVisible();
-  await expect(auction.getByRole('group', { name: 'Your bid' })).toContainText('Cash Rs. 1,550');
+  await expect(auction.getByRole('group', { name: 'Your bid' })).toContainText('Cash Rs. 155,000');
   // Ten over the high bid (Ava may already have bid: the button raises whatever stands)
-  await auction.locator('.bid-row button', { hasText: /^\+Rs\. 10\b/ }).click();
+  await auction.locator('.bid-row button', { hasText: /^\+Rs\. 1,000\b/ }).click();
   await expect(auction.locator('.high-bid')).toContainText(/High bid Rs\. [\d,]+ by (Rita|Ava)/);
   // Pass once outbid (the high bidder can't); it closes when the other has passed too, or at the deadline
   await until(p, async () => (await auction.count()) === 0, 'the auction to close');
@@ -141,7 +141,7 @@ test('rigged dice: a card, a purchase, jail on the third doubles, the fine, and 
   const [, winner, price] = /^(\w+) wins Pinnawala Elephant Walk for Rs\. ([\d,]+)$/.exec((await result.textContent()) ?? '') ?? [];
   expect((await p.state()).props[`p${space('Pinnawala Elephant Walk')}`]?.owner).toBe(winner === 'Rita' ? 's0' : 's1');
   await expect(swatch(page, winner!, 'Pinnawala Elephant Walk')).toBeVisible();
-  const left = winner === 'Rita' ? 1550 - Number(price?.replace(/,/g, '')) : 1550;
+  const left = winner === 'Rita' ? 155000 - Number(price?.replace(/,/g, '')) : 155000;
   await expect(cashOn(page, 'Rita')).toHaveText(`Rs. ${left.toLocaleString('en-US')}`);
 
   seen.check();
@@ -155,10 +155,10 @@ test('Manage: a rigged landing completes Brown, then houses after setCash, a mor
 
   await p.rig([1, 2]);
   await rollButton(page).click();
-  await buyPrompt(page).getByRole('button', { name: /^Buy for Rs\. 60/ }).click();
+  await buyPrompt(page).getByRole('button', { name: /^Buy for Rs\. 6,000/ }).click();
   await expect(swatch(page, 'Rita', 'Maradana Lane')).toBeVisible();
   await p.setCash('s0', 1000);
-  await expect(cashOn(page, 'Rita')).toHaveText('Rs. 1,000');
+  await expect(cashOn(page, 'Rita')).toHaveText('Rs. 100,000');
   await expect(gameLog(page)).toContainText("Rita's cash is set (test)");
 
   await actionBar(page).getByRole('button', { name: /^Manage/ }).click();
@@ -180,24 +180,24 @@ test('Manage: a rigged landing completes Brown, then houses after setCash, a mor
   await expect(manage.locator('.bank-stock')).toContainText('→ 28 houses');
   // A group with buildings can't be mortgaged
   await expect(brown.getByRole('button', { name: /^Mortgage for/ }).first()).toBeDisabled();
-  await manage.getByRole('button', { name: 'Apply (−Rs. 200)' }).click();
+  await manage.getByRole('button', { name: 'Apply (−Rs. 20,000)' }).click();
   await expect(level('Pettah Pavement')).toHaveText('2 houses');
   await expect(level('Maradana Lane')).toHaveText('2 houses');
   await expect(manage.locator('.bank-stock')).toHaveText('Bank: 28 houses · 12 hotels');
-  await expect(cashOn(page, 'Rita')).toHaveText('Rs. 800');
+  await expect(cashOn(page, 'Rita')).toHaveText('Rs. 80,000');
   await expect(swatch(page, 'Rita', 'Pettah Pavement, 2 houses')).toBeAttached();
 
   // Mortgage the railroad, then lift it again (mortgage + 10%)
   const rails = manage.getByRole('region', { name: 'Stations and boards' });
-  await rails.getByRole('button', { name: 'Mortgage for Rs. 100' }).click();
-  await manage.getByRole('button', { name: 'Apply (+Rs. 100)' }).click();
+  await rails.getByRole('button', { name: 'Mortgage for Rs. 10,000' }).click();
+  await manage.getByRole('button', { name: 'Apply (+Rs. 10,000)' }).click();
   await expect(rails.locator('.badge', { hasText: 'Mortgaged' })).toBeVisible();
-  await expect(cashOn(page, 'Rita')).toHaveText('Rs. 900');
+  await expect(cashOn(page, 'Rita')).toHaveText('Rs. 90,000');
   await expect(swatch(page, 'Rita', 'Colombo Fort Station, mortgaged')).toBeAttached();
-  await rails.getByRole('button', { name: 'Lift for Rs. 110' }).click();
-  await manage.getByRole('button', { name: 'Apply (−Rs. 110)' }).click();
+  await rails.getByRole('button', { name: 'Lift for Rs. 11,000' }).click();
+  await manage.getByRole('button', { name: 'Apply (−Rs. 11,000)' }).click();
   await expect(rails.locator('.badge', { hasText: 'Mortgaged' })).toHaveCount(0);
-  await expect(cashOn(page, 'Rita')).toHaveText('Rs. 790');
+  await expect(cashOn(page, 'Rita')).toHaveText('Rs. 79,000');
 
   await manage.getByRole('button', { name: 'Close' }).click();
   await expect(manage).toBeHidden();
@@ -220,7 +220,7 @@ test('a trade with a bot: an invalid offer is held back, a fair one is accepted'
   await expect(trade.getByRole('radio', { name: 'Ava' })).toHaveAttribute('aria-checked', 'true');
   const send = trade.getByRole('button', { name: 'Send offer' });
   // Cash for nothing would be a loan
-  await trade.getByRole('group', { name: 'You give' }).getByLabel('Cash').fill('300');
+  await trade.getByRole('group', { name: 'You give' }).getByLabel('Cash').fill('30000');
   await expect(send).toBeDisabled();
   await expect(trade.locator('.trade-problems')).not.toHaveText('The offer is valid');
   await trade.getByRole('group', { name: 'You get from Ava' }).getByRole('checkbox', { name: 'Pettah Pavement' }).check();
@@ -228,11 +228,11 @@ test('a trade with a bot: an invalid offer is held back, a fair one is accepted'
   await send.click();
   await expect(trade).toBeHidden();
 
-  // Ava takes Rs. 300 for a lone Rs. 60 street
+  // Ava takes Rs. 30,000 for a lone Rs. 6,000 street
   await expect(swatch(page, 'Rita', 'Pettah Pavement')).toBeVisible();
-  await expect(cashOn(page, 'Rita')).toHaveText('Rs. 1,200');
-  await expect(cashOn(page, 'Ava')).toHaveText('Rs. 1,800');
-  await expect(gameLog(page)).toContainText('Rita and Ava trade: Rs. 300 for Pettah Pavement');
+  await expect(cashOn(page, 'Rita')).toHaveText('Rs. 120,000');
+  await expect(cashOn(page, 'Ava')).toHaveText('Rs. 180,000');
+  await expect(gameLog(page)).toContainText('Rita and Ava trade: Rs. 30,000 for Pettah Pavement');
   await expect(tradeOffers(page)).toHaveCount(0);
   seen.check();
 });

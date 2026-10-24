@@ -1,3 +1,4 @@
+import type { SeatId } from '../rules';
 import { createStore } from './store';
 
 /*
@@ -20,11 +21,18 @@ export interface UiState {
   hover: number | null;
   /** Space whose Title Deed / inspector is open */
   selected: number | null;
+  /**
+   * A space previewed from a list (a property in a trade offer or the trade builder, under the pointer or focus):
+   * highlighted on the board like a picker's cursor and focused by the camera while it is set
+   */
+  preview: number | null;
+  /** A player card is hovered: the board dims except that seat's properties */
+  spotlight: SeatId | null;
   picker: BoardPicker | null;
   /** The player moved the camera by hand: automatic framing waits until Recenter */
   cameraManual: boolean;
-  /** Open side panel or dialog */
-  panel: null | 'manage' | 'trade' | 'log' | 'menu';
+  /** Open side panel or dialog ('props': My properties, opened from the action bar on phones) */
+  panel: null | 'manage' | 'trade' | 'log' | 'menu' | 'props';
   /** WebGL state: 'lost' / 'none' switch the HUD to the 2D MiniBoard */
   gl: 'ok' | 'lost' | 'none';
   /** Set by the HUD: rects (CSS px) the board should stay clear of when the camera frames it */
@@ -34,6 +42,8 @@ export interface UiState {
 export const uiStore = createStore<UiState>({
   hover: null,
   selected: null,
+  preview: null,
+  spotlight: null,
   picker: null,
   cameraManual: false,
   panel: null,

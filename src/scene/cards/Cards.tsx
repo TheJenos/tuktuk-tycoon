@@ -23,6 +23,7 @@ import { tokenPositions } from '../tokens/Tokens';
 import { drawCardBack, drawCardFace } from './drawCard';
 import { setCardSkip } from './flight';
 import { cardHold } from './hold';
+import { dimWithSpotlight } from '../dimmable';
 
 /*
  * The two decks in the middle of the board, and the drawn card's flight: it lifts off its deck, flies to just in
@@ -76,7 +77,9 @@ export function Cards() {
       (['chance', 'chest'] as const).map((deck) => {
         const top = new MeshStandardMaterial({ map: backs[deck], roughness: 0.6 });
         // BoxGeometry groups: +X, -X, +Y (top), -Y, +Z, -Z
-        return [edgeMat, edgeMat, top, edgeMat, edgeMat, edgeMat];
+        const mats = [edgeMat, edgeMat, top, edgeMat, edgeMat, edgeMat];
+        dimWithSpotlight(mats);
+        return mats;
       }),
     [backs],
   );

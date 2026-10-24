@@ -12,6 +12,7 @@ import { money, startName, taxName } from './format';
 import { GameSettings } from './GameSettings';
 import { resignQuestion } from './selectors';
 import { TokenIcon } from './tokenIcons';
+import { DEFAULT_TOKEN } from '../../shared/tokens';
 
 /** What the room's owner may do from the Players view; the App wires these to the room (none offline) */
 export interface OwnerActions {
@@ -186,7 +187,7 @@ function PlayersView({ owner, actions }: { owner: boolean; actions: OwnerActions
         return (
           <li key={seat}>
             <span style={{ color: safeColor(info?.color) }}>
-              <TokenIcon token={info?.token ?? 'hat'} size={22} />
+              <TokenIcon token={info?.token ?? DEFAULT_TOKEN} color={info?.color} size={22} />
             </span>
             <span className="who">
               <strong>{names.seat(seat)}</strong>

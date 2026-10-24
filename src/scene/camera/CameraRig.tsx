@@ -14,7 +14,12 @@ export { recenter } from './recenter';
  * The game camera: drei's CameraControls (orbit, zoom, pan; touch: one finger turns, pinch zooms, two fingers pan)
  * with automatic framing on top: the whole board, a move's path, or one tile. Any drag or zoom by the player sets
  * uiStore.cameraManual, which pauses the automatic framing until recenter() (the Recenter button / C key).
+ * A space previewed from a list (uiStore.preview) holds the camera on its tile: the director's shots wait meanwhile
+ * and the latest is taken up when the preview ends (with a hand-moved camera the tile is only highlighted).
  */
+
+/** A preview ending this soon after it began to point elsewhere is the pointer moving down a list: no swing back */
+const PREVIEW_SETTLE_MS = 160;
 
 /** Polar angles (from straight down) for each kind of shot on a wide screen; a tall one looks more nearly down */
 const POLAR = { overview: 0.62, follow: 0.78, focus: 0.84 } as const;
@@ -29,6 +34,8 @@ export function CameraRig() {
   const camera = useThree((s) => s.camera) as PerspectiveCamera;
   const get = useThree((s) => s.get);
   const last = useRef<{ area: Area; shot: Shot; turn: boolean }>({ area: BOARD_AREA, shot: 'overview', turn: true });
+  /** While a preview holds the camera: the shot to go back to (the director's latest) */
+  const held = useRef<{ area: Area; shot: Shot; turn: boolean } | null>(null);
 
   /** Frames `area`; `turn` also swings the camera back round to the board's front */
   const frame = useCallback(
@@ -64,18 +71,35 @@ export function CameraRig() {
   );
 
   useEffect(() => {
-    const offOverview = setOverview(() => frame(BOARD_AREA, 'overview', { force: true, turn: true }));
+    const offOverview = setOverview(() => {
+      held.current = null;
+      return frame(BOARD_AREA, 'overview', { force: true, turn: true });
+    });
+    /** The director's shots: taken now, or kept for when a preview lets go of the camera */
+    const shot = (area: Area, kind: Shot): Promise<void> => {
+      if (!held.current) return frame(area, kind);
+      held.current = { area, shot: kind, turn: false };
+      return Promise.resolve();
+    };
     // A picker already open (a game resumed at a triple) gets its cursor framed straight away
     const g0 = uiStore.get().picker?.ghost ?? null;
     if (g0 === null) void frame(BOARD_AREA, 'overview', { smooth: false, force: true, turn: true });
     else void frame(tileArea(g0), 'focus', { smooth: false, force: true });
     const offApi = director.register('camera', {
-      focus: (space) => (space === null ? frame(BOARD_AREA, 'overview') : frame(tileArea(space), 'focus')),
-      follow: (path) => frame(pathArea(path), 'follow'),
+      focus: (space) => (space === null ? shot(BOARD_AREA, 'overview') : shot(tileArea(space), 'focus')),
+      follow: (path) => shot(pathArea(path), 'follow'),
     });
     // Re-frame when the HUD's panels change size, and follow the picker's cursor (Bus choice, triples)
     let insets = uiStore.get().insets;
     let ghost = uiStore.get().picker?.ghost ?? null;
+    let preview: number | null = null;
+    let settle: ReturnType<typeof setTimeout> | null = null;
+    const release = () => {
+      settle = null;
+      const back = held.current;
+      held.current = null;
+      if (back) void frame(back.area, back.shot, { turn: back.turn });
+    };
     const offUi = uiStore.subscribe(() => {
       const u = uiStore.get();
       if (u.insets !== insets) {
@@ -86,10 +110,25 @@ export function CameraRig() {
       const g = u.picker?.ghost ?? null;
       if (g !== ghost) {
         ghost = g;
+        // The picker's cursor outranks a preview
+        held.current = null;
         void (g === null ? frame(BOARD_AREA, 'overview') : frame(tileArea(g), 'focus'));
+      }
+      const p = u.picker ? null : u.preview;
+      if (p !== preview) {
+        preview = p;
+        if (p !== null) {
+          if (settle) clearTimeout(settle);
+          settle = null;
+          held.current ??= { ...last.current };
+          void frame(tileArea(p), 'focus');
+        } else if (held.current && !settle) {
+          settle = setTimeout(release, PREVIEW_SETTLE_MS);
+        }
       }
     });
     return () => {
+      if (settle) clearTimeout(settle);
       offApi();
       offUi();
       offOverview();

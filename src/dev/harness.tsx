@@ -4,7 +4,7 @@ import { apply, awaiting, createGame, defaultAction, legalActions, type Action, 
 import type { Batch, GameSession, SeatInfo, SessionView } from '../net/types';
 import { shownDice } from '../scene/dice/shown';
 import { Stage } from '../scene/Stage';
-import { SEAT_COLORS, TOKENS } from '../shared/tokens';
+import { SEAT_COLORS, TOKENS, DEFAULT_TOKEN } from '../shared/tokens';
 import { sessionStore } from '../state/session';
 import { createStore } from '../state/store';
 import { uiStore } from '../state/ui';
@@ -58,7 +58,7 @@ if (jailed) jailed.jail = { tries: 0 };
 
 const seats: Partial<Record<SeatId, SeatInfo>> = {};
 SEATS.forEach((seat, i) => {
-  seats[seat] = { seat, name: `P${i}`, token: TOKENS[(i * 3) % 8]?.id ?? 'hat', color: SEAT_COLORS[i] ?? '#888', kind: 'bot', ctrl: '' };
+  seats[seat] = { seat, name: `P${i}`, token: TOKENS[(i * 3) % 8]?.id ?? DEFAULT_TOKEN, color: SEAT_COLORS[i] ?? '#888', kind: 'bot', ctrl: '' };
 });
 const view = createStore<SessionView>({ doc: null, mySeats: ['s0'], connected: true, driver: true, tamper: null });
 view.set({ ...view.get(), doc: { gid: 'dev', seq: state.seq, game: state, seats, ids: [], recent: [], timers: { turn: 0, decision: 0, auction: 8, debt: 0 }, strikes: {} } });
@@ -130,7 +130,7 @@ window.harness = {
   commit,
   dice: shownDice,
   card(speed) {
-    const text = 'Advance to Galle Fort Ramparts. If you pass Start, collect Rs. 200.';
+    const text = 'Advance to Galle Fort Ramparts. If you pass Start, collect Rs. 20,000.';
     void director.api('cards')?.show({ t: 'card', seat: 's0', deck: 'chance', cardId: 'ch-galle', text, kept: false }, new AbortController().signal, speed);
   },
 };

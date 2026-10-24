@@ -8,8 +8,8 @@ import type { BuildClaimPhase, BuildKind, GameState, Phase, RuleError, SeatId } 
 /*
  * The building shortage contest. When a build would leave the bank with fewer units than the other players could
  * want right now, the others get a window to ask for units (requestBuild{n}) or pass. If all the requests fit the
- * bank's supply they are all granted; otherwise units are auctioned one at a time among the requesters (from Rs. 1),
- * and each winner places the unit it won.
+ * bank's supply they are all granted; otherwise units are auctioned one at a time among the requesters (from a bid of
+ * 1), and each winner places the unit it won.
  */
 
 const supplyOf = (s: GameState, kind: BuildKind): number => (kind === 'house' ? s.bank.houses : s.bank.hotels);

@@ -1,15 +1,16 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo } from 'react';
 import { CanvasTexture, Sprite, SpriteMaterial, SRGBColorSpace } from 'three';
-import type { SeatId } from '../../rules';
+import { formatMoney, type SeatId } from '../../rules';
 import { settings } from '../../ui/settings';
 import { director } from '../../view';
 import { fitText, makeCanvas } from '../textures/canvas';
 import { tokenPositions } from '../tokens/Tokens';
 
 /*
- * "+Rs. 200" / "−Rs. 350" rising above a token when its cash changes (the 'fx' scene API, fed by the director's cash
- * handler). A pool of 8 sprites, each with its own small canvas; the oldest is reused when all are busy.
+ * "+Rs. 20,000" / "−Rs. 35,000" (shown rupees: engine units x 100) rising above a token when its cash changes (the
+ * 'fx' scene API, fed by the director's cash handler). A pool of 8 sprites, each with its own small canvas; the
+ * oldest is reused when all are busy.
  */
 
 const POOL = 8;
@@ -31,7 +32,7 @@ function paint(l: Label, delta: number): void {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, l.canvas.width, l.canvas.height);
   ctx.scale(l.canvas.width, l.canvas.width);
-  const text = `${delta >= 0 ? '+' : '−'}Rs. ${Math.abs(delta).toLocaleString('en-US')}`;
+  const text = `${delta >= 0 ? '+' : '−'}${formatMoney(Math.abs(delta))}`;
   const color = delta >= 0 ? '#5ce08a' : '#ff7070';
   ctx.lineJoin = 'round';
   ctx.save();

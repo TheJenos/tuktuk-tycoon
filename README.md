@@ -18,19 +18,20 @@ plays without WebGL too.
 Everything themed comes from one data file, `src/rules/data/lanka.ts`; prices, rents and card effects are the
 rulebook's.
 
-- **Money**: Sri Lankan rupees, shown as `Rs. 1,500` (changes as `+Rs. 200` / `−Rs. 350`). Everyone starts
-  with Rs. 1,500.
-- **Corners**: **Start** (collect Rs. 200 salary as you pass), **Police Station Bench** (just visiting, or held
+- **Money**: Sri Lankan rupees, shown as `Rs. 150,000` (changes as `+Rs. 20,000` / `−Rs. 35,000`). Everyone starts
+  with Rs. 150,000. The rules engine counts the rulebook's amounts (start 1500, prices 60 to 400); every amount
+  shown or typed is that times 100 (`display.currency.scale` in the data file, applied by `formatMoney`/`toUnits`).
+- **Corners**: **Start** (collect Rs. 20,000 salary as you pass), **Police Station Bench** (just visiting, or held
   there), **Free Tuk-Tuk Stand** (nothing happens) and **Caught Without a Helmet** (go straight to the bench).
 - **Colour groups**: Brown: Pettah Pavement, Maradana Lane. Light Blue: Kottu Street, Hoppers Corner, Kiribath
   Junction. Pink: Negombo Fish Market, Pinnawala Elephant Walk, Arugam Bay Surf Shack. Orange: Peradeniya Gardens,
   Nuwara Eliya Tea Estate, Horton Plains Viewpoint. Red: Mirissa Whale Watch, Unawatuna Beach Hut, Galle Fort
   Ramparts. Yellow: Sigiriya Selfie Spot, Dambulla Veg Market, Kandy Lake Promenade. Green: Bambalapitiya Flats,
   Havelock Town, Rajagiriya Highrise. Dark Blue: Cinnamon Gardens, Galle Face Penthouse.
-- **Stations** (rent Rs. 25 / 50 / 100 / 200 for 1 to 4 owned): Colombo Fort Station, Kandy Station, Ella Station,
+- **Stations** (rent Rs. 2,500 / 5,000 / 10,000 / 20,000 for 1 to 4 owned): Colombo Fort Station, Kandy Station, Ella Station,
   Galle Station.
 - **Boards** (the two utilities, 4× or 10× the dice): Power Cut Board and Water Board.
-- **Taxes**: **Inland Revenue** (Rs. 200 or 10% of your worth) and **Wedding Gift Envelope** (Rs. 75).
+- **Taxes**: **Inland Revenue** (Rs. 20,000 or 10% of your worth) and **Wedding Gift Envelope** (Rs. 7,500).
 - **Card decks**: **Astrologer's Advice** (the rulebook's Chance deck) and **Seettu Pot** (its Community Chest), 16
   cards each, from "a cat crossed your path, go back 3 spaces" to "your aunty in Dubai sends a gift".
 - **The Speed Die**: 1, 2, 3, Bus and two **Tuk-Tuk Uncle** faces.
@@ -155,7 +156,7 @@ seat is taken, newcomers watch.
 ### A turn
 
 1. **Roll** (`R`). The dice tumble, your token hops round the board and the space does what it does: a card flies up
-   from its deck, rent is paid automatically, a tax or Start salary shows as a floating "+Rs. 200" / "−Rs. 350".
+   from its deck, rent is paid automatically, a tax or Start salary shows as a floating "+Rs. 20,000" / "−Rs. 35,000".
 2. Land on a property the bank owns and the prompt offers **Buy for Rs. X** (`B`) or **Auction** (`A`). A Title Deed
    shows what you'd be buying. Short of cash, **Raise Rs. X** opens Manage.
 3. Doubles roll again; three doubles in a row go to the Police Station Bench.
@@ -218,14 +219,14 @@ pre-filled the other way round). Each player has one open offer at a time, offer
 are all cleared when the turn passes.
 
 **Auctions use timed open bidding.** Declining a purchase puts it up for everyone still in, the decliner included.
-Bidding starts at Rs. 1: **+Rs. 1**, **+Rs. 10**, **+Rs. 100**, or type any amount above the high bid up to your cash. Every bid
+Bidding starts at Rs. 100: **+Rs. 100**, **+Rs. 1,000**, **+Rs. 10,000**, or type any amount above the high bid up to your cash. Every bid
 restarts the countdown (8 seconds); **Pass** is final, and the high bidder can neither pass nor outbid itself. It
 closes when everyone but the high bidder has passed or the countdown runs out; with no bids the bank keeps the lot.
 You can sell and mortgage meanwhile (**Raise cash**). The same auction sells houses and hotels in a building
 shortage, and the property of a player who goes bankrupt to the bank.
 
-**Other decisions** appear in the same panel: jail (**Roll for doubles**, **Pay Rs. 50** on the first two tries, **Use
-card**), Inland Revenue (choose Rs. 200 or 10% before your worth is shown), a debt (**Sell or mortgage**, **Trade**,
+**Other decisions** appear in the same panel: jail (**Roll for doubles**, **Pay Rs. 5,000** on the first two tries, **Use
+card**), Inland Revenue (choose Rs. 20,000 or 10% before your worth is shown), a debt (**Sell or mortgage**, **Trade**,
 **Auto-raise and pay**, or **Declare bankruptcy** when even everything can't cover it), mortgaged property received
 in a trade or bankruptcy (lift now, or pay the 10% and keep it mortgaged), a building shortage (how many you want),
 and where to place a building you won.
@@ -239,7 +240,7 @@ the standings, with **Back to lobby** and, for the owner, **Rematch**.
 
 ### The Speed Die
 
-Turn it on in the Rules step (off by default). Everyone starts with Rs. 1,000 more, and the red third die joins your roll
+Turn it on in the Rules step (off by default). Everyone starts with Rs. 100,000 more, and the red third die joins your roll
 from the roll after your first Start salary (the Roll button then says "+ Speed Die").
 
 - **1, 2 or 3**: added to the white dice.
@@ -285,14 +286,14 @@ Saved in the browser as you change them (`tuktuk-settings`), in the lobby's **Se
 The rulebook is summarised rule by rule in [docs/rules.md](docs/rules.md). Where it is silent or ambiguous, the
 choice made is in that file's [Rules decisions](docs/rules.md#rules-decisions) table. The big ones:
 
-- **Income tax** (Inland Revenue) is Rs. 200 or 10% of your worth, chosen before your worth is shown (the scanned
-  PDF reads 900, a scan error). **Luxury tax** (Wedding Gift Envelope) is Rs. 75 (this edition), or Rs. 100 as a
+- **Income tax** (Inland Revenue) is Rs. 20,000 or 10% of your worth, chosen before your worth is shown (the scanned
+  PDF reads 90,000, a scan error). **Luxury tax** (Wedding Gift Envelope) is Rs. 7,500 (this edition), or Rs. 10,000 as a
   house rule.
 - **Rent is collected automatically**: the rulebook's "ask before the second following player rolls" window is
   dropped.
-- **Auctions are timed open bidding**, from Rs. 1, the countdown restarting on every bid.
+- **Auctions are timed open bidding**, from Rs. 100, the countdown restarting on every bid.
 - **Triples** (Speed Die): move to any of the other 39 spaces, then roll again (a setting).
-- **Unmortgaging** costs the mortgage value plus 10% rounded up (Power Cut Board: Rs. 83). Mortgaged stations and
+- **Unmortgaging** costs the mortgage value plus 10% rounded up (Power Cut Board: Rs. 8,300). Mortgaged stations and
   boards still count toward the number owned for rent.
 - **Mortgaged property changing hands**: the new owner chooses per property, at once, to lift it or pay 10% and keep
   it mortgaged.
@@ -412,7 +413,7 @@ second tab is a second player. A kicked player's id is kept, so the invite link 
 
 **From events to the screen** (`src/view`, `src/scene`). The session hands out each move's events and the state after
 it, strictly in order. The **director** plays the events one at a time through the scene's APIs (the token hops, the
-dice tumble, the card flies, a house drops in, "+Rs. 200" rises) and keeps a *displayed* state one event behind the
+dice tumble, the card flies, a house drops in, "+Rs. 20,000" rises) and keeps a *displayed* state one event behind the
 animation, set to the move's real state at the end of each move, so it can never drift. Decisions wait until it is
 idle. A backlog plays faster (1.5×, 3×); Instant animations, a hidden tab and a lost WebGL context fold whole moves at
 once. React never re-renders per frame: motion lives in mutable tracks read in `useFrame`, and the one persistent
@@ -420,7 +421,7 @@ canvas (`Stage`, behind the lobby and the game) draws on demand only, so an idle
 
 **The scene** is generated, with no model, image or font files and nothing fetched (which also keeps Discord's
 content policy happy): the board top is one canvas texture painted from the data file (4096 px, 2048 on Low) with
-generic icons and the system's condensed fonts; eight low-poly pewter tokens built from primitives; instanced houses,
+generic icons and the system's condensed fonts; eight low-poly Sri Lankan tokens built from primitives and painted in their seat colours; instanced houses,
 hotels, owner chips and mortgage stamps; one invisible plane for pointing at tiles. The engine decides the dice; the
 scene throws them with **Rapier** physics, simulated headless and recorded, then turns each die's mesh by one of the
 cube's 24 symmetries so the engine's value lands on top (Rapier loads in its own chunk on first use; Low quality and
@@ -768,7 +769,7 @@ src/
       JailBars.tsx        bars round the jail cell
       uncleTarget.ts      the space Tuk-Tuk Uncle is heading for
     tokens/
-      shapes.ts           the eight pewter tokens, from primitives
+      shapes.ts           the eight Sri Lankan tokens, from primitives
       Tokens.tsx          tokens at rest and on the move
       hop.ts              walk, back and jump paths
     dice/
@@ -787,7 +788,7 @@ src/
       CameraRig.tsx       CameraControls with automatic framing
       framing.ts          fitting part of the board into the space the HUD leaves free
       recenter.ts         Recenter, without importing the scene
-    fx/FloatingLabels.tsx "+Rs. 200" over the tokens
+    fx/FloatingLabels.tsx "+Rs. 20,000" over the tokens
     textures/canvas.ts    canvas drawing helpers and the system font stack
     util/random.ts        seeded randomness for visuals
     __tests__/            layout, dice remap, framing, tokens, card hold, Tuk-Tuk Uncle's target, drei allowlist
@@ -879,7 +880,7 @@ src/
         PlacePrompt.tsx   where a building won or granted goes
         BusChoice.tsx     the Speed Die's Bus
         TilePicker.tsx    triples: any space
-        IncomeTaxPrompt.tsx  Rs. 200 or 10%
+        IncomeTaxPrompt.tsx  Rs. 20,000 or 10%
         JailPanel.tsx     roll for doubles, pay, or use a card
         DebtPanel.tsx     raise cash, auto-raise, bankruptcy
         MortgageXferPrompt.tsx  received mortgages: lift now or keep

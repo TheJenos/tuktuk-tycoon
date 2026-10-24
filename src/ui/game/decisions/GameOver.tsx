@@ -4,6 +4,7 @@ import { useDoc, useGame, useNames } from '../context';
 import { Dialog } from '../Dialog';
 import { money } from '../format';
 import { TokenIcon } from '../tokenIcons';
+import { DEFAULT_TOKEN } from '../../../shared/tokens';
 
 const WHY = {
   lastStanding: 'Last player standing',
@@ -44,7 +45,7 @@ export function GameOver({ onLeave, onRematch, covered }: { onLeave(): void; onR
             <li key={seat} className={i === 0 ? 'winner' : undefined}>
               <span className="place">{i + 1}</span>
               <span style={{ color: safeColor(info?.color) }}>
-                <TokenIcon token={info?.token ?? 'hat'} size={22} />
+                <TokenIcon token={info?.token ?? DEFAULT_TOKEN} color={info?.color} size={22} />
               </span>
               <strong>{names.seat(seat)}</strong>
               <span className="muted">

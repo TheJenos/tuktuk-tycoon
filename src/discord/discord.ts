@@ -18,7 +18,7 @@ let presenceBroken = false;
 export interface Presence {
   /** First line, e.g. "Speed Die game, turn 14" */
   details: string;
-  /** Second line, e.g. "Alice leads with Rs. 3,240" */
+  /** Second line, e.g. "Alice leads with Rs. 324,000" */
   state: string;
   partySize?: number;
   partyMax?: number;

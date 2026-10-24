@@ -7,6 +7,7 @@ import { Board } from './board/Board';
 import { BoardPicker } from './board/BoardPicker';
 import { JailBars } from './board/JailBars';
 import { Pieces } from './board/Pieces';
+import { Spotlight } from './board/Spotlight';
 import { TileHighlights } from './board/TileHighlights';
 import { CameraRig } from './camera/CameraRig';
 import { Cards } from './cards/Cards';
@@ -25,6 +26,7 @@ export function GameScene({ tier }: { tier: Tier }) {
       <Board tier={tier} />
       <Pieces />
       <JailBars />
+      <Spotlight />
       <TileHighlights />
       <BoardPicker />
       <Cards />

@@ -17,6 +17,7 @@ export { LANKA } from './data/lanka';
 export { busOptions, isDoubles, isTriples } from './dice';
 export { faceValue, rollTotal } from './rent';
 export { deepEqual } from './ctx';
+export { formatMoney, toUnits, toRupees, MONEY_SCALE, MONEY_SYMBOL, type MoneyOpts } from './currency';
 export {
   boardOf,
   rentFor,

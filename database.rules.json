@@ -106,7 +106,7 @@
                 ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 16"
               },
               "token": {
-                ".validate": "newData.val() === 'hat' || newData.val() === 'car' || newData.val() === 'boat' || newData.val() === 'rocket' || newData.val() === 'crown' || newData.val() === 'anchor' || newData.val() === 'teapot' || newData.val() === 'knight'"
+                ".validate": "newData.val() === 'tuktuk' || newData.val() === 'elephant' || newData.val() === 'coconut' || newData.val() === 'cricket' || newData.val() === 'tea' || newData.val() === 'drum' || newData.val() === 'oruwa' || newData.val() === 'kite'"
               },
               "color": {
                 ".validate": "newData.isString() && newData.val().matches(/^#[0-9a-fA-F]{6}$/)"

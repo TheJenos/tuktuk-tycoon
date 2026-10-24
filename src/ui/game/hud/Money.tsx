@@ -6,9 +6,10 @@ const TWEEN_MS = 600;
 const FLASH_MS = 1400;
 
 /**
- * A cash amount that counts to its new value (in step with the floating "+Rs. 200" over the board) and flashes the
+ * A cash amount that counts to its new value (in step with the floating "+Rs. 20,000" over the board) and flashes the
  * change beside it. Reduced motion jumps straight there. The number read out is always the final value.
  */
+/** `value` is in engine units; it is shown as rupees (x100) by money() */
 export function Money({ value, className }: { value: number; className?: string }) {
   const { reduceMotion, animSpeed } = useSettings();
   const instant = reduceMotion || animSpeed === 'instant';

@@ -32,23 +32,23 @@ test('two browsers bid at once: one bid lands, then a raise, a pass, and the win
   const high = s.phase.k === 'auction' ? s.phase.high?.seat : undefined;
   const [leader, other] = high === 's0' ? [alice, bob] : [bob, alice];
   expect(results[leader === alice ? 0 : 1]?.ok).toBe(true);
-  for (const p of [alice, bob]) await expect(auctionDialog(p.page).locator('.high-bid')).toContainText(`High bid Rs. 10 by ${leader.name}`);
+  for (const p of [alice, bob]) await expect(auctionDialog(p.page).locator('.high-bid')).toContainText(`High bid Rs. 1,000 by ${leader.name}`);
   await expect(auctionDialog(leader.page).locator('.badge', { hasText: 'You hold the high bid' })).toBeVisible();
   await expect(auctionDialog(leader.page).getByRole('button', { name: 'Pass' })).toBeDisabled();
 
   // The other raises with the ladder; the leader lets it go
-  await auctionDialog(other.page).getByRole('button', { name: 'Bid Rs. 11', exact: true }).click();
-  await expect(auctionDialog(leader.page).locator('.high-bid')).toContainText(`High bid Rs. 11 by ${other.name}`);
+  await auctionDialog(other.page).getByRole('button', { name: 'Bid Rs. 1,100', exact: true }).click();
+  await expect(auctionDialog(leader.page).locator('.high-bid')).toContainText(`High bid Rs. 1,100 by ${other.name}`);
   await auctionDialog(leader.page).getByRole('button', { name: 'Pass' }).click();
 
   for (const p of [alice, bob]) {
     await expect(auctionDialog(p.page)).toHaveCount(0);
-    await expect(gameLog(p.page)).toContainText(`${other.name} wins Maradana Lane for Rs. 11`);
+    await expect(gameLog(p.page)).toContainText(`${other.name} wins Maradana Lane for Rs. 1,100`);
     await expect(swatch(p.page, other.name, 'Maradana Lane')).toBeVisible();
-    await expect(cashOn(p.page, other.name)).toHaveText('Rs. 1,489');
-    await expect(cashOn(p.page, leader.name)).toHaveText('Rs. 1,500');
-    // One Rs. 10 bid made it in
-    await expect(gameLog(p.page).getByText(/bids Rs\. 10$/)).toHaveCount(1);
+    await expect(cashOn(p.page, other.name)).toHaveText('Rs. 148,900');
+    await expect(cashOn(p.page, leader.name)).toHaveText('Rs. 150,000');
+    // One Rs. 1,000 bid made it in
+    await expect(gameLog(p.page).getByText(/bids Rs\. 1,000$/)).toHaveCount(1);
   }
   expect((await bob.state()).props[`p${space('Maradana Lane')}`]?.owner).toBe(other === alice ? 's0' : 's1');
 });

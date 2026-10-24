@@ -153,7 +153,7 @@ function withCash(give: Bundle, cash: number): Bundle {
   return { ...give, cash, props: [...give.props], cards: [...give.cards] };
 }
 
-/** The smallest cash sweetener (rounded to Rs. 25) that makes the receiver say yes, within what the bot can spare */
+/** The smallest cash sweetener (rounded to 25 units) that makes the receiver say yes, within what the bot can spare */
 function sweeten(c: BotCtx, to: SeatId, give: Bundle, get: Bundle, maxCash: number, margin: number): Bundle | null {
   let cash = give.cash;
   for (let tries = 0; tries < 6 && cash <= maxCash; tries++) {
@@ -253,7 +253,7 @@ function allAccept(views: BotCtx[], from: SeatId, to: SeatId, give: Bundle, get:
 }
 
 /**
- * The cheapest cash on the bot's side (to Rs. 10) that every receiver view accepts, or null when even `maxCash` is not
+ * The cheapest cash on the bot's side (to 10 units) that every receiver view accepts, or null when even `maxCash` is not
  * enough. Acceptance only grows with the cash offered, so a bisection finds it.
  */
 function leastCash(c: BotCtx, views: BotCtx[], to: SeatId, give: Bundle, get: Bundle, maxCash: number): Bundle | null {
@@ -270,7 +270,7 @@ function leastCash(c: BotCtx, views: BotCtx[], to: SeatId, give: Bundle, get: Bu
   return withCash(give, hi * CASH_STEP);
 }
 
-/** The most cash (to Rs. 10) the receiver could add to `get` and still accept, by every view (0: none) */
+/** The most cash (to 10 units) the receiver could add to `get` and still accept, by every view (0: none) */
 function mostAsk(c: BotCtx, views: BotCtx[], to: SeatId, give: Bundle, get: Bundle): number {
   const ok = (cash: number): boolean => allAccept(views, c.seat, to, give, withCash(get, cash));
   let lo = 0;

@@ -1,19 +1,19 @@
 import type { Doc } from '../../net/types';
-import { getBoard, isProperty, type Action, type BoardDef, type Bundle, type Creditor, type Deck, type GameState, type Level, type Lot, type SeatId } from '../../rules';
+import { formatMoney, getBoard, isProperty, type Action, type BoardDef, type Bundle, type Creditor, type Deck, type GameState, type Level, type Lot, type SeatId } from '../../rules';
 
 /*
  * Plain-English pieces shared by the HUD, the log and the screen-reader announcements: money, names, levels,
  * bundles and actions. Pure (no React, no DOM), so formatEvent and the selectors can be unit-tested.
  */
 
-/** "Rs. 1,500" (Sri Lankan rupees); negative amounts read "−Rs. 350" (a real minus sign) */
-export function money(n: number): string {
-  const abs = Math.abs(Math.round(n)).toLocaleString('en-US');
-  return n < 0 ? `−Rs. ${abs}` : `Rs. ${abs}`;
-}
+/**
+ * Engine units as shown rupees: 1500 -> "Rs. 150,000"; negative amounts read "−Rs. 35,000" (a real minus sign). The
+ * engine counts rulebook units; the UI shows them x MONEY_SCALE (see rules/currency.ts).
+ */
+export const money = (n: number): string => formatMoney(n);
 
-/** "+Rs. 200" / "−Rs. 50" / "Rs. 0", for changes */
-export const signedMoney = (n: number): string => (n > 0 ? `+${money(n)}` : money(n));
+/** "+Rs. 20,000" / "−Rs. 5,000" / "Rs. 0", for changes */
+export const signedMoney = (n: number): string => formatMoney(n, { signed: true });
 
 /** How the UI names seats and spaces */
 export interface Names {
@@ -64,7 +64,7 @@ export function listText(items: readonly string[]): string {
 
 export const plural = (n: number, one: string, many = `${one}s`): string => `${n} ${n === 1 ? one : many}`;
 
-/** "Rs. 100, Galle Face Penthouse and a Get Out of Jail Free card", or "nothing" */
+/** "Rs. 10,000, Galle Face Penthouse and a Get Out of Jail Free card", or "nothing" */
 export function bundleText(names: Names, b: Bundle): string {
   const parts: string[] = [];
   if (b.cash > 0) parts.push(money(b.cash));

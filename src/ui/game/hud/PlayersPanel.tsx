@@ -10,6 +10,7 @@ import { levelText, money, type Names } from '../format';
 import { stripScroll } from '../layout';
 import { TokenIcon } from '../tokenIcons';
 import { Money } from './Money';
+import { DEFAULT_TOKEN } from '../../../shared/tokens';
 
 /*
  * Every player, in turn order: token, name and badges, cash (counting along with the board), and their property
@@ -175,10 +176,19 @@ export const PlayerCard = memo(function PlayerCard({ seat, s, info, names, mine,
     .map((c) => ({ ...c, mine: c.spaces.filter((i) => s.props[`p${i}`]?.owner === seat) }))
     .filter((c) => c.mine.length > 0);
   return (
-    <li className={classes} data-seat={seat} aria-current={turn ? 'true' : undefined} style={{ '--seat': colour } as CSSProperties}>
+    <li
+      className={classes}
+      data-seat={seat}
+      aria-current={turn ? 'true' : undefined}
+      style={{ '--seat': colour } as CSSProperties}
+      onMouseEnter={() => uiStore.update({ spotlight: seat })}
+      onMouseLeave={() => uiStore.get().spotlight === seat && uiStore.update({ spotlight: null })}
+      onFocus={() => uiStore.update({ spotlight: seat })}
+      onBlur={() => uiStore.get().spotlight === seat && uiStore.update({ spotlight: null })}
+    >
       <div className="player-row">
         <span className="player-token" style={{ color: colour }}>
-          <TokenIcon token={info?.token ?? 'hat'} size={26} label={true} />
+          <TokenIcon token={info?.token ?? DEFAULT_TOKEN} color={info?.color} size={26} label={true} />
         </span>
         <span className="player-name">
           <span className="player-title">

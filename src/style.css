@@ -1023,6 +1023,50 @@ html.reduce-motion .spinner { animation: none; border-right-color: currentColor;
 .log-icon { width: 14px; flex-shrink: 0; text-align: center; color: var(--muted); }
 .log-line.t-turn { color: var(--accent); font-weight: 600; }
 .log-line.t-over { color: var(--accent); font-weight: 800; }
+/* Prices in the log: amber, gains green, payments red */
+.log-money { color: var(--accent); font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.log-money.plus { color: #5fd38d; }
+.log-money.minus { color: #ff7b8a; }
+
+/* My properties (MyProperties.tsx): between the decision and the log; it gives up room before either does */
+.my-props { display: flex; flex-direction: column; min-height: 0; flex: 0 1 auto; padding: 8px 10px; }
+.my-props.collapsed { flex-shrink: 0; }
+.my-props .panel-head { margin-bottom: 4px; flex-wrap: wrap; row-gap: 4px; }
+.my-props.collapsed .panel-head { margin-bottom: 0; }
+.my-props-toggle::after { content: ''; width: 6px; height: 6px; margin: -3px 2px 0; border: solid currentColor; border-width: 0 2px 2px 0; transform: rotate(45deg); opacity: 0.8; }
+.my-props.collapsed .my-props-toggle::after { margin-top: 0; transform: rotate(-45deg); }
+.my-props-count { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: rgba(255, 255, 255, 0.1); color: var(--text); font-size: 11px; letter-spacing: 0; }
+.my-props-seats { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.my-props-seats .chip { min-height: 24px; padding: 1px 8px; font-size: 12px; }
+.my-props-close { display: none; }
+.my-props-list { overflow-y: auto; min-height: 0; max-height: min(300px, 34vh); overscroll-behavior: contain; padding-right: 2px; display: flex; flex-direction: column; gap: 6px; }
+.my-props-group h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 2px; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+.my-props-group h3 .muted { margin-left: auto; font-variant-numeric: tabular-nums; }
+.my-props-set { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.my-props .band { display: inline-block; width: 10px; height: 10px; border-radius: 2px; border: 1px solid rgba(0, 0, 0, 0.4); background: rgba(255, 255, 255, 0.25); flex-shrink: 0; }
+.my-props-group ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.my-prop { display: flex; align-items: center; gap: 6px; width: 100%; min-height: 0; padding: 3px 6px; border-radius: 6px; border: 1px solid transparent; background: rgba(255, 255, 255, 0.035); color: inherit; font: inherit; font-size: 13px; line-height: 1.4; text-align: left; cursor: pointer; }
+.my-prop:hover, .my-prop.on { border-color: #4dabf7; background: rgba(28, 126, 214, 0.22); }
+.my-prop.mortgaged .my-prop-name { opacity: 0.65; }
+.my-prop-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.my-prop-bld { display: inline-flex; gap: 2px; align-items: center; }
+.bld.house { width: 7px; height: 7px; border-radius: 1px; background: var(--good); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35); }
+.bld.hotel { display: inline-grid; place-items: center; width: 14px; height: 11px; border-radius: 2px; background: #d6475b; color: #fff; font-size: 8px; font-weight: 900; line-height: 1; }
+.my-prop-rent { min-width: 64px; text-align: right; font-size: 12px; font-weight: 700; }
+.my-prop .badge { flex-shrink: 0; }
+.my-props-empty { padding: 2px 2px 4px; }
+.game-hud.log-open .my-props-list { max-height: min(200px, 22vh); }
+
+/* The tile inspector's actions on my property: build, sell, mortgage (spaceActions.ts) */
+.inspector-actions { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 10px; border-top: 1px solid var(--glass-line); }
+.inspector-action { display: flex; flex-direction: column; gap: 3px; flex: 1 1 140px; min-width: 0; }
+.inspector-action button { min-height: 38px; }
+.inspector-action small { font-size: 12px; line-height: 1.35; }
+.turn-row { display: flex; align-items: stretch; gap: 6px; width: min(560px, 100%); min-width: 0; }
+.turn-row .turn-bar { flex: 1; width: auto; }
+/* Phones: My properties opens from beside the turn bar (the tool row has no room for another button) */
+.props-button { display: none; width: 44px; border-radius: 14px; border: 1px solid var(--glass-line); background: var(--glass); backdrop-filter: blur(12px); font-size: 20px; }
+.props-button[aria-pressed='true'] { border-color: var(--accent); color: var(--accent); }
 
 /* Toasts and banners */
 .game-toasts { display: flex; flex-direction: column; align-items: center; gap: 6px; }
@@ -1177,9 +1221,14 @@ button.link:hover { background: none; filter: brightness(1.1); }
 .trade-side { min-width: 0; margin: 0; padding: 10px; border: 1px solid var(--glass-line); border-radius: 10px; display: flex; flex-direction: column; gap: 8px; }
 .trade-side legend { padding: 0 6px; font-family: var(--display); font-size: 15px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
 .trade-cash { display: flex; align-items: center; gap: 8px; }
-.trade-cash input { width: 110px; padding: 6px 8px; }
+.trade-cash input { width: 110px; min-width: 0; padding: 6px 8px; }
+.trade-cash small { white-space: nowrap; }
+.game-dialog.trade .trade-cash input { width: 96px; flex: 0 1 96px; }
 .trade-props { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-.trade-props li { display: flex; flex-direction: column; gap: 2px; }
+.trade-props li { display: flex; flex-direction: column; gap: 2px; padding: 0 4px; border-radius: 8px; }
+.trade-props li:hover, .trade-props li:focus-within { background: rgba(255, 255, 255, 0.05); }
+.trade-prop-row { display: flex; align-items: center; gap: 6px; }
+.trade-prop-row label { flex: 1; min-width: 0; }
 .trade-props li.dim { opacity: 0.6; }
 .trade-props label, .trade-card { display: flex; align-items: center; gap: 6px; min-height: 30px; cursor: pointer; }
 .trade-props input, .trade-card input { width: auto; accent-color: var(--accent); }
@@ -1190,7 +1239,58 @@ button.link:hover { background: none; filter: brightness(1.1); }
 .trade-offer.incoming { border-color: rgba(92, 224, 138, 0.45); }
 .offer-terms { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; font-size: 14px; }
 .offer-terms dt { color: var(--muted); }
-.offer-terms dd { margin: 0; font-weight: 600; }
+.offer-terms dd { margin: 0; font-weight: 600; line-height: 1.7; }
+/* More than two offers: a heading and a list of their own that scrolls */
+.offers-head { align-self: flex-start; margin: 0; padding: 2px 10px; border-radius: 999px; background: var(--glass); border: 1px solid var(--glass-line); backdrop-filter: blur(12px); font-family: var(--display); font-size: 14px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+.offer-list { display: flex; flex-direction: column; gap: 8px; }
+.trade-offers.many .offer-list { max-height: min(340px, 40vh); overflow-y: auto; overscroll-behavior: contain; padding-right: 2px; }
+.offer-list > * { flex-shrink: 0; }
+/* Between two other players: read-only and quieter */
+.trade-offer.other { gap: 4px; padding: 8px 10px; background: rgba(13, 16, 22, 0.55); }
+.trade-offer.other .offer-terms { font-size: 13px; }
+.offer-who { font-size: 14px; }
+.offer-who .dot { margin: 0 5px 0 0; vertical-align: 0; }
+.offer-who strong + .dot { margin-left: 2px; }
+
+/* A property named in a list: hover / focus shows it on the board (uiStore.preview), a click its deed */
+.prop-chip { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; min-height: 0; padding: 0 7px 0 4px; border-radius: 6px; border: 1px solid var(--glass-line); background: rgba(255, 255, 255, 0.06); color: inherit; font: inherit; line-height: 1.5; vertical-align: baseline; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prop-chip .band { display: inline-block; width: 10px; height: 10px; border-radius: 2px; border: 1px solid rgba(0, 0, 0, 0.4); background: rgba(255, 255, 255, 0.25); flex-shrink: 0; }
+.prop-chip:hover, .prop-chip.on { border-color: #4dabf7; background: rgba(28, 126, 214, 0.22); }
+/* The ⓘ beside a trade builder row (a tap shows the property, a click opens its deed) */
+.prop-chip.info, .info-glyph { justify-content: center; width: 22px; height: 22px; padding: 0; border-radius: 50%; font-family: Georgia, serif; font-style: italic; font-weight: 700; font-size: 13px; }
+.info-glyph { display: inline-flex; align-items: center; border: 1px solid var(--glass-line); vertical-align: middle; }
+
+/* The previewed property's information: a compact deed and who owns it */
+.preview-card { display: flex; flex-direction: column; gap: 6px; }
+.preview-card .title-deed { max-width: none; }
+.preview-card .deed-head { padding: 5px 10px 6px; }
+.preview-card .deed-head h3 { font-size: 16px; }
+.preview-card .deed-price { position: static; display: block; }
+.preview-card .title-deed td { white-space: nowrap; }
+.preview-card .title-deed table { font-size: 12px; }
+.preview-card .title-deed :is(th, td) { padding: 1px 10px; }
+.preview-card .owner-line { font-size: 13px; }
+/* Beside the offers list (TradeOffers): a glass card of its own; the pointer goes through it */
+.offer-preview { position: fixed; z-index: 24; padding: 8px; border-radius: 12px; background: rgba(13, 16, 22, 0.94); border: 1px solid rgba(77, 171, 247, 0.55); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45); pointer-events: none; animation: panel-in 140ms ease-out; }
+
+/* The trade builder keeps the board in view: beside the board on wide screens (the camera frames around it,
+   data-inset), its preview pane on the right (always there, so a hover never moves the rows) */
+.game-dialog.trade { --edge: right; }
+.game-dialog.trade .dialog-body { flex: 1 1 auto; display: grid; grid-template-columns: minmax(0, 1fr) 250px; grid-template-rows: minmax(0, 1fr); overflow: hidden; padding: 0; gap: 0; }
+.trade-main { min-height: 0; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+.trade-main > * { flex-shrink: 0; }
+.trade-preview { min-height: 0; overflow-y: auto; padding: 12px; border-left: 1px solid var(--glass-line); background: rgba(255, 255, 255, 0.02); }
+.trade-preview-hint { line-height: 1.5; }
+@media (min-width: 641px) {
+  .game-modal:has(> .game-dialog.trade) { place-items: center end; background: linear-gradient(to left, rgba(7, 9, 13, 0.6), rgba(7, 9, 13, 0.12) 75%); }
+  .game-dialog.trade { width: min(800px, 100%); }
+  /* Room for a street's deed whether or not one is showing: a hover never resizes the dialog */
+  .trade-preview { min-height: 330px; }
+}
+@media (min-width: 641px) and (max-width: 1100px) {
+  .game-dialog.trade { width: min(700px, 100%); }
+  .game-dialog.trade .dialog-body { grid-template-columns: minmax(0, 1fr) 220px; }
+}
 
 /* MiniBoard: opaque (shown over a working 3D board, which must not show through its middle). Each cell is a size
    container, so its text and tokens scale with it: a short name (shortSpaceName: no word over 9 letters) fits
@@ -1288,6 +1388,16 @@ button.link:hover { background: none; filter: brightness(1.1); }
   .hud-context > .dice-readout { display: none; }
   .hud-decision { grid-area: decision; max-height: 48vh; --edge: bottom; }
   .event-log { display: none; }
+  /* My properties: on demand from the action bar (⌂), over the board above the sheet like the log */
+  .my-props { display: none; }
+  .game-hud.props-open .my-props { display: flex; position: fixed; z-index: 26; left: 6px; right: 6px; top: 18vh; bottom: calc(80px + env(safe-area-inset-bottom)); background: rgba(13, 16, 22, 0.97); }
+  .game-hud.props-open .my-props-list { max-height: none; flex: 1; }
+  .my-props-toggle { pointer-events: none; }
+  .my-props-toggle::after { display: none; }
+  .my-props-close { display: inline-grid; place-items: center; margin-left: auto; }
+  .my-prop { min-height: 40px; font-size: 14px; }
+  .props-button { display: inline-grid; place-items: center; flex-shrink: 0; }
+  .inspector-action button { min-height: 44px; }
   /* Opaque: it lies over the decision in the sheet, which must not show through */
   .game-hud.log-open .event-log { display: flex; position: fixed; z-index: 26; left: 6px; right: 6px; top: 18vh; bottom: calc(80px + env(safe-area-inset-bottom)); background: rgba(13, 16, 22, 0.97); }
   .game-hud.log-open .event-log .log-lines { max-height: none; flex: 1; }
@@ -1342,6 +1452,24 @@ button.link:hover { background: none; filter: brightness(1.1); }
   .game-modal { place-items: end stretch; padding: 0; }
   .game-dialog, .game-dialog.inspector, .game-dialog.manage, .game-dialog.trade { width: 100%; max-height: 88vh; border-radius: 16px 16px 0 0; padding-bottom: env(safe-area-inset-bottom); }
   .trade-columns { grid-template-columns: 1fr; }
+  /* The trade sheet: the preview under the lists only while there is one, and then the sheet gives the board
+     above it room to show the tile (the camera frames it there: the sheet is an inset) */
+  .game-modal:has(> .game-dialog.trade) { background: rgba(7, 9, 13, 0.3); }
+  .game-dialog.trade { --edge: bottom; }
+  .game-dialog.trade:has(.trade-preview.on) { max-height: 64vh; }
+  .game-dialog.trade .dialog-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
+  .trade-preview { display: none; border-left: 0; border-top: 1px solid var(--glass-line); padding: 8px 10px; max-height: 30vh; }
+  .trade-preview.on { display: block; }
+  .trade-main { padding: 10px 12px; }
+  .offer-preview { padding: 6px; }
+  /* A phone's preview is short, so the board keeps room for the tile: the price, the basic rent and the one
+     that applies now */
+  .preview-card .deed-kicker { display: none; }
+  .preview-card .deed-rent tr:not(.active):not(:first-child) { display: none; }
+  .preview-card .deed-note { display: none; }
+  .preview-card { gap: 4px; }
+  .trade-offers.many .offer-list { max-height: 24vh; }
+  .trade-offer.other { padding: 6px 10px; }
   /* Inside the 2D board's ring of spaces, which stay readable around it */
   .card-modal { width: calc(100vw - 96px); padding: 12px; }
   /* The board above the sheet is the other way to pick: the list leaves it room */
@@ -1376,8 +1504,10 @@ button.link:hover { background: none; filter: brightness(1.1); }
 
 /* Touch: everything a thumb presses is at least 44px */
 @media (pointer: coarse) {
-  .game-hud button:not(.swatch):not(.log-toggle):not(.link):not(.cell), .game-hud select, .game-hud input:not([type='checkbox']):not([type='range']) { min-height: 44px; }
+  .game-hud button:not(.swatch):not(.log-toggle):not(.link):not(.cell):not(.prop-chip), .game-hud select, .game-hud input:not([type='checkbox']):not([type='range']) { min-height: 44px; }
   .game-hud .icon-button { min-width: 44px; }
+  .prop-chip { min-height: 28px; }
+  .prop-chip.info { width: 36px; height: 36px; }
   .swatch { width: 18px; height: 22px; }
 }
 /* A touch screen with no hover has no keyboard to speak of: no key hints */
@@ -1388,6 +1518,7 @@ button.link:hover { background: none; filter: brightness(1.1); }
 html.reduce-motion .game-hud .panel,
 html.reduce-motion .game-modal,
 html.reduce-motion .game-toast,
+html.reduce-motion .offer-preview,
 html.reduce-motion .money-delta { animation: none; }
 html.reduce-motion .timer-ring .fill,
 html.reduce-motion .timer-bar .bar { transition: none; }

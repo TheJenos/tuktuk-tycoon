@@ -137,7 +137,7 @@ export function buildingPos(i: number, slot: number): XZ {
   return toWorld(sideOf(i), x, INNER + BAND / 2);
 }
 
-/** The owner chip on the frame, outside tile `i` */
+/** The owner bar on the frame, outside tile `i` */
 export function chipPos(i: number): XZ {
   return toWorld(sideOf(i), localCenter(i)[0], HALF + FRAME / 2);
 }

@@ -10,8 +10,8 @@ describe('deedFor', () => {
     const d = deedFor(LANKA, 39, null)!;
     expect(d.kind).toBe('street');
     expect(d.colour).toBe(LANKA.display.groupColours.darkBlue);
-    expect(d.rent.map((r) => r.value)).toEqual(['Rs. 50', 'Rs. 100', 'Rs. 200', 'Rs. 600', 'Rs. 1,400', 'Rs. 1,700', 'Rs. 2,000']);
-    expect(d.costs.map((r) => r.value)).toEqual(['Rs. 200 each', 'Rs. 200 plus 4 houses', 'Rs. 200', 'Rs. 220']);
+    expect(d.rent.map((r) => r.value)).toEqual(['Rs. 5,000', 'Rs. 10,000', 'Rs. 20,000', 'Rs. 60,000', 'Rs. 140,000', 'Rs. 170,000', 'Rs. 200,000']);
+    expect(d.costs.map((r) => r.value)).toEqual(['Rs. 20,000 each', 'Rs. 20,000 plus 4 houses', 'Rs. 20,000', 'Rs. 22,000']);
     expect(active(d.rent)).toEqual([]);
   });
 
@@ -33,13 +33,13 @@ describe('deedFor', () => {
     const s = game(2, { speedDie: true });
     own(s, 's1', [5, 15, 25]);
     const rail = deedFor(LANKA, 15, s)!;
-    expect(rail.rent.map((r) => r.value)).toEqual(['Rs. 25', 'Rs. 50', 'Rs. 100', 'Rs. 200']);
+    expect(rail.rent.map((r) => r.value)).toEqual(['Rs. 2,500', 'Rs. 5,000', 'Rs. 10,000', 'Rs. 20,000']);
     expect(active(rail.rent)).toEqual(['If 3 stations are owned']);
     own(s, 's1', [12]);
     const util = deedFor(LANKA, 12, s)!;
     expect(active(util.rent)).toEqual(['If one board is owned']);
     expect(util.note).toMatch(/all three/);
-    expect(util.costs.map((r) => r.value)).toEqual(['Rs. 75', 'Rs. 83']);
+    expect(util.costs.map((r) => r.value)).toEqual(['Rs. 7,500', 'Rs. 8,300']);
     expect(deedFor(LANKA, 12, game())!.note).toBeUndefined();
   });
 
@@ -48,7 +48,7 @@ describe('deedFor', () => {
     for (const sp of LANKA.spaces) if (sp.k !== 'street' && sp.k !== 'rail' && sp.k !== 'utility') {
       expect(spaceBlurb(LANKA, sp, game()).length).toBeGreaterThan(10);
     }
-    expect(spaceBlurb(LANKA, LANKA.spaces[38], null)).toBe('Wedding Gift Envelope: pay Rs. 75.');
+    expect(spaceBlurb(LANKA, LANKA.spaces[38], null)).toBe('Wedding Gift Envelope: pay Rs. 7,500.');
     expect(spaceBlurb(LANKA, LANKA.spaces[30], null)).toBe('Go directly to the Police Station Bench. Do not pass Start, do not collect your salary.');
     expect(spaceBlurb(LANKA, LANKA.spaces[7], null)).toBe("Draw the top Astrologer's Advice card and do what it says.");
   });

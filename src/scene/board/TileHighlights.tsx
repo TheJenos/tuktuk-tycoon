@@ -10,7 +10,7 @@ import { uncleTarget } from './uncleTarget';
 
 /*
  * Frames laid over tiles: the picker's legal targets in amber (pulsing while a picker is open), its cursor / ghost
- * in blue, the space Tuk-Tuk Uncle is sending a token to in red (pulsing while it walks there), the inspected tile
+ * and a space previewed from a list (a property in a trade) in blue, pulsing, the space Tuk-Tuk Uncle is sending a token to in red (pulsing while it walks there), the inspected tile
  * and the hovered one in slate. One InstancedMesh of 40 quads with a border texture (solid edge, faint fill)
  * tinted per instance; tiles with nothing to show are scaled away.
  */
@@ -24,12 +24,14 @@ const UNCLE_RED = new Color('#f03e3e');
 const UNCLE_LINGER_MS = 1500;
 
 function colourOf(u: UiState, uncle: number | null, i: number, out: Color): Color | null {
-  if (u.picker && u.picker.ghost === i) return out.copy(CURSOR);
+  if ((u.picker && u.picker.ghost === i) || u.preview === i) return out.copy(CURSOR);
   if (u.picker?.legal.includes(i)) return out.copy(AMBER);
   if (uncle === i) return out.copy(UNCLE_RED);
   if (u.selected === i || u.hover === i) return out.copy(SLATE);
   return null;
 }
+
+const pulsing = (u: UiState, uncle: number | null): boolean => !!u.picker || u.preview !== null || uncle !== null;
 
 function frameTexture(): CanvasTexture {
   const c = makeCanvas(128, 128);
@@ -89,10 +91,11 @@ export function TileHighlights() {
       invalidate();
     };
     paint();
-    // The pulse needs frames while a picker is open or Tuk-Tuk Uncle's target is marked; 30 a second is plenty.
+    // The pulse needs frames while a picker is open, a space is previewed or Tuk-Tuk Uncle's target is marked; 30 a
+    // second is plenty.
     let timer: ReturnType<typeof setInterval> | null = null;
     const pulse = () => {
-      const want = (!!uiStore.get().picker || uncle.current !== null) && !settings.get().reduceMotion;
+      const want = pulsing(uiStore.get(), uncle.current) && !settings.get().reduceMotion;
       if (want && !timer) timer = setInterval(() => invalidate(), 33);
       if (!want && timer) {
         clearInterval(timer);
@@ -138,7 +141,7 @@ export function TileHighlights() {
   }, [invalidate]);
 
   useFrame(({ clock }) => {
-    if ((uiStore.get().picker || uncle.current !== null) && !settings.get().reduceMotion) mat.current.opacity = 0.75 + 0.25 * Math.sin(clock.elapsedTime * 5);
+    if (pulsing(uiStore.get(), uncle.current) && !settings.get().reduceMotion) mat.current.opacity = 0.75 + 0.25 * Math.sin(clock.elapsedTime * 5);
   });
 
   return <instancedMesh ref={ref} args={[quad, mat.current, TILES]} frustumCulled={false} renderOrder={2} />;

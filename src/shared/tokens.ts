@@ -1,18 +1,21 @@
-/** The eight player tokens. Ids are stored in rooms; labels are shown in the UI. */
+/** The eight player tokens. Ids are stored in rooms (database.rules.json lists them); labels are shown in the UI. */
 export const TOKENS = [
-  { id: 'hat', label: 'Top hat' },
-  { id: 'car', label: 'Racecar' },
-  { id: 'boat', label: 'Sailboat' },
-  { id: 'rocket', label: 'Rocket' },
-  { id: 'crown', label: 'Crown' },
-  { id: 'anchor', label: 'Anchor' },
-  { id: 'teapot', label: 'Teapot' },
-  { id: 'knight', label: 'Knight' },
+  { id: 'tuktuk', label: 'Tuk-tuk' },
+  { id: 'elephant', label: 'Elephant' },
+  { id: 'coconut', label: 'King coconut' },
+  { id: 'cricket', label: 'Cricket bat' },
+  { id: 'tea', label: 'Cup of tea' },
+  { id: 'drum', label: 'Kandyan drum' },
+  { id: 'oruwa', label: 'Oruwa canoe' },
+  { id: 'kite', label: 'New Year kite' },
 ] as const;
 
 export type TokenId = (typeof TOKENS)[number]['id'];
 
 export const isTokenId = (v: unknown): v is TokenId => TOKENS.some((t) => t.id === v);
+
+/** Shown for a seat whose token is missing or from an older version */
+export const DEFAULT_TOKEN: TokenId = 'tuktuk';
 
 /**
  * Seat colours, one per seat (s0..s7). Picked to stay distinguishable with the common colour-vision deficiencies;

@@ -3,7 +3,7 @@
  * copyrighted board art.
  */
 
-export type IconName = 'rail' | 'bulb' | 'tap' | 'ring' | 'coins' | 'chest' | 'car' | 'lock' | 'arrow' | 'bus' | 'hat';
+export type IconName = 'rail' | 'bulb' | 'tap' | 'ring' | 'coins' | 'chest' | 'car' | 'lock' | 'arrow' | 'bus' | 'tuktuk';
 
 const circle = (cx: number, cy: number, r: number) =>
   `M${cx - r} ${cy} a${r} ${r} 0 1 0 ${2 * r} 0 a${r} ${r} 0 1 0 ${-2 * r} 0 Z`;
@@ -48,8 +48,13 @@ const PATHS: Record<IconName, string> = {
     circle(26, 72, 10),
     circle(76, 72, 10),
   ].join(' '),
-  // A generic tycoon's top hat
-  hat: ['M30 14 H70 L66 62 H34 Z', 'M8 66 C8 60 20 60 50 60 C80 60 92 60 92 66 C92 74 80 76 50 76 C20 76 8 74 8 66 Z'].join(' '),
+  // A tuk-tuk side-on (the Speed Die's Tuk-Tuk Uncle face): canopy hood, body, big rear and small front wheel
+  tuktuk: [
+    'M10 64 C8 36 18 20 36 20 H66 C74 20 78 24 80 30 L82 48 H74 L72 34 C71 31 69 29 66 29 H37 C25 29 18 40 20 64 Z',
+    'M10 48 H80 L91 66 C92 70 90 73 86 74 L80 76 H18 C13 76 10 72 10 67 Z',
+    circle(28, 76, 11),
+    circle(80, 78, 8),
+  ].join(' '),
 };
 
 /** Cut-outs drawn in the background colour on top of an icon (train and bus windows, the lock's keyhole) */
@@ -57,7 +62,7 @@ const HOLES: Partial<Record<IconName, string>> = {
   rail: 'M64 26 H80 V38 H64 Z',
   bus: 'M16 24 H30 V42 H16 Z M36 24 H52 V42 H36 Z M58 24 H74 V42 H58 Z M80 24 H88 V42 H80 Z',
   lock: `${circle(50, 62, 6)} M47 64 H53 V78 H47 Z`,
-  hat: 'M33 48 H67 L66 56 H34 Z',
+  tuktuk: 'M22 52 H48 V64 H24 Z M52 52 H74 L80 64 H52 Z',
 };
 
 const cache = new Map<string, Path2D>();

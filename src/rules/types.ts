@@ -133,8 +133,16 @@ export interface BoardDef {
   chance: CardDef[];
   chest: CardDef[];
   speedDie: { faces: SpeedFace[]; labels: Record<string, string> };
-  /** What the UI prints: the board title, each card deck's name and the colour groups' colours */
-  display: { title: string; decks: Record<Deck, string>; groupColours: Record<string, string> };
+  /**
+   * What the UI prints: the board title, each card deck's name, the colour groups' colours and the currency. Money
+   * is shown as `symbol` and the engine's amount times `scale` (the engine counts rulebook units).
+   */
+  display: {
+    title: string;
+    decks: Record<Deck, string>;
+    groupColours: Record<string, string>;
+    currency: { symbol: string; scale: number };
+  };
 }
 
 // ---------------------------------------------------------------------------------------------------------------
