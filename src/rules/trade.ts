@@ -6,8 +6,9 @@ import type { BoardDef, Bundle, GameState, Phase, RuleError, SeatId, Trade } fro
 
 /*
  * Private deals: cash, unimproved property (no buildings anywhere in its group) and Get Out of Jail Free cards.
- * Offers are checked again when accepted, at most one is open per proposer, and all are cleared when the turn
- * passes. No loans: cash for nothing, nothing for cash and cash for cash are refused.
+ * Offers are checked again when accepted and at most one is open per proposer. They never expire: an offer stays
+ * open until it is accepted, rejected or cancelled, or one of its parties leaves the game. No loans: cash for
+ * nothing, nothing for cash and cash for cash are refused.
  */
 
 export const MAX_TRADES = 8;
@@ -169,11 +170,11 @@ export const cancel: Handler<'cancel'> = seatAction(
   },
 );
 
-/** Drops offers: all of them (turn end), or those involving a seat that is out */
-export function clearTrades(c: Ctx, why: 'turnEnd' | 'out', seat?: SeatId): void {
+/** Drops the offers made by or to a seat that is out of the game */
+export function clearTrades(c: Ctx, seat: SeatId): void {
   for (const t of Object.values(c.s.trades)) {
-    if (seat !== undefined && t.from !== seat && t.to !== seat) continue;
+    if (t.from !== seat && t.to !== seat) continue;
     delete c.s.trades[t.id];
-    emit(c, { t: 'tradeCancelled', id: t.id, why });
+    emit(c, { t: 'tradeCancelled', id: t.id, why: 'out' });
   }
 }

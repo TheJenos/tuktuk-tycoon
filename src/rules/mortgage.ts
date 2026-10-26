@@ -1,8 +1,8 @@
-import { propertyAt, siblings } from './board';
-import { type Ctx, emit, err, interest, levelOf, player, prop, setPhase } from './ctx';
+import { groupOf, propertyAt, siblings } from './board';
+import { type Ctx, emit, err, interest, levelOf, phaseChain, player, prop, propKey, setPhase } from './ctx';
 import { type Handler, isInt, seatAction } from './handler';
 import { pay, transfer } from './money';
-import type { BoardDef, GameState, RuleError, SeatId } from './types';
+import type { BoardDef, GameState, OwnerVia, RuleError, SeatId } from './types';
 
 /** What lifting a mortgage costs: the mortgage value + interest (rounded up: Power Cut Board 83) */
 export function unmortgageCost(s: GameState, b: BoardDef, space: number): number {
@@ -18,6 +18,40 @@ export function mortgageProblem(s: GameState, b: BoardDef, seat: SeatId, space: 
   if (ps.mortgaged) return err('mortgaged', 'Already mortgaged');
   if (siblings(b, space).some((sp) => levelOf(s, sp) > 0)) return err('buildings', 'Sell the group\'s buildings first');
   return null;
+}
+
+/** What the bank pays for a property sold back to it: its mortgage value, or nothing when it is mortgaged */
+export function saleValue(s: GameState, b: BoardDef, space: number): number {
+  return prop(s, space)?.mortgaged ? 0 : (propertyAt(b, space)?.mortgage ?? 0);
+}
+
+/** Why this seat cannot sell the space back to the bank now (null = it can); phases are checked by the caller */
+export function saleProblem(s: GameState, b: BoardDef, seat: SeatId, space: unknown): RuleError | null {
+  if (!isInt(space) || !propertyAt(b, space)) return err('badSpace', 'Not a property');
+  if (prop(s, space)?.owner !== seat) return err('notOwner', 'You do not own it');
+  if (siblings(b, space).some((sp) => levelOf(s, sp) > 0)) {
+    const g = groupOf(b, space);
+    return err('buildings', `Sell the buildings in ${g ? `the ${g.name} group` : 'its group'} first`);
+  }
+  // Received mortgaged in a trade and not settled yet: settle it first
+  if (phaseChain(s.phase).some((p) => p.k === 'mortgageXfer' && p.spaces.includes(space))) {
+    return err('settling', 'Settle its mortgage first');
+  }
+  return null;
+}
+
+/**
+ * The property goes back to the bank (unowned, unbuilt, unmortgaged) and the bank pays its sale value: the mortgage
+ * value, or nothing for a mortgaged one (the owner already has that loan). The caller has cleared the buildings.
+ */
+export function sellToBank(c: Ctx, seat: SeatId, space: number, via: OwnerVia): void {
+  const ps = prop(c.s, space);
+  if (!ps || ps.owner !== seat) return;
+  const value = saleValue(c.s, c.b, space);
+  if (ps.mortgaged) emit(c, { t: 'mortgage', space, on: false });
+  delete c.s.props[propKey(space)];
+  emit(c, { t: 'owner', space, from: seat, via });
+  transfer(c, 'bank', seat, value, 'sale', space);
 }
 
 export function unmortgageProblem(s: GameState, b: BoardDef, seat: SeatId, space: unknown): RuleError | null {
@@ -46,7 +80,7 @@ export function unmortgageNow(c: Ctx, seat: SeatId, space: number, cost: number)
 }
 
 /**
- * A seat received mortgaged property (trade or bankruptcy): it chooses per space to lift it now (mortgage + 10%)
+ * A seat received mortgaged property in a trade: it chooses per space to lift it now (mortgage + 10%)
  * or pay just the 10% now and keep it mortgaged (lifting later costs the full mortgage + 10% again).
  */
 export function startXfer(c: Ctx, seat: SeatId, spaces: number[]): void {

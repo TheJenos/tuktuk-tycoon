@@ -46,35 +46,34 @@ describe('bankruptcy', () => {
     expect(refused(debt, 's1', { k: 'autoRaise' })).toBe('noDebt');
   });
 
-  it('to a player: the creditor gets cash, half the buildings, property and cards, then settles the mortgages', () => {
+  it('to a player: everything is sold to the bank and the creditor gets the cash; no property or card passes to it', () => {
     const s = hotelDebt();
     expect(s.phase).toMatchObject({ k: 'debt', debtor: 's0', owed: { s1: 2000 } });
     expect(maxRaise(s, 's0')).toBe(100 + 25 + 25 + 30 + 30);
     const { state, events } = act(s, 's0', { k: 'bankrupt' });
     expect(state.players.s0).toMatchObject({ out: 'bankrupt', cash: 0, goojf: [] });
-    expect(cash(state, 's1')).toBe(1500 + 50 + 100);
-    expect([1, 3, 12].map((x) => state.props[`p${x}`]?.owner)).toEqual(['s1', 's1', 's1']);
-    expect(state.props.p1?.level).toBe(0);
+    // cash 100 + two houses at half price 50 + the browns' mortgage values 60; the mortgaged utility brings nothing
+    expect(cash(state, 's1')).toBe(1500 + 100 + 50 + 60);
+    expect([1, 3, 12].map((x) => state.props[`p${x}`])).toEqual([undefined, undefined, undefined]);
     expect(state.bank.houses).toBe(32);
-    expect(state.players.s1?.goojf).toEqual(['cc-goojf']);
+    expect(state.players.s1?.goojf).toEqual([]);
+    expect(state.decks.chest.at(-1)).toBe('cc-goojf');
+    expect(ofType(events, 'cardReturn')).toEqual([{ t: 'cardReturn', deck: 'chest', cardId: 'cc-goojf', seat: 's0' }]);
     expect(ofType(events, 'bankrupt')).toEqual([{ t: 'bankrupt', seat: 's0', to: 's1', resigned: false }]);
-    // The creditor is not the turn seat, but its choice survives the bankrupt player's turn ending.
-    expect(state.phase).toMatchObject({ k: 'mortgageXfer', seat: 's1', spaces: [12], resume: { k: 'busy' } });
+    expect(ofType(events, 'owner')).toEqual([
+      { t: 'owner', space: 1, from: 's0', via: 'bankrupt' },
+      { t: 'owner', space: 3, from: 's0', via: 'bankrupt' },
+      { t: 'owner', space: 12, from: 's0', via: 'bankrupt' },
+    ]);
+    // The whole proceeds reach the creditor as the debt's payment (rent), in one transfer
+    expect(ofType(events, 'cash').filter((e) => e.to === 's1')).toEqual([
+      { t: 'cash', from: 's0', to: 's1', amount: 210, why: 'rent', after: { s0: 0, s1: 1710 }, space: 39 },
+    ]);
+    // No mortgages change hands, so nothing to settle: the next seat plays
+    expect(ofType(events, 'xferStart')).toEqual([]);
+    expect(state.turn).toMatchObject({ seat: 's1', no: 2 });
+    expect(state.phase.k).toBe('preRoll');
     expect(awaiting(state)).toEqual(['s1']);
-    const next = act(state, 's1', { k: 'settleMortgages', lift: [] }).state;
-    expect(cash(next, 's1')).toBe(1650 - 8);
-    expect(next.turn).toMatchObject({ seat: 's1', no: 2 });
-    expect(next.phase.k).toBe('preRoll');
-  });
-
-  it('a creditor who cannot pay the interest on received mortgages owes it to the bank', () => {
-    const s = hotelDebt();
-    setCash(s, 's1', 0);
-    s.players.s0!.cash = 0;
-    const xfer = act(s, 's0', { k: 'bankrupt' }).state;
-    setCash(xfer, 's1', 0);
-    const { state } = act(xfer, 's1', { k: 'settleMortgages', lift: [] });
-    expect(state.phase).toMatchObject({ k: 'debt', debtor: 's1', owed: { bank: 8 }, why: 'interest' });
   });
 
   it('to the bank, mid-doubles: everything goes back, mortgages cleared, auctioned one by one, then the next turn', () => {
@@ -99,7 +98,7 @@ describe('bankruptcy', () => {
     expect(t.turn).toMatchObject({ seat: 's1', no: 2, doubles: 0 });
   });
 
-  it('several creditors are paid in seat order as far as the cash goes; the rest goes to the bank', () => {
+  it('several creditors are paid in seat order as far as the cash goes, each at most its share', () => {
     const s = scenario({ n: 3 });
     setCash(s, 's0', 30);
     setPos(s, 's0', 4);
@@ -180,11 +179,11 @@ describe('resigning', () => {
     expect(state.phase).toMatchObject({ k: 'auction', lot: { k: 'prop', space: 39 } });
   });
 
-  it('during a debt it cannot pay: it is a bankruptcy to the creditor', () => {
+  it('during a debt it cannot pay: it is a bankruptcy to the creditor (everything sold to the bank)', () => {
     const { state } = act(hotelDebt(), 's0', { k: 'resign' });
     expect(state.players.s0?.out).toBe('resigned');
-    expect(state.props.p1?.owner).toBe('s1');
-    expect(cash(state, 's1')).toBe(1650);
+    expect(state.props.p1).toBeUndefined();
+    expect(cash(state, 's1')).toBe(1710);
   });
 
   it('a high bidder who resigns loses the bid; the auction goes on', () => {
@@ -220,12 +219,22 @@ describe('resigning', () => {
   });
 
   it('an awaited non-turn seat who resigns: play moves on', () => {
-    const s = hotelDebt(4);
-    const xfer = act(s, 's0', { k: 'bankrupt' }).state;
-    expect(xfer.phase.k).toBe('mortgageXfer');
-    const { state } = act(xfer, 's1', { k: 'resign' });
-    expect(state.phase).toMatchObject({ k: 'auction', lot: { k: 'prop', space: 1 }, queue: [3, 12, 37, 39], resume: { k: 'busy' } });
-    expect(state.pending).toEqual([{ k: 'nextTurn' }]);
+    // s0 draws Wedding Gifts on Community Chest; s1 (Rs. 20 and the brown street) owes s0 Rs. 50
+    const s = scenario({ n: 3 });
+    setCash(s, 's1', 20);
+    own(s, 's1', [3]);
+    setPos(s, 's0', 14);
+    stack(s, 'chest', 'cc-wedding');
+    rig(s, [1, 2]);
+    const debt = act(s, 's0', { k: 'roll' }).state;
+    expect(debt.phase).toMatchObject({ k: 'debt', debtor: 's1', owed: { s0: 50 } });
+    expect(awaiting(debt)).toEqual(['s1']);
+    // It can cover the 50 (20 + 30 for the street): the debt is paid, the rest goes to the bank, which auctions it
+    const { state } = act(debt, 's1', { k: 'resign' });
+    expect(state.phase).toMatchObject({ k: 'auction', lot: { k: 'prop', space: 3 }, eligible: ['s0', 's2'] });
+    const after = run(state, ['s0', { k: 'pass' }], ['s2', { k: 'pass' }]).state;
+    expect(after.phase.k).toBe('postRoll');
+    expect(cash(after, 's0')).toBe(1600);
   });
 });
 

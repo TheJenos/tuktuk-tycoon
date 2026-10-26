@@ -22,8 +22,9 @@ import { PROFILES } from './profile';
  * Proposals (Normal: set-for-set swaps, evened out with cash; Hard: also lone property and cash sweeteners; Expert:
  * the same kinds of deal priced against Normal's and Hard's own acceptance rules, made only when its rollouts say
  * the deal beats no deal, see pricedOffers and search.ts) never block play: the bot rolls on while the receiver
- * thinks, and all offers are cleared when the turn ends. decide() is pure, so there is no memory of rejected offers.
- * Instead, from the state alone:
+ * thinks. Offers never expire, so the bot withdraws its own once it can no longer go through or would now lose it
+ * value (staleOffer), which also frees it to propose again. decide() is pure, so there is no memory of rejected
+ * offers. Instead, from the state alone:
  * - at most one proposal per turn: only at the very start of the bot's own turn, before its first throw and before
  *   anything else happened in it (no turn.roll, state.seq === state.since); a rejection moves seq on, so it can
  *   never be followed by another proposal that turn (only a preRoll re-entered before the throw, e.g. after an
@@ -73,6 +74,18 @@ function dealScore(c: BotCtx, j: Judged): number {
   // Hard never hands anyone a set unless it gains more itself, however many players are left
   const share = c.prof.rivalWeight >= 1 && j.handsSet ? 1 : c.rivalShare;
   return j.mine - c.prof.rivalWeight * share * Math.max(0, j.theirs);
+}
+
+/**
+ * Cancels the bot's own open offer when it can no longer be accepted (the engine re-checks it at accept time anyway)
+ * or when it would now cost the bot value by its own valuation: offers never expire, so a stale one must not wait
+ * for the receiver to take it when the position has moved on.
+ */
+export function staleOffer(c: BotCtx): Action | null {
+  const t = Object.values(c.s.trades).find((x) => x.from === c.seat);
+  if (!t) return null;
+  if (tradeProblems(c.s, t).length > 0) return { k: 'cancel', id: t.id };
+  return judge(c, t.from, t.to, t.give, t.get, c.seat).mine < 0 ? { k: 'cancel', id: t.id } : null;
 }
 
 /** What an offer made to the bot gains it, by its own valuation */

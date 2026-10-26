@@ -19,7 +19,9 @@ export function manageCandidates(s: GameState, b: BoardDef, seat: SeatId): Actio
     });
     if (levels.some((l) => l > 1)) out.push({ k: 'sell', group: g.id, levels: levels.map(() => 0) });
   }
-  for (const space of ownedBy(s, seat)) out.push({ k: 'mortgage', space }, { k: 'unmortgage', space });
+  for (const space of ownedBy(s, seat)) {
+    out.push({ k: 'mortgage', space }, { k: 'unmortgage', space }, { k: 'sellProperty', space });
+  }
   return out;
 }
 

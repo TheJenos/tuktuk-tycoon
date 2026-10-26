@@ -165,12 +165,12 @@ seat is taken, newcomers watch.
 
 ### A turn
 
-1. **Roll** (`R`). The dice tumble, your token hops round the board and the space does what it does: a card flies up
+1. **Roll** (`R`), the big button over the middle of the board. The dice tumble, your token hops round the board and the space does what it does: a card flies up
    from its deck, rent is paid automatically, a tax or Start salary shows as a floating "+Rs. 20,000" / "−Rs. 35,000".
-2. Land on a property the bank owns and the prompt offers **Buy for Rs. X** (`B`) or **Auction** (`A`). A Title Deed
-   shows what you'd be buying. Short of cash, **Raise Rs. X** opens Manage.
+2. Land on a property the bank owns and a card over the middle of the board offers **Buy for Rs. X** (`B`) or
+   **Auction** (`A`). A Title Deed shows what you'd be buying. Short of cash, **Raise Rs. X** opens Manage.
 3. Doubles roll again; three doubles in a row go to the Police Station Bench.
-4. **End turn** (`E`).
+4. **End turn** (`E`), in the same spot as Roll.
 
 Decisions only appear once the board has caught up (the Buy prompt comes after the token lands), and buttons stay
 disabled while a move is being committed. A move the rules refuse shows the engine's own reason as a toast.
@@ -205,12 +205,15 @@ Page Up / Page Down (ten spaces), Home / End, Enter, and typing a name to jump t
 - **Players** (left): each player's token, name, cash (counting along with the board), net worth (a setting), and
   their property as swatches by colour group (mortgaged ones hatched, houses as pips); online, a dot says whether
   each player is connected. A swatch opens its deed.
-- **The right-hand panel**: the last throw in words, the decision that's up, trade offers, and the event log (filters
-  **All**, **Mine**, **Money**).
-- **Action bar** (bottom): Roll or End turn (or the jail choices), **Manage**, **Trade**, Recenter, the 2D board,
-  the log and the menu.
-- **Phones**: the players become a strip along the top, and the decision and the action bar share a bottom sheet;
-  the log opens on demand.
+- **The middle of the board**: **Roll** or **End turn** (or the jail choices) on your turn, and the decision that's
+  up for you (buy or auction, Inland Revenue, the Bus, a triple's space, placing a building, received mortgages, a
+  debt), centred in the space the panels leave free. A drawn card flies up in 3D in front of the camera (its words
+  are in the log); without the 3D board it shows as a card over the 2D board.
+- **The right-hand panel**: the last throw in words, an auction you're only watching, trade offers, and the event
+  log (filters **All**, **Mine**, **Money**).
+- **Action bar** (bottom): **Manage**, **Trade**, Recenter, the 2D board, the log and the menu.
+- **Phones**: the players become a strip along the top, Roll / End turn stay over the middle of the board, and the
+  other decisions and the action bar share a bottom sheet, so the board stays in sight; the log opens on demand.
 
 **Title Deeds.** Click any space (on the 3D board, the 2D board or a swatch) for its card: colour band, price, the
 rent table with the row that applies right now highlighted, building costs and the mortgage value, plus who owns it,
@@ -219,27 +222,33 @@ its buildings, whether it is mortgaged and who is standing there. Other spaces s
 **Manage** (`M`) lists your property by colour group, stations and boards at the end. Stage changes, then press
 **Apply** once: **+ / −** per street (even building is enforced, and a hint names the street to change first),
 **Mortgage for Rs. X** / **Lift for Rs. X** per property, with the bank's houses and hotels left and the total cash change.
+**Sell to bank +Rs. X** sells a property back to the bank at once (after a second press): the bank pays its mortgage
+value (nothing for a mortgaged one, whose loan you keep) and the property is for sale again to whoever lands on it.
+It needs no buildings anywhere in its colour group, like mortgaging. The deed's card (click a space) has the same
+**Build**, **Sell**, **Mortgage** / **Lift mortgage** and **Sell to bank** buttons for one property.
 You don't have to wait for your own turn: building and lifting mortgages work whenever the game is calm (before or
-after a roll, or while a purchase is being decided), and selling and mortgaging also work during auctions, debts,
-Inland Revenue (income tax) and mortgage settlements, to raise cash.
+after a roll, or while a purchase is being decided), and selling, mortgaging and selling to the bank also work during
+auctions, debts, Inland Revenue (income tax) and mortgage settlements, to raise cash.
 
 **Trade** (`T`) builds an offer to one player: what you give and what you get, in cash, property (none from a colour
 group with buildings) and Get Out of Jail Free cards, checked against the rules as you go (no loans, no cash for
 cash). **Send offer** puts it in the other player's panel: **Accept**, **Decline** or **Counter** (the builder opens
 pre-filled the other way round). Each player has one open offer at a time, offers never hold the game up, and they
-are all cleared when the turn passes.
+never expire: an offer stays open across turns until it is accepted, declined or withdrawn (or a player leaves the
+game), and is checked against the rules again when accepted.
 
 **Auctions use timed open bidding.** Declining a purchase puts it up for everyone still in, the decliner included.
-Bidding starts at Rs. 100: **+Rs. 100**, **+Rs. 1,000**, **+Rs. 10,000**, or type any amount above the high bid up to your cash. Every bid
-restarts the countdown (8 seconds); **Pass** is final, and the high bidder can neither pass nor outbid itself. It
-closes when everyone but the high bidder has passed or the countdown runs out; with no bids the bank keeps the lot.
+Bidding starts at Rs. 100: **+Rs. 100**, **+Rs. 1,000**, **+Rs. 10,000**, or type any amount above the high bid up to your cash. The
+countdown (8 seconds by default) is fixed from the moment the lot is put up: bids never add time. **Pass** is final,
+and the high bidder can neither pass nor outbid itself. It closes when everyone but the high bidder has passed or the
+countdown runs out; with no bids the bank keeps the lot.
 You can sell and mortgage meanwhile (**Raise cash**). The same auction sells houses and hotels in a building
 shortage, and the property of a player who goes bankrupt to the bank.
 
-**Other decisions** appear in the same panel: jail (**Roll for doubles**, **Pay Rs. 5,000** on the first two tries, **Use
+**Other decisions** appear over the middle of the board too: jail (**Roll for doubles**, **Pay Rs. 5,000** on the first two tries, **Use
 card**), Inland Revenue (choose Rs. 20,000 or 10% before your worth is shown), a debt (**Sell or mortgage**, **Trade**,
 **Auto-raise and pay**, or **Declare bankruptcy** when even everything can't cover it), mortgaged property received
-in a trade or bankruptcy (lift now, or pay the 10% and keep it mortgaged), a building shortage (how many you want),
+in a trade (lift now, or pay the 10% and keep it mortgaged), a building shortage (how many you want),
 and where to place a building you won.
 
 **The game menu** (`Esc`) keeps the game running behind it: **Resume**; **Game** (resign, **Take back control** if a
@@ -303,7 +312,7 @@ choice made is in that file's [Rules decisions](docs/rules.md#rules-decisions) t
   house rule.
 - **Rent is collected automatically**: the rulebook's "ask before the second following player rolls" window is
   dropped.
-- **Auctions are timed open bidding**, from Rs. 100, the countdown restarting on every bid.
+- **Auctions are timed open bidding**, from Rs. 100, with a fixed countdown from the start (bids don't add time).
 - **Triples** (Speed Die): move to any of the other 39 spaces, then roll again (a setting).
 - **Unmortgaging** costs the mortgage value plus 10% rounded up (Power Cut Board: Rs. 8,300). Mortgaged stations and
   boards still count toward the number owned for rent.
@@ -311,8 +320,12 @@ choice made is in that file's [Rules decisions](docs/rules.md#rules-decisions) t
   it mortgaged.
 - **Building shortage**: every eligible builder may say how many they want; if it all fits it is granted, otherwise
   units are auctioned one at a time.
-- **Bankruptcy to the bank** clears the mortgages before the bank auctions the property; several creditors are paid
-  in seat order.
+- **Bankruptcy to a player** sells everything to the bank (buildings at half price, each property at its mortgage
+  value, nothing for a mortgaged one; the property becomes the bank's again) and the creditor gets the cash, at most
+  what it is owed; several creditors are paid in seat order. No property or card passes to a creditor.
+- **Bankruptcy to the bank** clears the mortgages before the bank auctions the property.
+- **Selling property to the bank**: an owner may sell an unimproved property back to the bank for its mortgage value
+  (nothing when it is mortgaged).
 - **The Speed Die** takes effect from the roll after the first Start salary; the nearest-Board card's throw includes it
   when active; its faces are 1, 2, 3, Bus, Tuk-Tuk Uncle, Tuk-Tuk Uncle.
 - **Cards** have the standard effects of this era's decks (the rulebook lists none), with Sri Lankan texts.
@@ -895,7 +908,8 @@ src/
       tokenIcons.tsx      flat token silhouettes
       hud/
         TurnBar.tsx       whose turn, what the game waits for, the timer
-        ActionBar.tsx     Roll / End turn, Manage, Trade, Recenter, 2D board, log, menu
+        ActionBar.tsx     Manage, Trade, Recenter, 2D board, log, menu
+        BoardCenter.tsx   over the board's middle: Roll / End turn, the jail choices and my decisions
         PlayersPanel.tsx  players, cash, property swatches, online dots
         DiceReadout.tsx   the last throw, in words and faces
         EventLog.tsx      the log (All, Mine, Money)

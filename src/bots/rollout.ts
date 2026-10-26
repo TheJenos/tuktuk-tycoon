@@ -97,10 +97,13 @@ const OPTIONAL: (keyof RulesConfig)[] = [
   'tradeAfterLap',
 ];
 
+/** The rules version the key always reads: a RULES_VERSION bump alone does not reshuffle the playouts' dice */
+const KEY_VERSION = 3;
+
 /**
  * The state as the key sees it: without what no rule in play reads (laps unless the first-lap or trading-after-lap
- * rule is on, the jackpot pot with the jackpot off, optional rules at their default). Under the default rules the
- * key, and so the playouts' dice, are what they were before those options existed.
+ * rule is on, the jackpot pot with the jackpot off, optional rules at their default) and with a fixed version. Under
+ * the default rules the key, and so the playouts' dice, are what they were before those options existed.
  */
 function keyed(s: GameState): object {
   const cfg = s.cfg;
@@ -108,7 +111,7 @@ function keyed(s: GameState): object {
   const { pot, ...rest } = s;
   const c: Partial<RulesConfig> = { ...cfg };
   for (const key of OPTIONAL) if (c[key] === DEFAULT_RULES[key]) delete c[key];
-  const out: Record<string, unknown> = { ...rest, cfg: c };
+  const out: Record<string, unknown> = { ...rest, v: KEY_VERSION, cfg: c };
   if (cfg.jackpot) out.pot = pot;
   if (!laps) {
     const players: Record<string, unknown> = {};

@@ -100,9 +100,10 @@ interface Command { by: SeatId | 'system'; a: Action; basis?: number }
 | `build {group, levels}` | owner | `preRoll`/`postRoll`/`buy`; target levels per `GroupDef.spaces`, raises only |
 | `sell {group, levels}` | owner | those plus `auction`, `debt`, `incomeTax`, `mortgageXfer`; lowers only |
 | `mortgage {space}` | owner | same phases as `sell`; no buildings in the group |
+| `sellProperty {space}` | owner | same phases as `mortgage`; no buildings in the group; not while it waits in `mortgageXfer`. The bank pays the mortgage value (nothing when mortgaged; the mortgage is cleared) and the property is the bank's again |
 | `unmortgage {space}` | owner | `preRoll`/`postRoll`/`buy`; cash >= `unmortgageCost` |
 | `settleMortgages {lift}` | the receiving seat | `mortgageXfer`; `lift` subset of `phase.spaces` |
-| `propose {to, give, get}` | any | any phase; one open offer per proposer, 8 in total; the `trading` rule allows it |
+| `propose {to, give, get}` | any | any phase; one open offer per proposer, 8 in total; the `trading` rule allows it. Offers never expire |
 | `accept {id}` | the offer's `to` | `preRoll`/`postRoll`/`buy`/`debt`; re-validated now (trading rule included) |
 | `reject {id}` / `cancel {id}` | `to` / `from` | any time |
 | `autoRaise` | debtor | `debt`: raise cash deterministically and pay, or go bankrupt |
@@ -187,15 +188,15 @@ values, so a view can set rather than accumulate.
 | `move` | `seat, from, to, path, via` | `path` = every space entered, ending at `to`; `via`: `dice`, `bus`, `triple`, `card`, `uncle`, `back` (walk backwards), `jail` (jump, path `[10]`) |
 | `salary` | `seat, amount` | marker: passed/landed on GO (doubled for an exact landing with `doubleGoLanding`); the money is the next `cash` event (`why:'salary'`) |
 | `land` | `seat, space` | arrived and the space resolves |
-| `cash` | `from, to, amount, why, after, space?` | **every** cash change; `from`/`to` a seat or `'bank'`; `after[seat]` = cash after; `space`: the square paid for (rent, tax, an auctioned lot), also when the payment settles a `debt` later; `why:'jackpot'`: the pot won on the parking space (`space` = it) |
+| `cash` | `from, to, amount, why, after, space?` | **every** cash change; `from`/`to` a seat or `'bank'`; `after[seat]` = cash after; `space`: the square paid for (rent, tax, an auctioned lot), also when the payment settles a `debt` later; `why:'jackpot'`: the pot won on the parking space (`space` = it); `why:'sale'`: a property sold to the bank (`space` = it); `why:'sell'`: buildings sold |
 | `card` | `seat, deck, cardId, text, kept` | a card drawn (`kept`: Get Out of Jail Free held) |
 | `cardReturn` | `deck, cardId, seat?` | a card went to the bottom of its deck (drawn and done, used, or returned at bankruptcy) |
-| `cardGive` | `cardId, from, to` | a held card changed hands (trade, bankruptcy) |
+| `cardGive` | `cardId, from, to` | a held card changed hands (trade) |
 | `jail` | `seat, reason:'space'\|'card'\|'doubles'` | sent to jail (after a `move` via `jail`) |
 | `jailStay` | `seat, tries` | failed jail roll |
 | `jailExit` | `seat, how:'doubles'\|'fine'\|'card'\|'forced'` | out of jail |
 | `uncle` | `seat, to?, target?:'bank'\|'rent'` | Tuk-Tuk Uncle advance (no `to`: stays put) |
-| `owner` | `space, from?, to?, via` | ownership changed; no `to` = back to the bank; `via:'deal'`: the quick-start deal (`createGame`, after `order`, before `turn`) |
+| `owner` | `space, from?, to?, via` | ownership changed; no `to` = back to the bank; `via:'deal'`: the quick-start deal (`createGame`, after `order`, before `turn`); `via:'sold'`: sold to the bank (`sellProperty`); `via:'bankrupt'`: a bankrupt's property back to the bank |
 | `level` | `space, from, to, bank:{houses, hotels}` | buildings changed; bank supply after |
 | `mortgage` | `space, on` | mortgaged / lifted (also `on:false` when the bank clears it) |
 | `auctionStart` | `lot, eligible, queue` | an auction opens |
@@ -209,7 +210,7 @@ values, so a view can set rather than accumulate.
 | `xferStart` | `seat, spaces` | a seat must settle received mortgages |
 | `tradeProposed` / `tradeDone` | `trade` | |
 | `tradeRejected` | `id` | |
-| `tradeCancelled` | `id, why:'cancelled'\|'turnEnd'\|'out'` | |
+| `tradeCancelled` | `id, why:'cancelled'\|'out'\|'over'` | withdrawn by the proposer, a party left the game, or the game ended (offers never expire with the turn) |
 | `debt` / `debtPaid` | `debtor, owed, total, why` / `debtor` | |
 | `bankrupt` | `seat, to, resigned` | the seat is out (`to`: creditor seat or `'bank'`) |
 | `timeout` | `seat, a` | a `forced` command played `a` for `seat` |
@@ -230,9 +231,10 @@ if (cmd) apply(state, cmd);
 ```
 
 - `key` changes exactly when the deadline should restart: whenever a phase is entered (including a re-entered one,
-  such as `preRoll` after doubles) and on **every auction bid**. It does **not** change when someone else mortgages,
-  trades, passes or leaves the game meanwhile (unless the leaver held the high bid, which is wiped, or their leaving
-  surfaces another phase). Compute the deadline inside the same transaction as the command.
+  such as `preRoll` after doubles, and each new auction lot). It does **not** change on an auction bid (the auction's
+  countdown is fixed from when the lot is put up), nor when someone else mortgages, trades, passes or leaves the game
+  meanwhile (a leaver's high bid is wiped and the countdown runs on), unless their leaving surfaces another phase.
+  Compute the deadline inside the same transaction as the command.
 - `timeoutCommand(state)`:
   - `auction` -> `{ by:'system', a:{ k:'closeAuction' }, basis }` (high bidder wins; no bids: bank keeps it);
   - `buildClaim` -> `{ by:'system', a:{ k:'closeClaim' }, basis }` (every open seat passes);
@@ -258,8 +260,9 @@ Core:
   includes `resign` for an active seat, so filter it out of quick-action UIs and bot choices.
 - `awaiting(state)`, `defaultAction(state, seat)`, `timer(state)`, `timeoutCommand(state)`: see above.
 - `checkInvariants(state)` -> `string[]`: broken invariants (empty = fine).
-- `encode(state)` -> `string`, `decode(text)` -> `GameState` (throws on garbage or another `RULES_VERSION`; fills
-  missing containers), `RULES_VERSION`.
+- `encode(state)` -> `string`, `decode(text)` -> `GameState` (throws on garbage or another `RULES_VERSION`, except the
+  `UPGRADABLE_VERSIONS`, same-shaped states it carries on under the current rules; fills missing containers),
+  `RULES_VERSION`, `UPGRADABLE_VERSIONS`.
 - `DEFAULT_RULES`, `normalizeConfig(raw)`: complete, clamped `RulesConfig` from anything.
 - `SEAT_IDS`, `MIN_SEATS`, `MAX_SEATS`, `NAME_MAX`, type `SeatSetup`.
 
@@ -284,7 +287,9 @@ Selectors (all take the state first):
 - `isActive(state, seat)`, `activeSeats(state)` (turn order), `opponents(state, seat)`, `ranking(state)`.
 - `buildOptions(state, seat)` -> `BuildOption[]` per owned colour group: levels, legal single-step `build` / `sell`
   actions, `sellAll`, and `reason` when nothing can be built.
-- `canMortgage(state, seat, space)`, `canUnmortgage(state, seat, space)` -> `RuleError | null` (phase included).
+- `canMortgage(state, seat, space)`, `canUnmortgage(state, seat, space)`, `canSellProperty(state, seat, space)` ->
+  `RuleError | null` (phase included); `sellPropertyValue(state, space)`: what the bank pays for it now (the mortgage
+  value, 0 when mortgaged).
 - `unmortgageCost(state, space)` (mortgage + 10% rounded up), `xferCost(state, spaces, lift)`.
 - `tradeProblems(state, offer)` -> `RuleError[]` (the trading rule first: codes `tradingOff` "Trading is off in this
   game", `tradingLater` "Trading opens after lap N"); `tradingClosed(state, a, b)` -> that rule alone (`RuleError | null`).
@@ -299,9 +304,12 @@ Dev only (not exported from `index.ts`): `randomPlayer.ts` (`randFrom`, `randomC
 
 `docs/rules.md` lists the rulebook decisions; these are the engine-level ones on top:
 
-- **Auction**: the high bidder can neither pass nor raise its own bid, and is not counted in `awaiting`. Seats whose
+- **Auction**: a fixed countdown from when the lot is put up (`timer()` keeps its key through bids); it still ends
+  early once everyone but the high bidder has passed. The high bidder can neither pass nor raise its own bid, and is
+  not counted in `awaiting`. Seats whose
   `maxRaise` cannot beat the high bid are passed automatically (`pass {auto:true}`); a seat with cash below the next
-  bid but enough to raise is not. Mortgaging and selling are allowed during an auction; building and lifting are not.
+  bid but enough to raise is not. Mortgaging, selling buildings and selling property to the bank are allowed during an auction; building and
+  lifting are not.
   A winner whose cash fell below the bid meanwhile (only via a nested settlement) owes it as a debt.
 - **Shortage contest trigger**: a build of kind K starts a contest when another seat could build K now and
   `bank supply - this build's need < sum of the others' capacity`. Capacity = units they could put up now, limited by
@@ -317,12 +325,22 @@ Dev only (not exported from `index.ts`): `randomPlayer.ts` (`randFrom`, `randomC
   the rent uses the white dice (Tuk-Tuk Uncle counts 0). It runs only when the bank owns no property at all: if the
   bank's only property is the one the player stands on (declined, no bids), the player stays put (`uncle` with no `to`).
 - **Trades**: accept in `preRoll`, `postRoll`, `buy` or `debt`; at most one open offer per proposer and 8 in total;
-  all offers are cleared whenever the turn passes; the receiver of mortgaged property must be able to pay the 10%
-  from cash after the trade; a gift of property is allowed.
-- **Bankruptcy**: several creditors are paid in seat order from the debtor's left (players), then the bank. A creditor who cannot pay the
-  10% on mortgaged property it received owes it to the bank (a normal debt). Out players' shares of open debts go to
-  the bank. A resignation in debt pays the creditors in full when `maxRaise` covers it (the rest goes to the bank),
-  otherwise it is a bankruptcy to the creditor.
+  offers never expire (they go when accepted, rejected, cancelled, when a party is out, or at the game's end) and are
+  re-validated at accept time; the receiver of mortgaged property must be able to pay the 10% from cash after the
+  trade; a gift of property is allowed.
+- **Selling property to the bank** (`sellProperty`): in the phases mortgaging is open, with no buildings in the colour
+  group; the bank pays the mortgage value, or nothing for a mortgaged property (the loan already taken is kept) and
+  clears its mortgage. The property is unowned again (level 0, unmortgaged): anyone may buy it on landing there, and
+  Tuk-Tuk Uncle counts it as the bank's. It brings exactly what mortgaging would, so `maxRaise` is unchanged.
+- **Bankruptcy**: owing a player (alone or with others), everything is sold to the bank: buildings at half price,
+  every property at its mortgage value (nothing when mortgaged) and back to the bank unowned and unmortgaged (no
+  auction), Get Out of Jail Free cards back to their decks. The creditors are paid from that cash in seat order from
+  the debtor's left (players), then the bank, each at most its share (the payments carry the debt's `why`); what is
+  left goes to the bank (`why:'bankrupt'`). No property or card passes to a creditor, so there is no `mortgageXfer`
+  after a bankruptcy. The `bankrupt` event names the creditor when there is one, else `'bank'`. Owing only the bank,
+  everything goes to the bank, which auctions the property (keeps it with `auctions` off). Out players' shares of open
+  debts go to the bank. A resignation in debt pays the creditors in full when `maxRaise` covers it (the rest goes to
+  the bank), otherwise it is a bankruptcy to the creditor.
 - **autoRaise** plan: sell one building level at a time from the highest-standing street (ties: higher board index),
   whole groups when a hotel cannot be broken up; then mortgage the cheapest mortgage value first (ties: lower index);
   goes bankrupt straight away when `maxRaise` cannot cover the debt.
@@ -342,8 +360,8 @@ Dev only (not exported from `index.ts`): `randomPlayer.ts` (`randFrom`, `randomC
 - **Rent while jailed** off: `rentFor` is 0 while the owner is jailed, and Tuk-Tuk Uncle's rent branch skips it.
 - **Quick-start deal**: the property spaces are shuffled with the game's RNG after the opening roll and dealt
   round-robin in turn order, `min(dealProperties, floor(properties / seats))` each, free and unmortgaged.
-- **First bankruptcy** (`endMode: 'firstBankrupt'`): the game ends right after the bankrupt's assets reach the
-  creditor (no mortgage settling, no bank auctions), ranked by net worth; a plain resignation (no unpayable debt) does
+- **First bankruptcy** (`endMode: 'firstBankrupt'`): the game ends right after the creditor has the cash (no bank
+  auctions), ranked by net worth; a plain resignation (no unpayable debt) does
   not end it, and when only one player is left the reason is still `lastStanding`.
 - **Trading** `afterLap`: both parties need `laps >= tradeAfterLap` to propose or accept; reject and cancel always work.
 

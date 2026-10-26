@@ -2,7 +2,12 @@ import { hasBoard } from './board';
 import type { RulesConfig } from './types';
 
 /** Bumped whenever the state shape or a rule changes, so old saves and rooms are recognised */
-export const RULES_VERSION = 3;
+export const RULES_VERSION = 4;
+/**
+ * Older versions whose states decode() upgrades as they are: version 3 has the same state shape (4 changed rules
+ * only: offers no longer expire, fixed auction countdowns, selling property to the bank, bankruptcy to a player).
+ */
+export const UPGRADABLE_VERSIONS: readonly number[] = [3];
 
 export const DEFAULT_RULES: RulesConfig = {
   board: 'lanka',

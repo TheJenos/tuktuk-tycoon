@@ -18,7 +18,8 @@ const ACCEPT_PHASES = new Set(['preRoll', 'postRoll', 'buy', 'debt']);
  * Every open offer, public to players and spectators alike. Ones to my seats can be accepted, declined or
  * countered (a swapped, prefilled builder), mine cancelled; offers between other players are read-only. More than
  * two scroll in a list of their own. A property in the terms previews on the board (and in a card beside the list)
- * under the pointer or focus. Offers never block play; they expire when the turn passes.
+ * under the pointer or focus. Offers never block play and never expire: one stays open until it is accepted,
+ * declined or withdrawn (or a party leaves the game), and is checked again when accepted.
  */
 export function TradeOffers({ onCounter }: { onCounter(from: Trade['to'], draft: TradeDraft): void }) {
   const s = useGame();

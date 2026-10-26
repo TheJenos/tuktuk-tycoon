@@ -2,7 +2,7 @@ import { maxRaise, type Creditor, type SeatId } from '../../../rules';
 import { ConfirmButton } from '../../ConfirmButton';
 import { useBusy, useSend } from '../actions';
 import { useGame, useMySeats, useNames } from '../context';
-import { money, partyName } from '../format';
+import { listText, money, partyName } from '../format';
 import { debtTotal, tradeLock } from '../selectors';
 import { Prompt } from './Prompt';
 
@@ -34,6 +34,7 @@ export function DebtPanel({ seat, onManage, onTrade }: { seat: SeatId; onManage(
   const canCover = most >= total;
   const creditors = (Object.keys(ph.owed) as Creditor[]).filter((c) => (ph.owed[c] ?? 0) > 0);
   const lock = tradeLock(s, seat);
+  const players = creditors.filter((c): c is SeatId => c !== 'bank' && !s.players[c]?.out);
   return (
     <Prompt title={`${many ? `${names.seat(seat)} owes` : 'You owe'} ${money(total)}`} className="debt-panel">
       <ul className="owed-list">
@@ -63,6 +64,13 @@ export function DebtPanel({ seat, onManage, onTrade }: { seat: SeatId; onManage(
           </button>
         )}
       </div>
+      {!canCover && (
+        <p className="muted small bankrupt-note">
+          {players.length
+            ? `Bankruptcy: everything you own is sold to the bank and ${listText(players.map((c) => names.seat(c)))} get${players.length === 1 ? 's' : ''} the cash, up to what you owe.`
+            : `Bankruptcy: everything you own goes to the bank${s.cfg.auctions ? ', which auctions your property' : ''}.`}
+        </p>
+      )}
       <div className="action-row">
         <ConfirmButton
           className="danger"

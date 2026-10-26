@@ -328,12 +328,13 @@ describe('game end', () => {
     return roll(s).state;
   };
 
-  it('firstBankrupt: the first bankruptcy ends the game, ranked after the creditor got the assets', () => {
+  it('firstBankrupt: the first bankruptcy ends the game, ranked after the creditor got the cash', () => {
     const debt = hotelDebt({ endMode: 'firstBankrupt' });
     expect(debt.phase).toMatchObject({ k: 'debt', debtor: 's0' });
     const { state, events } = act(debt, 's0', { k: 'bankrupt' });
-    expect(state.props.p5?.owner).toBe('s1');
-    // s1 was worth 2750 (the dark blues with hotels), behind s2's 3000; with s0's 300 cash and railway it is 3250
+    expect(state.props.p5).toBeUndefined();
+    // s1 was worth 2750 (the dark blues with hotels), behind s2's 3000; with s0's 300 cash and 100 for the railway
+    // sold to the bank it is 3150
     expect(state.phase).toMatchObject({ k: 'over', why: 'firstBankrupt', winner: 's1', ranking: ['s1', 's2', 's0'] });
     expect(ofType(events, 'over')).toHaveLength(1);
     expect(ofType(events, 'xferStart')).toEqual([]);

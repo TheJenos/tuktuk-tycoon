@@ -251,7 +251,7 @@ export type Phase =
   | DebtPhase
   | OverPhase;
 
-/** Timed open bidding. Any eligible seat that has not passed may bid at any time. */
+/** Timed open bidding with a fixed countdown (bids never add time). Any eligible seat that has not passed may bid at any time. */
 export interface AuctionPhase {
   k: 'auction';
   lot: Lot;
@@ -293,7 +293,7 @@ export interface BuildClaimPhase {
   resume: Phase;
 }
 
-/** A seat received mortgaged property (trade or bankruptcy) and chooses per space: lift now, or pay interest only */
+/** A seat received mortgaged property in a trade and chooses per space: lift now, or pay interest only */
 export interface MortgageXferPhase {
   k: 'mortgageXfer';
   seat: SeatId;
@@ -358,7 +358,7 @@ export interface GameState {
   v: number;
   /** +1 per accepted command */
   seq: number;
-  /** seq at which the current phase was entered, or the auction's last bid was made (timer keys) */
+  /** seq at which the current phase was entered (timer keys; an auction's bids do not change it) */
   since: number;
   /** mulberry32 state (uint32). Only createGame, roll and the utility fresh throw consume it. */
   rng: number;
@@ -407,6 +407,8 @@ export type Action =
   | { k: 'sell'; group: string; levels: number[] }
   | { k: 'mortgage'; space: number }
   | { k: 'unmortgage'; space: number }
+  /** Sell an unimproved property back to the bank (mortgage value; nothing when mortgaged) */
+  | { k: 'sellProperty'; space: number }
   | { k: 'settleMortgages'; lift: number[] }
   // Trades
   | { k: 'propose'; to: SeatId; give: Bundle; get: Bundle }
@@ -462,7 +464,10 @@ export type CashWhy =
   | 'card'
   | 'fine'
   | 'build'
+  /** Buildings sold back to the bank */
   | 'sell'
+  /** A property sold back to the bank (sellProperty, or a bankrupt's property liquidated) */
+  | 'sale'
   | 'mortgage'
   | 'unmortgage'
   | 'interest'
@@ -474,7 +479,8 @@ export type CashWhy =
 
 export type JailReason = 'space' | 'card' | 'doubles';
 export type JailExitHow = 'doubles' | 'fine' | 'card' | 'forced';
-export type OwnerVia = 'buy' | 'auction' | 'trade' | 'bankrupt' | 'deal';
+/** sold: sold back to the bank (sellProperty) */
+export type OwnerVia = 'buy' | 'auction' | 'trade' | 'bankrupt' | 'deal' | 'sold';
 
 export type GameEvent =
   | { t: 'order'; order: SeatId[] }
@@ -536,7 +542,8 @@ export type GameEvent =
   | { t: 'tradeProposed'; trade: Trade }
   | { t: 'tradeDone'; trade: Trade }
   | { t: 'tradeRejected'; id: string }
-  | { t: 'tradeCancelled'; id: string; why: 'cancelled' | 'turnEnd' | 'out' }
+  /** cancelled: by its proposer; out: a party left the game; over: the game ended */
+  | { t: 'tradeCancelled'; id: string; why: 'cancelled' | 'out' | 'over' }
   | { t: 'debt'; debtor: SeatId; owed: Owed; total: number; why: CashWhy }
   | { t: 'debtPaid'; debtor: SeatId }
   | { t: 'bankrupt'; seat: SeatId; to: Creditor; resigned: boolean }
@@ -550,6 +557,6 @@ export interface TimerInfo {
   /** Changes whenever the deadline should restart */
   key: string;
   /** turn: preRoll/postRoll. decision: bus, chooseSpace, buy, incomeTax, place, buildClaim, mortgageXfer.
-   *  trade: reserved (offers never block play; they are cleared at the end of the turn). */
+   *  trade: reserved (offers never block play and never expire). */
   kind: 'turn' | 'auction' | 'decision' | 'debt' | 'trade';
 }

@@ -6,7 +6,7 @@ import { money } from '../format';
 import { Prompt } from './Prompt';
 
 /**
- * Mortgaged property received in a trade or a bankruptcy: per property, lift the mortgage now (mortgage + interest)
+ * Mortgaged property received in a trade: per property, lift the mortgage now (mortgage + interest)
  * or pay just the interest now and keep it mortgaged (lifting later costs the full price again).
  */
 export function MortgageXferPrompt({ seat, spaces }: { seat: SeatId; spaces: number[] }) {

@@ -15,7 +15,7 @@ import { type BotCtx, makeCtx } from './ctx';
 import { debtChoice } from './debt';
 import { profileOf } from './profile';
 import { searchDebt, searchJail, searchPostRoll, searchProposal, searchRespond } from './search';
-import { proposal, respond } from './trade';
+import { proposal, respond, staleOffer } from './trade';
 import { buyChoice, busChoice, chooseSpaceChoice, incomeTaxChoice, jailChoice } from './turn';
 
 /*
@@ -43,6 +43,9 @@ export function choose(c: BotCtx): Action | null {
     if (calm) return { k: 'accept', id };
   }
   if (!awaiting(s).includes(c.seat)) return null;
+  // Offers never expire: withdraw its own when it went stale (before proposing anything new)
+  const stale = staleOffer(c);
+  if (stale) return stale;
   const ph = s.phase;
   switch (ph.k) {
     case 'preRoll':

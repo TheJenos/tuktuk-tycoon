@@ -58,7 +58,7 @@ describe('trades', () => {
     expect(refused(o.state, 's1', { k: 'accept', id: o.id })).toBe('notOwner');
   });
 
-  it('one open offer per proposer; only the right party may answer; cleared at the end of the turn', () => {
+  it('one open offer per proposer; only the right party may answer; offers never expire with the turn', () => {
     const s = scenario({ n: 3 });
     own(s, 's0', [5, 15]);
     const o = offer(s, 's0', 's1', { props: [5] }, { cash: 10 });
@@ -68,10 +68,42 @@ describe('trades', () => {
     expect(refused(o.state, 's0', { k: 'reject', id: o.id })).toBe('notYours');
     expect(ofType(act(o.state, 's1', { k: 'reject', id: o.id }).events, 'tradeRejected')).toHaveLength(1);
     expect(ofType(act(o.state, 's0', { k: 'cancel', id: o.id }).events, 'tradeCancelled')[0]?.why).toBe('cancelled');
+    // Everyone lands on the jail corner (just visiting): nothing to decide
+    o.state.players.s1!.pos = 4;
+    o.state.players.s2!.pos = 4;
+    rig(o.state, [4, 6], [2, 4], [2, 4]);
+    // Two whole turns later the offer is still open, and s1 can accept it in its own turn
+    const later = run(o.state, ['s0', { k: 'roll' }], ['s0', { k: 'endTurn' }], ['s1', { k: 'roll' }], ['s1', { k: 'endTurn' }], ['s2', { k: 'roll' }], ['s2', { k: 'endTurn' }]);
+    expect(Object.keys(later.state.trades)).toEqual([o.id]);
+    expect(ofType(later.events, 'tradeCancelled')).toEqual([]);
+    expect(later.state.turn).toMatchObject({ seat: 's0', no: 4 });
+    const done = act(later.state, 's1', { k: 'accept', id: o.id }).state;
+    expect(done.props.p5?.owner).toBe('s1');
+    expect(done.trades).toEqual({});
+  });
+
+  it('an open offer that went stale is refused at accept time but stays open until answered', () => {
+    const s = scenario({ n: 3 });
+    own(s, 's0', [5]);
+    const o = offer(s, 's0', 's1', { props: [5] }, { cash: 10 });
     rig(o.state, [4, 6]);
-    const ended = run(o.state, ['s0', { k: 'roll' }], ['s0', { k: 'endTurn' }]);
-    expect(ended.state.trades).toEqual({});
-    expect(ofType(ended.events, 'tradeCancelled')[0]?.why).toBe('turnEnd');
+    let t = run(o.state, ['s0', { k: 'roll' }], ['s0', { k: 'endTurn' }]).state;
+    // s0 sells the station to the bank meanwhile: the offer cannot go through any more
+    t = act(t, 's0', { k: 'sellProperty', space: 5 }).state;
+    expect(refused(t, 's1', { k: 'accept', id: o.id })).toBe('notOwner');
+    expect(Object.keys(t.trades)).toEqual([o.id]);
+    expect(ofType(act(t, 's1', { k: 'reject', id: o.id }).events, 'tradeRejected')).toHaveLength(1);
+  });
+
+  it('offers of a seat that leaves the game are cancelled; the others stay', () => {
+    const s = scenario({ n: 3 });
+    own(s, 's0', [5]);
+    own(s, 's1', [15]);
+    const a = offer(s, 's0', 's2', { props: [5] }, { cash: 10 });
+    const b = offer(a.state, 's1', 's2', { props: [15] }, { cash: 10 });
+    const { state, events } = act(b.state, 's0', { k: 'resign' });
+    expect(ofType(events, 'tradeCancelled')).toEqual([{ t: 'tradeCancelled', id: a.id, why: 'out' }]);
+    expect(Object.keys(state.trades)).toEqual([b.id]);
   });
 
   it('a debtor may sell property to pay, and the debt settles by itself', () => {

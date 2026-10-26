@@ -87,12 +87,12 @@ test('rigged dice: a card, a purchase, jail on the third doubles, the fine, and 
   await expect(rollButton(page)).toBeVisible();
 
   await p.rig([1, 1], [2, 2], [3, 3]);
-  // Doubles onto the Seettu Pot: the card shows, and doubles roll again
+  // Doubles onto the Seettu Pot: the card is the 3D one (no DOM caption with the 3D board on screen; the log has its
+  // words), and doubles roll again
   await rollButton(page).click();
-  await expect(cardShown(page)).toContainText('Bank error in your favour (the teller was watching the cricket). Collect Rs. 20,000.');
+  await expect(gameLog(page)).toContainText('Rita draws Seettu Pot: Bank error in your favour (the teller was watching the cricket). Collect Rs. 20,000.');
+  await expect(cardShown(page)).toHaveCount(0);
   await expect(cashOn(page, 'Rita')).toHaveText('Rs. 170,000');
-  await cardShown(page).getByRole('button', { name: 'OK' }).click();
-  await expect(cardShown(page)).toBeHidden();
 
   // Doubles again, onto Kottu Street: buy it
   await rollButton(page).click();

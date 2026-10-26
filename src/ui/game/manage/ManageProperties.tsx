@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { buildOptions, isProperty, isStreet, unmortgageCost, type GameState, type SeatId } from '../../../rules';
+import { buildOptions, canSellProperty, isProperty, isStreet, sellPropertyValue, unmortgageCost, type GameState, type SeatId } from '../../../rules';
 import { safeColor } from '../../colors';
+import { ConfirmButton } from '../../ConfirmButton';
 import { useBusy, useSend } from '../actions';
 import { useGame, useMySeats, useNames } from '../context';
 import { Dialog } from '../Dialog';
@@ -62,6 +63,7 @@ export function ManageProperties({ seat: initial, onClose, covered }: Props) {
     }
   };
   const update = (next: Plan) => setStaged(next);
+  const sellDeed = (space: number) => void send(seat, { k: 'sellProperty', space });
 
   return (
     <Dialog
@@ -118,7 +120,7 @@ export function ManageProperties({ seat: initial, onClose, covered }: Props) {
           </header>
           <ul>
             {o.spaces.map((i) => (
-              <SpaceRow key={i} s={s} seat={seat} plan={plan} space={i} names={names} onPlan={update} buildable />
+              <SpaceRow key={i} s={s} seat={seat} plan={plan} space={i} names={names} onPlan={update} buildable onSell={sellDeed} />
             ))}
           </ul>
         </section>
@@ -130,7 +132,7 @@ export function ManageProperties({ seat: initial, onClose, covered }: Props) {
           </header>
           <ul>
             {others.map((i) => (
-              <SpaceRow key={i} s={s} seat={seat} plan={plan} space={i} names={names} onPlan={update} buildable={false} />
+              <SpaceRow key={i} s={s} seat={seat} plan={plan} space={i} names={names} onPlan={update} buildable={false} onSell={sellDeed} />
             ))}
           </ul>
         </section>
@@ -139,8 +141,8 @@ export function ManageProperties({ seat: initial, onClose, covered }: Props) {
   );
 }
 
-function SpaceRow({ s, seat, plan, space, names, onPlan, buildable }: {
-  s: GameState; seat: SeatId; plan: Plan; space: number; names: Names; onPlan(p: Plan): void; buildable: boolean;
+function SpaceRow({ s, seat, plan, space, names, onPlan, buildable, onSell }: {
+  s: GameState; seat: SeatId; plan: Plan; space: number; names: Names; onPlan(p: Plan): void; buildable: boolean; onSell(space: number): void;
 }) {
   const sp = names.board.spaces[space];
   const ps = s.props[`p${space}`];
@@ -160,6 +162,8 @@ function SpaceRow({ s, seat, plan, space, names, onPlan, buildable }: {
   const mortgaged = targetMortgaged(s, plan, space);
   const changedM = mortgaged !== !!ps.mortgaged;
   const mProblem = mortgageProblem(s, seat, plan, space);
+  const saleProblem = canSellProperty(s, seat, space)?.message ?? null;
+  const saleValue = sellPropertyValue(s, space);
   return (
     <li className={changedM || target !== now ? 'space-row staged' : 'space-row'}>
       <span className="space-name">
@@ -200,6 +204,19 @@ function SpaceRow({ s, seat, plan, space, names, onPlan, buildable }: {
               : <>Mortgage for{' '}<span className="amt">{money(sp.mortgage)}</span></>}
         </span>
       </button>
+      {/* Selling the deed back to the bank is not staged: it happens at once, after a second press */}
+      <ConfirmButton
+        className="chip sell-deed"
+        disabled={!!saleProblem}
+        title={saleProblem ?? (ps.mortgaged ? 'Back to the bank for nothing: it is mortgaged' : 'Back to the bank for its mortgage value')}
+        aria-label={`Sell ${sp.name} to the bank for ${money(saleValue)}${saleProblem ? `: ${saleProblem}` : ''}`}
+        question={`Sell ${sp.name}?`}
+        yes="Sell"
+        no="Keep"
+        onConfirm={() => onSell(space)}
+      >
+        <span>Sell to bank{' '}<span className="amt">+{money(saleValue)}</span></span>
+      </ConfirmButton>
     </li>
   );
 }

@@ -6,7 +6,6 @@ import { land } from './landing';
 import { pay, settleDebt } from './money';
 import { moveBack, moveForward, nextBankOwned, nextRentOwed } from './movement';
 import { finish } from './over';
-import { clearTrades } from './trade';
 import type { SeatId, Step } from './types';
 
 /*
@@ -117,7 +116,6 @@ function uncle(c: Ctx, seat: SeatId): void {
 /** Passes the turn to the next seat still in (and ends the game at the turn limit) */
 export function nextTurn(c: Ctx): void {
   const s = c.s;
-  clearTrades(c, 'turnEnd');
   if (s.cfg.turnLimit > 0 && s.turn.no >= s.cfg.turnLimit) {
     finish(c, 'turnLimit');
     return;

@@ -35,6 +35,7 @@ function cashText(names: Names, ev: Ev<'cash'>): string {
     case 'fine': return `${from} pays the ${amt} jail fine`;
     case 'build': return `${from} pays ${amt} for building${sp ? ` on ${sp}` : ''}`;
     case 'sell': return `${to} sells buildings${sp ? ` on ${sp}` : ''} for ${amt}`;
+    case 'sale': return `${to} gets ${amt} from the bank for ${sp || 'a property'}`;
     case 'mortgage': return `${to} mortgages ${sp || 'a property'} for ${amt}`;
     case 'unmortgage': return `${from} lifts the mortgage on ${sp || 'a property'} for ${amt}`;
     case 'interest': return `${from} pays ${amt} mortgage interest${sp ? ` on ${sp}` : ''}`;
@@ -130,7 +131,10 @@ export function formatEvent(ev: GameEvent, names: Names): string {
         ? `Tuk-Tuk Uncle: ${n(ev.seat)} heads to ${names.space(ev.to)} (rent due)`
         : `Tuk-Tuk Uncle: ${n(ev.seat)} heads to ${names.space(ev.to)} (for sale)`;
     case 'owner':
-      if (!ev.to) return `${names.space(ev.space)} goes back to the bank`;
+      if (!ev.to) {
+        if (ev.via === 'sold' && ev.from) return `${n(ev.from)} sells ${names.space(ev.space)} to the bank`;
+        return `${names.space(ev.space)} goes back to the bank`;
+      }
       switch (ev.via) {
         case 'buy': return `${n(ev.to)} now owns ${names.space(ev.space)}`;
         case 'auction': return `${n(ev.to)} takes ${names.space(ev.space)} at auction`;
@@ -161,7 +165,7 @@ export function formatEvent(ev: GameEvent, names: Names): string {
       return `${n(ev.trade.from)} and ${n(ev.trade.to)} trade: ${bundleText(names, ev.trade.give)} for ${bundleText(names, ev.trade.get)}`;
     case 'tradeRejected': return 'A trade offer is declined';
     case 'tradeCancelled':
-      return ev.why === 'turnEnd' ? 'Open trade offers expire with the turn' : ev.why === 'out' ? 'A trade offer is void (a player is out)' : 'A trade offer is withdrawn';
+      return ev.why === 'over' ? 'Open trade offers end with the game' : ev.why === 'out' ? 'A trade offer is void (a player is out)' : 'A trade offer is withdrawn';
     case 'debt': return `${n(ev.debtor)} owes ${owedText(names, ev.owed)} ${money(ev.total)} and must raise cash`;
     case 'debtPaid': return `${n(ev.debtor)} pays off the debt`;
     case 'bankrupt':
@@ -186,7 +190,8 @@ export function quietEvent(ev: GameEvent): boolean {
     case 'cardReturn':
     case 'cardGive':
       return true;
-    case 'cash': return ev.why === 'salary' || ev.why === 'trade' || ev.why === 'bankrupt';
+    // A sale to the bank: the owner line says it (the Money filter still lists the cash)
+    case 'cash': return ev.why === 'salary' || ev.why === 'trade' || ev.why === 'bankrupt' || ev.why === 'sale';
     case 'owner': return !!ev.to;
     case 'dice': return ev.purpose === 'order';
     default: return false;

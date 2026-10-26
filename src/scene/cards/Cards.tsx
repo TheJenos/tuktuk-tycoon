@@ -27,9 +27,9 @@ import { dimWithSpotlight } from '../dimmable';
 
 /*
  * The two decks in the middle of the board, and the drawn card's flight: it lifts off its deck, flies to just in
- * front of the camera turning face up, holds there (over the board, clear of the HUD and the DOM caption: hold.ts),
- * then goes back under its deck (or, a Get Out of Jail Free card, to the player who keeps it). The 'cards' scene API
- * plays it; the caption's OK sends it home early (flight.ts).
+ * front of the camera turning face up, holds there (over the board, clear of the HUD: hold.ts), then goes back under
+ * its deck (or, a Get Out of Jail Free card, to the player who keeps it). The 'cards' scene API plays it; finishCard
+ * (flight.ts) can send it home early.
  */
 
 const STACK_H = 0.12;

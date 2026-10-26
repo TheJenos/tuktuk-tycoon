@@ -1098,8 +1098,8 @@ html.reduce-motion .spinner { animation: none; border-right-color: currentColor;
 /* One row where there is room; a narrow dock (a large Panel size) takes a second rather than spill out of it */
 .action-row.tools { justify-content: center; }
 .action-row.tools button:not(.icon-button) { min-height: 40px; }
-.action-bar button.big { min-height: 48px; padding: 10px 22px; font-family: var(--display); font-size: 20px; letter-spacing: 1.5px; text-transform: uppercase; display: inline-flex; align-items: center; gap: 8px; }
-.action-bar button kbd, .prompt button kbd { margin-left: 4px; font-size: 11px; padding: 1px 5px; opacity: 0.75; background: rgba(0, 0, 0, 0.2); color: inherit; border-color: rgba(0, 0, 0, 0.25); }
+:is(.action-bar, .turn-center) button.big { min-height: 48px; padding: 10px 22px; font-family: var(--display); font-size: 20px; letter-spacing: 1.5px; text-transform: uppercase; display: inline-flex; align-items: center; gap: 8px; }
+:is(.action-bar, .turn-center) button kbd, .prompt button kbd { margin-left: 4px; font-size: 11px; padding: 1px 5px; opacity: 0.75; background: rgba(0, 0, 0, 0.2); color: inherit; border-color: rgba(0, 0, 0, 0.25); }
 /* The jail choices: the title beside the buttons where the bar has room, so the bar stays two rows high */
 .jail-panel { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 12px; }
 .jail-panel > p.small { flex-basis: 100%; text-align: center; }
@@ -1187,19 +1187,39 @@ button.link:hover { background: none; filter: brightness(1.1); }
 /* Card: without the 3D board, the card itself over the middle of the 2D one; with it, a caption under the top
    panels (the 3D card holds in the middle of the screen, so the two never overlap) */
 .card-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 25; width: min(380px, calc(100vw - 24px)); display: flex; flex-direction: column; gap: 10px; align-items: center; text-align: center; border-width: 2px; }
-.card-modal.chance, .card-caption.chance { border-color: #f4921f; }
-.card-modal.chest, .card-caption.chest { border-color: #a9dcf5; }
+.card-modal.chance { border-color: #f4921f; }
+.card-modal.chest { border-color: #a9dcf5; }
 .card-deck { font-family: var(--display); font-size: 18px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; }
-:is(.card-modal, .card-caption).chance .card-deck { color: #f4a54a; }
-:is(.card-modal, .card-caption).chest .card-deck { color: #a9dcf5; }
+.card-modal.chance .card-deck { color: #f4a54a; }
+.card-modal.chest .card-deck { color: #a9dcf5; }
 .card-text { font-size: 17px; line-height: 1.45; }
 .card-modal button { min-width: 120px; min-height: 40px; }
-.card-caption-wrap { position: fixed; z-index: 25; top: calc(var(--top, 0px) + 8px); left: var(--left, 0px); right: var(--right, 0px); display: flex; justify-content: center; padding: 0 12px; pointer-events: none; }
-.card-caption { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 12px; width: min(560px, 100%); padding: 8px 10px 8px 14px; border-width: 2px; animation: panel-in 180ms ease-out; }
-.card-caption .card-deck { font-size: 13px; letter-spacing: 1.5px; }
-.card-caption > p { grid-column: 1; }
-.card-caption .card-text { font-size: 15px; line-height: 1.35; }
-.card-caption button { grid-column: 2; grid-row: 1 / span 3; min-width: 64px; min-height: 40px; }
+
+/* Over the middle of the board: the turn's Roll / End turn (or the jail choices) and my turn's decisions. Placed in
+   page pixels in the area the panels leave free (where the camera frames the board); the panels inside scale with
+   the UI size. Never an inset itself: the board must not move away from it. */
+.board-center-wrap { position: fixed; z-index: 20; top: var(--top, 0px); bottom: var(--bottom, 0px); left: var(--left, 0px); right: var(--right, 0px); display: grid; place-items: center; padding: 12px; pointer-events: none; }
+.board-center { display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 100%; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; border-radius: 14px; scrollbar-width: thin; }
+.board-center > .prompt { width: 380px; max-width: 100%; background: rgba(13, 16, 22, 0.95); box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5); animation: panel-in 160ms ease-out; }
+.prompt .action-row { justify-content: center; }
+/* The Roll / End turn button sits on a framed plate: a dark gradient with a gold rim, so it reads on any part of the board */
+.turn-center {
+  display: flex; justify-content: center; padding: 16px; border-radius: 26px;
+  background: linear-gradient(160deg, rgba(42, 50, 68, 0.96) 0%, rgba(17, 21, 30, 0.97) 55%, rgba(30, 22, 12, 0.97) 100%);
+  border: 2px solid rgba(255, 181, 71, 0.65);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 28px rgba(255, 181, 71, 0.18);
+}
+.turn-center button.big {
+  justify-content: center; min-height: 84px; min-width: 280px; padding: 16px 52px; font-size: 34px; letter-spacing: 3px; border-radius: 16px;
+  background: linear-gradient(180deg, #ffd27a 0%, #ffb547 55%, #f29a2e 100%);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+.turn-center button.big:hover:not(:disabled) { background: linear-gradient(180deg, #ffdc92 0%, #ffbf5c 55%, #f5a43c 100%); }
+@media (max-width: 640px) {
+  .turn-center { padding: 10px; border-radius: 20px; }
+  .turn-center button.big { min-height: 68px; min-width: 210px; padding: 12px 36px; font-size: 28px; }
+}
+.jail-center { padding: 12px 14px; background: rgba(13, 16, 22, 0.95); box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5); }
 
 /* Hot-seat hand-over: the board stays, the next player's choices wait behind a nearly opaque screen */
 .game-modal:has(.pass-device) { background: rgba(7, 9, 13, 0.88); backdrop-filter: blur(6px); }

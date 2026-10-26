@@ -2,9 +2,11 @@ import {
   boardOf,
   buildOptions,
   canMortgage,
+  canSellProperty,
   canUnmortgage,
   isProperty,
   isStreet,
+  sellPropertyValue,
   unmortgageCost,
   type Action,
   type GameState,
@@ -15,9 +17,10 @@ import { groupOfSpace, phaseAllows } from './buildPlan';
 
 /*
  * The one-click property actions of the tile inspector (pure): for one space of one seat, the single-step build
- * and sale that change only this street by one level, and its mortgage or lift, each with the engine's action, the
- * amount and why it can't be done now. Legality comes from the engine (buildOptions, canMortgage, canUnmortgage);
- * the reasons name what to do first ("Build evenly: Hoppers Corner first").
+ * and sale that change only this street by one level, its mortgage or lift, and selling it back to the bank, each
+ * with the engine's action, the amount and why it can't be done now. Legality comes from the engine (buildOptions,
+ * canMortgage, canUnmortgage, canSellProperty); the reasons name what to do first ("Build evenly: Hoppers Corner
+ * first", "Sell the buildings in the Brown group first").
  */
 
 export interface StepAction {
@@ -37,6 +40,8 @@ export interface SpaceActions {
   sell?: StepAction & { kind: 'house' | 'hotel' };
   /** Mortgage it, or lift its mortgage */
   mortgage: StepAction & { kind: 'mortgage' | 'unmortgage' };
+  /** Sell it back to the bank: the mortgage value, nothing when it is mortgaged */
+  sale: StepAction & { mortgaged: boolean };
 }
 
 const stepCost = (sp: StreetDef, level: number): number => (level === 5 ? sp.hotel ?? sp.house : sp.house);
@@ -53,7 +58,12 @@ export function spaceActions(s: GameState, seat: SeatId, space: number): SpaceAc
   const mortgage: SpaceActions['mortgage'] = ps.mortgaged
     ? { kind: 'unmortgage', amount: unmortgageCost(s, space), ...verdict({ k: 'unmortgage', space }, canUnmortgage(s, seat, space)?.message) }
     : { kind: 'mortgage', amount: sp.mortgage, ...verdict({ k: 'mortgage', space }, canMortgage(s, seat, space)?.message) };
-  const out: SpaceActions = { seat, mortgage };
+  const sale: SpaceActions['sale'] = {
+    mortgaged: !!ps.mortgaged,
+    amount: sellPropertyValue(s, space),
+    ...verdict({ k: 'sellProperty', space }, canSellProperty(s, seat, space)?.message),
+  };
+  const out: SpaceActions = { seat, mortgage, sale };
   if (!isStreet(sp)) return out;
 
   const g = groupOfSpace(b, space);

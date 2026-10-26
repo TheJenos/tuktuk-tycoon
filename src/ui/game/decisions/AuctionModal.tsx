@@ -13,7 +13,8 @@ import { activeDeadline } from '../selectors';
 const RAISES = [1, 10, 100];
 
 /**
- * Timed open bidding: anyone still in may raise at any time, and every bid restarts the countdown. One bid row per
+ * Timed open bidding: anyone still in may raise at any time until the countdown, fixed from the start of the
+ * auction (bids don't add time), runs out. One bid row per
  * seat of mine still in (hot-seat), the high bid read out as it changes, and a way to raise cash meanwhile
  * (selling and mortgaging are open during an auction). Works for properties and for building units in a
  * shortage contest.

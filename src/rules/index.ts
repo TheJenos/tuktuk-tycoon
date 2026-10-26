@@ -10,7 +10,7 @@ export { createGame, SEAT_IDS, MIN_SEATS, MAX_SEATS, NAME_MAX, type SeatSetup } 
 export { legalActions } from './legal';
 export { awaiting, defaultAction, timer, timeoutCommand } from './autoplay';
 export { checkInvariants } from './invariants';
-export { encode, decode, RULES_VERSION } from './codec';
+export { encode, decode, RULES_VERSION, UPGRADABLE_VERSIONS } from './codec';
 export { DEFAULT_RULES, normalizeConfig } from './config';
 export { getBoard, boardName, BOARDS, BOARD_IDS, deckOf, pathForward, pathBack, isProperty, isStreet, type BoardInfo } from './board';
 export { COLOMBO } from './data/colombo';
@@ -40,6 +40,8 @@ export {
   mayBuy,
   canMortgage,
   canUnmortgage,
+  canSellProperty,
+  sellPropertyValue,
   minBid,
   placeSites,
   buildCapacity,

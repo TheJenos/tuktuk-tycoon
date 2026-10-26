@@ -336,7 +336,7 @@ export function RulesForm({ value, onChange, online = false, disabled = false }:
             options={AUCTION_TIMERS}
             disabled={disabled || !value.auctions}
             onChange={(auctionTimer) => set({ auctionTimer })}
-            hint="Restarts at each bid."
+            hint="Runs from the start of each auction; bids don't add time."
           />
           <Toggle
             label="Buy only after the first lap"

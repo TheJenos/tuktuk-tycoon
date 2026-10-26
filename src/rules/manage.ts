@@ -2,13 +2,21 @@ import { applyBuild, applySell, planBuild, planSell } from './buildings';
 import { findContest, startClaim } from './claim';
 import { err, player, rs } from './ctx';
 import { type Handler, MANAGE_PHASES, RAISE_PHASES, seatAction } from './handler';
-import { mortgageNow, mortgageProblem, unmortgageCost, unmortgageNow, unmortgageProblem } from './mortgage';
+import {
+  mortgageNow,
+  mortgageProblem,
+  saleProblem,
+  sellToBank,
+  unmortgageCost,
+  unmortgageNow,
+  unmortgageProblem,
+} from './mortgage';
 
 /*
  * Building, selling, mortgaging: open to every owner, not only the turn seat. Building and lifting mortgages
- * happen in calm phases (before or after a roll, or while the turn seat decides on a purchase); selling and
- * mortgaging, which raise cash, are also open during auctions, debts, Income Tax and mortgage settlements.
- * Buildings are always paid in cash and never open a debt.
+ * happen in calm phases (before or after a roll, or while the turn seat decides on a purchase); selling buildings,
+ * mortgaging and selling property back to the bank, which raise cash, are also open during auctions, debts,
+ * Income Tax and mortgage settlements. Buildings are always paid in cash and never open a debt.
  */
 
 export const build: Handler<'build'> = seatAction(
@@ -52,4 +60,11 @@ export const unmortgage: Handler<'unmortgage'> = seatAction(
       ? unmortgageProblem(s, b, seat, a.space)
       : err('phase', 'You can lift mortgages before or after rolling'),
   (c, seat, a) => unmortgageNow(c, seat, a.space, unmortgageCost(c.s, c.b, a.space)),
+);
+
+/** Sell an unimproved property back to the bank: it pays the mortgage value (nothing when mortgaged) */
+export const sellProperty: Handler<'sellProperty'> = seatAction(
+  (s, b, seat, a) =>
+    RAISE_PHASES.has(s.phase.k) ? saleProblem(s, b, seat, a.space) : err('phase', 'You cannot sell property now'),
+  (c, seat, a) => sellToBank(c, seat, a.space, 'sold'),
 );

@@ -41,7 +41,7 @@ const SAMPLES: { [K in GameEvent['t']]: Extract<GameEvent, { t: K }> } = {
   tradeProposed: { t: 'tradeProposed', trade },
   tradeDone: { t: 'tradeDone', trade },
   tradeRejected: { t: 'tradeRejected', id: 't1' },
-  tradeCancelled: { t: 'tradeCancelled', id: 't1', why: 'turnEnd' },
+  tradeCancelled: { t: 'tradeCancelled', id: 't1', why: 'over' },
   debt: { t: 'debt', debtor: 's0', owed: { s1: 300, bank: 50 }, total: 350, why: 'rent' },
   debtPaid: { t: 'debtPaid', debtor: 's0' },
   bankrupt: { t: 'bankrupt', seat: 's0', to: 'bank', resigned: false },
@@ -80,7 +80,7 @@ describe('formatEvent', () => {
   });
 
   it('every cash reason and move kind reads cleanly', () => {
-    const whys = ['salary', 'rent', 'buy', 'auction', 'tax', 'card', 'fine', 'build', 'sell', 'mortgage', 'unmortgage', 'interest', 'trade', 'bankrupt', 'refund', 'jackpot', 'debug'] as const;
+    const whys = ['salary', 'rent', 'buy', 'auction', 'tax', 'card', 'fine', 'build', 'sell', 'mortgage', 'unmortgage', 'interest', 'trade', 'bankrupt', 'refund', 'jackpot', 'debug', 'sale'] as const;
     for (const why of whys) {
       clean(formatEvent({ ...SAMPLES.cash, why }, names));
       clean(formatEvent({ ...SAMPLES.cash, why, from: 'bank', to: 's0', space: undefined } as GameEvent, names));

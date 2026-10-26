@@ -2,11 +2,11 @@ import { CARD_H, CARD_W } from '../board/centre';
 
 /*
  * Pure: where the drawn card holds in front of the camera. It sits in the middle of the part of the screen the HUD
- * leaves free, below a band kept for the DOM caption under the top panels (CardModal), so the two never overlap.
+ * leaves free (with the 3D board there is no DOM caption to keep clear of: the 3D card is all there is).
  */
 
-/** Room under the top panels for the DOM caption, CSS px (its height at the largest UI size, plus margins) */
-export const CAPTION_PX = 130;
+/** Room kept under the top panels, CSS px (none since the DOM card caption went: CardModal is the 2D fallback only) */
+export const CAPTION_PX = 0;
 
 export interface Hold {
   /** Distance in front of the camera */

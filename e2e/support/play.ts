@@ -12,16 +12,19 @@ import { BOARD } from './positions';
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 export const hud = (page: Page) => page.locator('#hud');
+/** Manage, Trade, Recenter, the 2D board, the log and the menu, along the bottom */
 export const actionBar = (page: Page) => hud(page).getByRole('navigation', { name: 'Actions' });
+/** The turn's buttons and the jail choices, over the middle of the board */
+export const boardCenter = (page: Page) => hud(page).locator('.board-center');
 /** The turn's Roll (not the jail panel's "Roll for doubles") */
-export const rollButton = (page: Page) => actionBar(page).getByRole('button', { name: /^Roll(?! for)/ });
-export const endTurnButton = (page: Page) => actionBar(page).getByRole('button', { name: /^End turn/ });
-export const jailPanel = (page: Page) => actionBar(page).getByRole('group', { name: /^In jail/ });
+export const rollButton = (page: Page) => boardCenter(page).getByRole('button', { name: /^Roll(?! for)/ });
+export const endTurnButton = (page: Page) => boardCenter(page).getByRole('button', { name: /^End turn/ });
+export const jailPanel = (page: Page) => boardCenter(page).getByRole('group', { name: /^In jail/ });
 export const turnBar = (page: Page) => page.getByTestId('turn-bar');
-/** The decision prompt in the context panel (the bottom sheet on phones) */
+/** The decision prompt over the middle of the board (in the bottom sheet on phones) */
 export const prompt = (page: Page) => page.getByTestId('prompt');
 export const buyPrompt = (page: Page) => hud(page).locator('.buy-prompt');
-/** The drawn Astrologer's Advice / Seettu Pot card's caption (or the card itself on the 2D board) */
+/** The drawn Astrologer's Advice / Seettu Pot card in the DOM: only without the 3D board (no WebGL, or the 2D board shown) */
 export const cardShown = (page: Page) => page.getByTestId('card-modal');
 export const auctionDialog = (page: Page) => page.locator('#auction');
 export const manageDialog = (page: Page) => page.getByRole('dialog', { name: 'Manage properties' });
@@ -51,7 +54,7 @@ export const badge = (page: Page, owner: string, text: string) => playerCard(pag
 
 /**
  * Poll `check` until it's true, answering meanwhile what the test isn't about: an auction someone else started
- * (we pass). A bot's trade offer is left alone: offers never block play, and expire with the turn.
+ * (we pass). A bot's trade offer is left alone: offers never block play (they stay open until answered).
  */
 export async function until(p: Player, check: () => Promise<boolean>, what: string, timeout = 60_000): Promise<void> {
   const end = Date.now() + timeout;
@@ -67,7 +70,7 @@ export async function until(p: Player, check: () => Promise<boolean>, what: stri
 
 /** Until it's our turn to roll again (or to choose in jail) */
 export function waitTurn(p: Player, timeout?: number): Promise<void> {
-  const roll = actionBar(p.page).getByRole('button', { name: /^Roll/ });
+  const roll = boardCenter(p.page).getByRole('button', { name: /^Roll/ });
   return until(p, () => roll.first().isVisible(), 'our turn', timeout);
 }
 
@@ -156,7 +159,7 @@ export async function playTurns(p: Player, done: (rolls: number) => Promise<bool
       continue;
     }
     const buy = hud(page).getByRole('button', { name: /^Buy for/ });
-    const roll = actionBar(page).getByRole('button', { name: /^Roll/ });
+    const roll = boardCenter(page).getByRole('button', { name: /^Roll/ });
     const end = endTurnButton(page);
     const pass = auctionDialog(page).getByRole('button', { name: 'Pass' });
     const ok = hud(page).locator('.prompt button.primary');

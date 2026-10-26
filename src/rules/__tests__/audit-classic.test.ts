@@ -600,7 +600,7 @@ describe('audit: every Chance and Community Chest card', () => {
     expect([cash(state, 's0'), cash(state, 's1'), cash(state, 's2'), cash(state, 's3')]).toEqual([1400, 1550, 1550, 0]);
   });
 
-  it('Cards / Several creditors: a broke Chairman pays in seat order as far as it goes; the rest is bankruptcy to the bank', () => {
+  it('Cards / Several creditors: a broke Chairman sells everything to the bank and pays in seat order as far as it goes', () => {
     const s = scenario({ n: 4 });
     setCash(s, 's0', 90);
     own(s, 's0', [1]);
@@ -611,13 +611,12 @@ describe('audit: every Chance and Community Chest card', () => {
     expect([cash(broke.state, 's1'), cash(broke.state, 's2'), cash(broke.state, 's3')]).toEqual([1550, 1550, 1520]);
     expect(broke.state.players.s0?.out).toBe('bankrupt');
     expect(ofType(broke.events, 'bankrupt')[0]).toMatchObject({ seat: 's0', to: 'bank' });
-    // Pettah Pavement goes back to the bank unmortgaged and is auctioned among the others.
+    // Pettah Pavement was sold to the bank (Rs. 3,000 of the cash paid out): it is the bank's again, not auctioned.
+    expect(ofType(broke.events, 'cash').find((e) => e.why === 'sale')).toMatchObject({ from: 'bank', to: 's0', amount: 30, space: 1 });
     expect(broke.state.props.p1).toBeUndefined();
-    expect(broke.state.phase).toMatchObject({ k: 'auction', lot: { k: 'prop', space: 1 }, eligible: ['s1', 's2', 's3'] });
-    const done = run(broke.state, ['s1', { k: 'bid', amount: 5 }], ['s2', { k: 'pass' }], ['s3', { k: 'pass' }]).state;
-    expect(done.props.p1).toEqual({ owner: 's1', level: 0 });
-    expect(done.turn.seat).toBe('s1');
-    expect(done.phase.k).toBe('preRoll');
+    expect(ofType(broke.events, 'auctionStart')).toEqual([]);
+    expect(broke.state.turn.seat).toBe('s1');
+    expect(broke.state.phase.k).toBe('preRoll');
   });
 
   it('Cards / Several creditors: a broke Chairman pays in seat order from the debtor (not from the opening-roll winner)', () => {
@@ -715,16 +714,15 @@ describe('audit: every Chance and Community Chest card', () => {
     expect(after.turn.seat).toBe('s0');
   });
 
-  it('Cards / Bankruptcy: a broke Wedding Gifts payer hands the drawer mortgaged property; the drawer settles, then the rest pay', () => {
+  it("Cards / Bankruptcy: a broke Wedding Gifts payer's mortgaged property goes back to the bank (no cash for it); then the rest pay", () => {
     const s = scenario({ n: 3 });
     setCash(s, 's1', 20);
     own(s, 's1', [3], { mortgaged: true });
     const { state } = draw(s, 'chest', 'cc-wedding');
-    let st = act(state, 's1', { k: 'bankrupt' }).state;
-    expect(st.phase).toMatchObject({ k: 'mortgageXfer', seat: 's0', spaces: [3] });
-    st = act(st, 's0', { k: 'settleMortgages', lift: [] }).state;
-    expect(st.props.p3).toEqual({ owner: 's0', level: 0, mortgaged: true });
-    expect([cash(st, 's0'), cash(st, 's2')]).toEqual([1500 + 20 - 3 + 50, 1450]);
+    const { state: st, events } = act(state, 's1', { k: 'bankrupt' });
+    expect(ofType(events, 'xferStart')).toEqual([]);
+    expect(st.props.p3).toBeUndefined();
+    expect([cash(st, 's0'), cash(st, 's2')]).toEqual([1500 + 20 + 50, 1450]);
     expect(st.phase.k).toBe('postRoll');
   });
 });

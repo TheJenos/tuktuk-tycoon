@@ -2,7 +2,7 @@ import { createStore } from '../../state/store';
 
 /*
  * The 3D card's flight as the DOM sees it, without importing the scene: whether a drawn card is up in 3D right
- * now, and a way to send it back to its deck early (the DOM caption's OK). Cards fills both in while it flies.
+ * now, and a way to send it back to its deck early. Cards fills both in while it flies.
  */
 
 export const cardFlight = createStore<{ flying: boolean }>({ flying: false });

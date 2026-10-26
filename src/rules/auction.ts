@@ -6,7 +6,8 @@ import type { AuctionPhase, BoardDef, GameState, Lot, Phase, RuleError, SeatId }
 /*
  * Timed open bidding. Any eligible seat that has not passed may bid at any time, more than the high bid and no more
  * than its cash; a pass is final. The engine has no clock: the driver sends closeAuction when the deadline (see
- * timer(), which restarts on every bid) passes. It closes by itself once everyone but the high bidder has passed.
+ * timer()) passes. The countdown is fixed: it runs from the moment the lot is put up and bids never add time. It
+ * closes by itself once everyone but the high bidder has passed.
  */
 
 export function startAuction(c: Ctx, lot: Lot, eligible: SeatId[], resume: Phase, queue: number[] = []): void {
@@ -92,8 +93,7 @@ export const bid: Handler<'bid'> = seatAction(
     if (ph.k !== 'auction') return;
     ph.high = { seat, amount: a.amount };
     emit(c, { t: 'bid', seat, amount: a.amount });
-    // Re-entering restarts the deadline: every bid gives the others a fresh countdown.
-    setPhase(c, ph);
+    // No setPhase: the countdown runs on from when the lot was put up (bids never add time).
     autoPass(c, ph);
   },
 );

@@ -1,4 +1,4 @@
-import { RULES_VERSION, SEAT_IDS, timer, type RulesConfig } from '../rules';
+import { RULES_VERSION, SEAT_IDS, timer, UPGRADABLE_VERSIONS, type RulesConfig } from '../rules';
 import { OFFLINE_TIMERS, phaseSecs, type TimerRules } from '../shared/timing';
 import type { TokenId } from '../shared/tokens';
 import { MemoryDb, MemoryServer } from './db';
@@ -62,8 +62,10 @@ function readSave(): { name: string; doc: Doc; at: number } | null {
     const raw = storage()?.getItem(SOLO_SAVE_KEY);
     if (!raw) return null;
     const rec = JSON.parse(raw) as Partial<SaveRecord>;
-    if (rec.v !== RULES_VERSION || typeof rec.doc !== 'string') return null;
-    const doc = decodeDoc(rec.doc);
+    const known = rec.v === RULES_VERSION || (typeof rec.v === 'number' && UPGRADABLE_VERSIONS.includes(rec.v));
+    if (!known || typeof rec.doc !== 'string') return null;
+    // An autosave of the previous rules version (same state shape) carries on under the current rules
+    const doc = decodeDoc(rec.doc, { upgrade: true });
     return doc.game.phase.k === 'over' ? null : { name: String(rec.name ?? ''), doc, at: typeof rec.at === 'number' ? rec.at : Date.now() };
   } catch {
     return null;

@@ -4,7 +4,7 @@ import { applySell, clearBuildings, groupLevels, planSell } from './buildings';
 import { type Ctx, emit, err, levelOf, ownedBy, phaseChain, player, prop, propBidders, setPhase } from './ctx';
 import { type Handler, seatAction } from './handler';
 import { cleanOwed, creditors, maxRaise, owedTotal, payAll, transfer } from './money';
-import { mortgageNow, mortgageProblem, startXfer } from './mortgage';
+import { mortgageNow, mortgageProblem, sellToBank } from './mortgage';
 import { checkOver } from './over';
 import { clearTrades } from './trade';
 import type { CashWhy, Creditor, DebtPhase, Owed, Phase, SeatId, Step } from './types';
@@ -12,10 +12,12 @@ import type { CashWhy, Creditor, DebtPhase, Owed, Phase, SeatId, Step } from './
 /*
  * Raising cash, bankruptcy and resigning. A debtor is bankrupt only when even selling every building and
  * mortgaging everything (maxRaise) would not cover the debt.
- * - To one player: buildings go back to the bank for half price, paid to the creditor; cash, property and cards go
- *   to the creditor, who then settles the mortgaged property (mortgageXfer).
- * - To the bank (or several creditors, paid in seat order as far as the cash goes): everything goes to the bank,
- *   mortgages are cleared, and the bank auctions the property at once.
+ * - Owing a player (alone or with others): everything is sold to the bank. Buildings go back for half price, every
+ *   property for its mortgage value (nothing when mortgaged) and returns to the bank unowned and unmortgaged, and
+ *   Get Out of Jail Free cards go back to their decks. The cash is paid to the creditors in order, each at most its
+ *   share; what is left goes to the bank. No property or card passes to a creditor.
+ * - Owing only the bank: everything goes to the bank, mortgages are cleared, and the bank auctions the property at
+ *   once (with cfg.auctions off it simply keeps it).
  */
 
 /** The deterministic raise-cash plan: sell buildings evenly (highest first), then mortgage cheapest first */
@@ -71,15 +73,15 @@ function retire(c: Ctx, seat: SeatId, to: Creditor, resigned: boolean): void {
 
 /**
  * Removes an out seat from the phase chain, offers and pending steps. The turn seat's turn ends. The timer restarts
- * only when this surfaces another phase or wipes the high bid; an uninvolved seat leaving keeps everyone's countdown.
+ * only when this surfaces another phase; an uninvolved seat leaving keeps everyone's countdown, and so does an
+ * auction whose high bidder left (its bid is wiped, the fixed countdown runs on).
  */
 export function dropSeat(c: Ctx, seat: SeatId): void {
-  clearTrades(c, 'out', seat);
+  clearTrades(c, seat);
   const turnOut = c.s.turn.seat === seat;
   const before = c.s.phase;
-  const lostHigh = before.k === 'auction' && before.high?.seat === seat;
   const after = purge(before, seat, turnOut);
-  if (after !== before || lostHigh) setPhase(c, after);
+  if (after !== before) setPhase(c, after);
   if (turnOut) c.s.pending = [{ k: 'nextTurn' }];
   else c.s.pending = c.s.pending.filter((st) => stepSeat(st) !== seat);
 }
@@ -123,25 +125,31 @@ function purge(p: Phase, seat: SeatId, turnOut: boolean): Phase {
   }
 }
 
-function toPlayer(c: Ctx, seat: SeatId, cred: SeatId, resigned: boolean): void {
+/** Get Out of Jail Free cards go back to the bottom of their decks */
+function returnCards(c: Ctx, seat: SeatId): void {
+  for (const id of player(c.s, seat).goojf) {
+    const deck = deckOf(c.b, id);
+    c.s.decks[deck].push(id);
+    emit(c, { t: 'cardReturn', deck, cardId: id, seat });
+  }
+  player(c.s, seat).goojf = [];
+}
+
+/**
+ * Bankruptcy owing at least one player: everything is sold to the bank (buildings at half price, property at its
+ * mortgage value or nothing when mortgaged; it returns to the bank unowned), the cards go back to their decks, and
+ * the cash goes to the creditors in order, each at most its share. Whatever is left goes to the bank.
+ */
+function toCreditors(c: Ctx, seat: SeatId, owed: Owed, list: Creditor[], why: CashWhy, resigned: boolean, space?: number): void {
   const spaces = ownedBy(c.s, seat);
-  const value = clearBuildings(c, spaces);
-  transfer(c, 'bank', cred, value, 'bankrupt');
-  transfer(c, seat, cred, player(c.s, seat).cash, 'bankrupt');
-  for (const space of spaces) {
-    const ps = prop(c.s, space);
-    if (!ps) continue;
-    ps.owner = cred;
-    emit(c, { t: 'owner', space, from: seat, to: cred, via: 'bankrupt' });
-  }
-  for (const id of [...player(c.s, seat).goojf]) {
-    player(c.s, cred).goojf.push(id);
-    emit(c, { t: 'cardGive', cardId: id, from: seat, to: cred });
-  }
-  const mortgaged = spaces.filter((space) => prop(c.s, space)?.mortgaged);
-  retire(c, seat, cred, resigned);
-  if (checkOver(c, true)) return;
-  startXfer(c, cred, mortgaged);
+  transfer(c, 'bank', seat, clearBuildings(c, spaces), 'sell');
+  for (const x of spaces) sellToBank(c, seat, x, 'bankrupt');
+  returnCards(c, seat);
+  for (const to of list) transfer(c, seat, to, Math.min(owed[to] ?? 0, player(c.s, seat).cash), why, space);
+  transfer(c, seat, 'bank', player(c.s, seat).cash, 'bankrupt');
+  // The bankrupt event names the creditor when there is just one; several are reported as the bank (as before)
+  retire(c, seat, list.length === 1 && list[0] ? list[0] : 'bank', resigned);
+  checkOver(c, true);
 }
 
 /** `broke`: a bankruptcy (it ends a cfg.endMode 'firstBankrupt' game), not a plain resignation */
@@ -149,11 +157,7 @@ function toBank(c: Ctx, seat: SeatId, resigned: boolean, broke: boolean): void {
   const spaces = ownedBy(c.s, seat);
   clearBuildings(c, spaces);
   transfer(c, seat, 'bank', player(c.s, seat).cash, 'bankrupt');
-  for (const id of player(c.s, seat).goojf) {
-    const deck = deckOf(c.b, id);
-    c.s.decks[deck].push(id);
-    emit(c, { t: 'cardReturn', deck, cardId: id, seat });
-  }
+  returnCards(c, seat);
   for (const space of spaces) {
     // The bank clears the mortgages before it auctions the property.
     if (prop(c.s, space)?.mortgaged) emit(c, { t: 'mortgage', space, on: false });
@@ -178,20 +182,13 @@ function queueAuctions(c: Ctx, spaces: number[]): void {
   startAuction(c, { k: 'prop', space: first }, propBidders(c.s), ph, rest);
 }
 
-export function goBankrupt(c: Ctx, seat: SeatId, owed: Owed, why: CashWhy, resigned: boolean): void {
+/** `space`: what the debt was for (the creditors' payments name it, like a payment made on the spot) */
+export function goBankrupt(c: Ctx, seat: SeatId, owed: Owed, why: CashWhy, resigned: boolean, space?: number): void {
   const clean = cleanOwed(c.s, seat, owed);
   const list = creditors(c.s, seat, clean);
-  const only = list[0];
-  if (list.length === 1 && only !== undefined && only !== 'bank') {
-    toPlayer(c, seat, only, resigned);
-    return;
-  }
-  if (list.length > 1) {
-    // Several creditors: raise everything, pay them in seat order as far as it goes; the rest goes to the bank.
-    raiseCash(c, seat, Number.MAX_SAFE_INTEGER);
-    for (const to of list) transfer(c, seat, to, Math.min(clean[to] ?? 0, player(c.s, seat).cash), why);
-  }
-  toBank(c, seat, resigned, true);
+  // A player is owed: everything is sold to the bank and the creditors share the cash (seat order, then the bank)
+  if (list.some((to) => to !== 'bank')) toCreditors(c, seat, clean, list, why, resigned, space);
+  else toBank(c, seat, resigned, true);
 }
 
 const currentDebt = (c: { s: { phase: Phase } }, seat: SeatId): DebtPhase | undefined =>
@@ -203,7 +200,7 @@ export const autoRaise: Handler<'autoRaise'> = seatAction(
     const debt = currentDebt(c, seat);
     if (!debt) return;
     const total = owedTotal(cleanOwed(c.s, seat, debt.owed));
-    if (maxRaise(c.s, c.b, seat) < total) goBankrupt(c, seat, debt.owed, debt.why, false);
+    if (maxRaise(c.s, c.b, seat) < total) goBankrupt(c, seat, debt.owed, debt.why, false, debt.space);
     else raiseCash(c, seat, total);
   },
 );
@@ -219,7 +216,7 @@ export const bankrupt: Handler<'bankrupt'> = seatAction(
   },
   (c, seat) => {
     const debt = currentDebt(c, seat);
-    if (debt) goBankrupt(c, seat, debt.owed, debt.why, false);
+    if (debt) goBankrupt(c, seat, debt.owed, debt.why, false, debt.space);
   },
 );
 
@@ -232,7 +229,7 @@ export const resign: Handler<'resign'> = seatAction(
       const owed = cleanOwed(c.s, seat, debt.owed);
       const total = owedTotal(owed);
       if (maxRaise(c.s, c.b, seat) < total) {
-        goBankrupt(c, seat, debt.owed, debt.why, true);
+        goBankrupt(c, seat, debt.owed, debt.why, true, debt.space);
         return;
       }
       raiseCash(c, seat, total);

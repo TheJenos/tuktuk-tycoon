@@ -21,16 +21,22 @@ interface Props {
   onTrade(seat: SeatId): void;
 }
 
+/** Phases whose decision is not a prompt here: the turn buttons (BoardCenter), the auction and game-over dialogs */
+const NOT_PROMPTS = new Set(['preRoll', 'postRoll', 'auction', 'over', 'busy']);
+
+/** A decision prompt of mine is up (what Decisions renders) */
+export const promptUp = (phase: string | undefined, shown: string | null): boolean => !!shown && !!phase && !NOT_PROMPTS.has(phase);
+
 /**
- * The prompt for the decision the game waits on from one of my seats, in the context panel. Turn buttons (roll,
- * end turn, jail) are in the action bar; the auction and the game's end are dialogs of their own.
+ * The prompt for the decision the game waits on from one of my seats: over the middle of the board (BoardCenter),
+ * or in the bottom sheet on phones. The turn buttons (roll, end turn, jail) are BoardCenter's own; the auction and
+ * the game's end are dialogs of their own.
  */
 export function Decisions({ shown, mine, onManage, onTrade }: Props) {
   const s = useGame();
   if (!s) return null;
   const ph = s.phase;
-  if (ph.k === 'auction') return shown ? null : <AuctionStatus />;
-  if (!shown) return null;
+  if (!promptUp(ph.k, shown)) return null;
   const seats = myAwaited(s, mine);
   const seat = seats[0];
   if (!seat) return null;
@@ -48,8 +54,8 @@ export function Decisions({ shown, mine, onManage, onTrade }: Props) {
   }
 }
 
-/** An auction I'm not bidding in (passed, out, or watching): who leads and how long is left */
-function AuctionStatus() {
+/** An auction I'm not bidding in (passed, out, or watching): who leads and how long is left (in the context panel) */
+export function AuctionStatus() {
   const s = useGame();
   const doc = useDoc();
   const names = useNames();

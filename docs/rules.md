@@ -81,7 +81,8 @@ engine itself counts the rulebook's units.
 - **Bankruptcy:** you are bankrupt if you owe more than you can pay.
   - **To a player:** give them everything of value and retire. Your buildings go back to the Bank for half their price,
     and that cash goes to the creditor. Mortgaged property goes to the creditor, who must pay the Bank 10% interest at
-    once, and may then lift the mortgage or keep it mortgaged (paying the interest again when lifting later).
+    once, and may then lift the mortgage or keep it mortgaged (paying the interest again when lifting later). *This
+    game sells everything to the Bank instead and pays the creditor the cash: see [Rules decisions](#rules-decisions).*
   - **To the Bank** (taxes or penalties), after selling buildings and mortgaging: all assets go to the Bank, which
     immediately auctions all the property (not the buildings). You retire at once.
 - **Miscellaneous:** money can be lent to a player only by the Bank, and only by mortgaging property. No player-to-player
@@ -96,7 +97,7 @@ The rulebook is silent or ambiguous on these points. Each is a config option whe
 | Income Tax amount | Rs. 20,000 or 10% (the scanned PDF's OCR reads "Rs. 90,000", a scan error). The 10% rounds down. |
 | Luxury Tax | Rs. 7,500 (this era's board). Config: Rs. 7,500 or Rs. 10,000. |
 | Rent | Collected automatically. The "ask before the second following player rolls" window is not used. |
-| Auctions | Timed open bidding: anyone still in may raise at any time; the countdown resets on each bid; it closes early when everyone else has passed. Minimum bid Rs. 100. |
+| Auctions | Timed open bidding: anyone still in may raise at any time. The countdown is fixed from when the lot is put up: bids never add or reset time. It closes early when everyone but the high bidder has passed. Minimum bid Rs. 100. |
 | Triples | Move to any of the other 39 spaces, then roll again (the white dice are doubles, so triples also count toward the three-doubles jail rule). Passing GO on the way pays Rs. 20,000. Config `triplesRollAgain`. |
 | Speed Die unlock | Takes effect from the next roll after the first GO salary (including a doubles re-roll). |
 | Nearest Utility card | If owned: throw the dice (white dice, plus the speed die when the roller has it active; Bus / Tuk-Tuk Uncle = 0) and pay 10× the total. |
@@ -105,7 +106,7 @@ The rulebook is silent or ambiguous on these points. Each is a config option whe
 | Mortgaged property changing hands | The new owner chooses at once, per property: lift now (mortgage + 10%) or pay 10% now and keep it mortgaged. |
 | Shortage auction | When buildings are short and more than one player wants them, every eligible builder may state how many they want; if the total fits, all are granted, otherwise units are auctioned one at a time. |
 | Bankruptcy to the Bank | Mortgages are cleared before the Bank auctions the properties. |
-| Several creditors (e.g. "pay each player") | The debtor raises what they can; cash is paid in seat order; the remainder is treated as bankruptcy to the Bank. |
+| Several creditors (e.g. "pay each player") | Everything is sold to the Bank as in a bankruptcy to a player; the cash is paid in seat order, each creditor at most its share, and what is left goes to the Bank. |
 | Turn order ties | Players tied for the highest opening roll re-roll. |
 | Card decks | Two themed 16-card decks, "Astrologer's Advice" (the rulebook's Chance) and "Seettu Pot" (Community Chest), with the same effects as the standard decks of this era; the rulebook lists none. |
 | Turn limit | Off by default. When on (used in bot simulations), the game ends ranked by net worth. |
@@ -115,8 +116,10 @@ The rulebook is silent or ambiguous on these points. Each is a config option whe
 | Triples onto Go To Jail | Picking the Go To Jail space sends the player straight to jail: no walk, no salary. |
 | Get Out of Jail Free timing | The card may be used before rolling on any of the three jail turns. The fine forced after the third failed roll can't be replaced by a card. Paying the fine by choice needs the cash (it never opens a debt). |
 | Tuk-Tuk Uncle when the bank owns nothing | The token goes to the next unmortgaged property of another active player and pays rent; on a utility the rent uses the white dice (Tuk-Tuk Uncle counts 0). This branch runs only when the bank owns no property at all: if the bank's only property is the one the player stands on (declined, no bids), the token stays put. |
-| Trades | Accepted only before or after a roll, while deciding on a purchase, or while in debt. One open offer per proposer, 8 in all; every offer is cleared when the turn passes. Property for nothing (a gift) is allowed; cash for nothing, nothing for cash and cash for cash (loans) are refused. Whoever receives mortgaged property must be able to pay the 10% from cash after the trade. |
-| Bankruptcy details | Player creditors are paid in seat order from the debtor's left, then the bank. A creditor who can't pay the 10% on mortgaged property it received owes it to the bank as an ordinary debt. Shares owed to players already out go to the bank. |
+| Trades | Accepted only before or after a roll, while deciding on a purchase, or while in debt. One open offer per proposer, 8 in all. Offers never expire: one stays open across turns until it is accepted, declined or withdrawn, or a party leaves the game, and it is checked again when accepted. Property for nothing (a gift) is allowed; cash for nothing, nothing for cash and cash for cash (loans) are refused. Whoever receives mortgaged property must be able to pay the 10% from cash after the trade. |
+| Selling property to the Bank | An owner may sell a property back to the Bank whenever mortgaging is allowed (also in debt and during an auction), as long as no property in its colour group has buildings. The Bank pays the mortgage value (half the printed price); for a mortgaged property it pays nothing (the owner keeps the earlier mortgage loan) and the mortgage is cleared. The property is the Bank's again, unmortgaged, and anyone landing there may buy it. |
+| Bankruptcy to a player | Everything is sold to the Bank: buildings at half price, each property at its mortgage value (nothing for a mortgaged one), and the property returns to the Bank unowned and unmortgaged (no auction); Get Out of Jail Free cards go back to their decks. The creditor receives the debtor's cash plus those proceeds, at most what it is owed (anything left goes to the Bank). No property or card passes to the creditor, so it has no mortgages to settle. |
+| Bankruptcy details | Player creditors are paid in seat order from the debtor's left, then the bank, each at most its share. Shares owed to players already out go to the bank. A debt owed only to the Bank is a bankruptcy to the Bank (above). |
 | Resigning | Allowed at any time. A resignation in debt pays the creditors in full when selling and mortgaging everything covers it (otherwise it is a bankruptcy to the creditor); what is left goes to the bank, which auctions the property. |
 | Auto-raise | Sells one building level at a time from the highest-standing street (ties: the later space), a whole group when a hotel can't be broken up; then mortgages the cheapest mortgage value first (ties: the earlier space). It goes bankrupt at once when everything together can't cover the debt. |
 | Turn limit counting and rankings | Every player's turn counts; the game ends when turn number `turnLimit` ends. Rankings (turn limit, Finish now) order the players still in by net worth (a mortgaged property counts its price minus the cost of lifting it; ties in turn order), then the others, last out first. |

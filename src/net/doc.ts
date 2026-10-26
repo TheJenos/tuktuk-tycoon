@@ -5,12 +5,13 @@ import {
   deepEqual,
   RULES_VERSION,
   timer,
+  UPGRADABLE_VERSIONS,
   type GameEvent,
   type GameState,
   type RulesConfig,
   type SeatId,
 } from '../rules';
-import { animBudget, AUCTION_BID_SECS, OFFLINE_TIMERS, phaseSecs, type TimerRules } from '../shared/timing';
+import { animBudget, OFFLINE_TIMERS, phaseSecs, type TimerRules } from '../shared/timing';
 import type { Batch, BotSkill, Doc, Envelope, PlayerId, SeatInfo } from './types';
 
 /*
@@ -143,7 +144,10 @@ export function controlProblem(seats: Doc['seats'], env: Envelope): NetError | n
   return { code: 'notYourSeat', message: 'That is not your seat' };
 }
 
-/** The deadline after a command: kept while timer(game).key is unchanged, restarted when it changes */
+/**
+ * The deadline after a command: kept while timer(game).key is unchanged, restarted when it changes. An auction's key
+ * changes only when a lot is put up, so its countdown is fixed: bids never add time.
+ */
 export function nextDeadline(
   prev: Doc['deadline'],
   game: GameState,
@@ -156,9 +160,7 @@ export function nextDeadline(
   if (prev && prev.key === t.key) return prev;
   const secs = phaseSecs(t.kind, timers);
   if (secs <= 0 && t.kind !== 'auction') return undefined;
-  let due = at + animBudget(events) + secs * 1000;
-  if (t.kind === 'auction') due = Math.max(due, at + AUCTION_BID_SECS * 1000);
-  return { key: t.key, at: due };
+  return { key: t.key, at: at + animBudget(events) + secs * 1000 };
 }
 
 /** Applies one envelope to the document. Never throws. */
@@ -232,8 +234,12 @@ export class DocError extends Error {
   }
 }
 
-/** Parses encodeDoc() output, filling containers an older writer left out. Throws DocError. */
-export function decodeDoc(text: string): Doc {
+/**
+ * Parses encodeDoc() output, filling containers an older writer left out. Throws DocError. `upgrade` (a local save,
+ * which nobody else replays) also takes a game of one of the UPGRADABLE_VERSIONS and carries it on under the
+ * current rules; a shared room never mixes rules versions.
+ */
+export function decodeDoc(text: string, opts: { upgrade?: boolean } = {}): Doc {
   let raw: Partial<Doc> & { game?: unknown };
   try {
     raw = JSON.parse(text) as Partial<Doc>;
@@ -244,7 +250,8 @@ export function decodeDoc(text: string): Doc {
     throw new DocError('corrupt', 'The game data is unreadable');
   }
   const v = (raw.game as { v?: unknown }).v;
-  if (v !== RULES_VERSION) throw new DocError('version', `This game was made by another version (${String(v)})`);
+  const upgrade = !!opts.upgrade && typeof v === 'number' && UPGRADABLE_VERSIONS.includes(v);
+  if (v !== RULES_VERSION && !upgrade) throw new DocError('version', `This game was made by another version (${String(v)})`);
   let game: GameState;
   try {
     game = decode(JSON.stringify(raw.game));

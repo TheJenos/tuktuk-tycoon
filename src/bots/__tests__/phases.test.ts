@@ -342,6 +342,30 @@ describe('trades', () => {
     expect(bot(s, 's0', 'easy')).toEqual({ k: 'roll' });
   });
 
+  it('an open offer of its own survives the turn and is not proposed again; a stale one is withdrawn', () => {
+    let s = scenario(2);
+    own(s, 's0', [37, 6, 8]);
+    own(s, 's1', [39, 9, 1]);
+    const a = bot(s, 's0', 'hard');
+    expect(a.k).toBe('propose');
+    s = act(s, 's0', a);
+    const id = Object.keys(s.trades)[0] as string;
+    // s0 plays its turn out, s1 too, the offer unanswered: it is still open at s0's next turn
+    s.players.s0!.pos = 4;
+    s.players.s1!.pos = 4;
+    rig(s, [2, 4], [2, 4]);
+    s = act(act(s, 's0', { k: 'roll' }), 's0', { k: 'endTurn' });
+    s = act(act(s, 's1', { k: 'roll' }), 's1', { k: 'endTurn' });
+    expect(s.turn.seat).toBe('s0');
+    expect(Object.keys(s.trades)).toEqual([id]);
+    // With an offer open it never proposes another: it just plays
+    expect(bot(s, 's0', 'hard')).toEqual({ k: 'roll' });
+    // The offer can no longer go through (s1 sold what it asked for): the bot withdraws it
+    const gone = s.trades[id]!.get.props[0] as number;
+    s = act(s, 's1', { k: 'sellProperty', space: gone });
+    for (const skill of SKILLS) expect(bot(s, 's0', skill)).toEqual({ k: 'cancel', id });
+  });
+
   it('a bot neither awaited nor offered anything does nothing', () => {
     const s = scenario(3);
     for (const skill of SKILLS) expect(decide(s, 's1', skill, () => 0.5)).toBeNull();

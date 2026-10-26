@@ -98,7 +98,8 @@ const TIMER_KIND: Record<string, TimerInfo['kind']> = {
 
 /**
  * The deadline the net layer should run now. The key changes exactly when the deadline should restart: whenever a
- * phase is entered, and on every auction bid (not when someone else mortgages or trades meanwhile).
+ * phase is entered (a new auction lot included), not when someone else mortgages or trades meanwhile, and not on an
+ * auction bid (the auction's countdown is fixed from when the lot was put up).
  */
 export function timer(s: GameState): TimerInfo | null {
   const kind = TIMER_KIND[s.phase.k];

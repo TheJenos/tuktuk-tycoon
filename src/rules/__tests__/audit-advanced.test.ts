@@ -587,17 +587,17 @@ describe('audit: timed open auctions', () => {
     expect(cash(state, 's2')).toBe(1475);
   });
 
-  it('decision "Auctions": the countdown restarts on each bid, not on a pass', () => {
+  it('decision "Auctions": the countdown is fixed from the start; neither a bid nor a pass restarts it', () => {
     const a = balticAuction();
     const k0 = timer(a);
     expect(k0?.kind).toBe('auction');
     const b = act(a, 's1', { k: 'bid', amount: 5 }).state;
-    expect(timer(b)?.key).not.toBe(k0?.key);
+    expect(timer(b)?.key).toBe(k0?.key);
     const c = act(b, 's2', { k: 'pass' }).state;
-    expect(timer(c)?.key).toBe(timer(b)?.key);
+    expect(timer(c)?.key).toBe(k0?.key);
   });
 
-  it('decision "Auctions" (countdown resets on each bid) + README timer: a bidder leaving the game is not a bid and keeps the countdown', () => {
+  it('decision "Auctions" (fixed countdown) + README timer: a bidder leaving the game keeps the countdown', () => {
     const a = act(balticAuction(), 's1', { k: 'bid', amount: 5 }).state;
     const key = timer(a)?.key;
     const left = act(a, 's2', { k: 'resign' }).state;
@@ -983,26 +983,30 @@ describe('audit: bankruptcy to a player', () => {
     expect(refused(ok, 's0', { k: 'bankrupt' })).toBe('canPay');
   });
 
-  it('Bankruptcy to a player: buildings back to the bank at half price paid to the creditor; cash, deeds and cards follow', () => {
+  it('Bankruptcy to a player: everything is sold to the bank (buildings at half price, deeds at the mortgage value) and the creditor gets the cash', () => {
     const { state, events } = act(broke(), 's0', { k: 'bankrupt' });
-    expect(cash(state, 's1')).toBe(1500 + 75 + 100);
+    // cash 100 + houses 3 x 25 + light blues 50 + 50 + 60 (the mortgaged station brings nothing)
+    expect(cash(state, 's1')).toBe(1500 + 100 + 75 + 160);
     expect(state.bank.houses).toBe(32);
-    for (const x of [5, 6, 8, 9]) expect(state.props[`p${x}`]).toMatchObject({ owner: 's1', level: 0 });
-    expect(state.props.p5?.mortgaged).toBe(true);
-    expect(state.players.s1?.goojf).toEqual(['cc-goojf']);
+    for (const x of [5, 6, 8, 9]) expect(state.props[`p${x}`]).toBeUndefined();
+    expect(state.players.s1?.goojf).toEqual([]);
+    expect(state.decks.chest.at(-1)).toBe('cc-goojf');
     expect(state.players.s0).toMatchObject({ out: 'bankrupt', cash: 0, goojf: [] });
     expect(ofType(events, 'bankrupt')).toEqual([{ t: 'bankrupt', seat: 's0', to: 's1', resigned: false }]);
-    expect(state.phase).toMatchObject({ k: 'mortgageXfer', seat: 's1', spaces: [5] });
+    expect(ofType(events, 'owner').map((e) => [e.space, e.to])).toEqual([[5, undefined], [6, undefined], [8, undefined], [9, undefined]]);
+    expect(ofType(events, 'mortgage')).toEqual([{ t: 'mortgage', space: 5, on: false }]);
+    expect(ofType(events, 'cardGive')).toEqual([]);
+    expect(ofType(events, 'xferStart')).toEqual([]);
   });
 
-  it('Bankruptcy to a player: the creditor pays 10% on a received mortgage at once (or lifts it at m + 10%), then the next seat plays', () => {
-    const xfer = act(broke(), 's0', { k: 'bankrupt' }).state;
-    const keep = act(xfer, 's1', { k: 'settleMortgages', lift: [] });
-    expect(cashDelta(keep.events, 's1')).toBe(-10);
-    expect(keep.state.turn).toMatchObject({ seat: 's1', no: 2 });
-    expect(keep.state.phase.k).toBe('preRoll');
-    expect(cashDelta(act(keep.state, 's1', { k: 'unmortgage', space: 5 }).events, 's1')).toBe(-110);
-    expect(cashDelta(act(xfer, 's1', { k: 'settleMortgages', lift: [5] }).events, 's1')).toBe(-110);
+  it('Bankruptcy to a player: no mortgages to settle; the next seat plays and the deeds are for sale from the bank again', () => {
+    const { state } = act(broke(), 's0', { k: 'bankrupt' });
+    expect(state.turn).toMatchObject({ seat: 's1', no: 2 });
+    expect(state.phase.k).toBe('preRoll');
+    setPos(state, 's1', 0);
+    rig(state, [2, 3]);
+    const landed = act(state, 's1', { k: 'roll' }).state;
+    expect(landed.phase).toEqual({ k: 'buy', space: 5 });
   });
 
   it('Bankruptcy to a player: a broke non-turn payer of "collect from every player" goes out; the others still pay; turns skip it', () => {
@@ -1081,14 +1085,30 @@ describe('audit: several creditors', () => {
     return act(s, 's0', { k: 'roll' }).state;
   }
 
-  it('decision "Several creditors": raises what it can, pays in seat order, the rest is a bankruptcy to the bank', () => {
+  it('decision "Several creditors": everything is sold to the bank, the cash is paid in seat order up to each share', () => {
     const d = chairman(20, [1]);
     expect(d.phase).toMatchObject({ k: 'debt', debtor: 's0', owed: { s1: 50, s2: 50 } });
     const { state, events } = act(d, 's0', { k: 'bankrupt' });
+    // 20 cash + 30 for the brown street: s1 gets its 50 in full, s2 nothing
     expect(cash(state, 's1')).toBe(1550);
     expect(cash(state, 's2')).toBe(1500);
     expect(ofType(events, 'bankrupt')).toEqual([{ t: 'bankrupt', seat: 's0', to: 'bank', resigned: false }]);
-    expect(state.phase).toMatchObject({ k: 'auction', lot: { k: 'prop', space: 1 }, eligible: ['s1', 's2'] });
+    // The property went back to the bank unowned: no auction
+    expect(state.props.p1).toBeUndefined();
+    expect(ofType(events, 'auctionStart')).toEqual([]);
+    expect(state.phase.k).toBe('preRoll');
+    expect(state.turn.seat).toBe('s1');
+  });
+
+  it('decision "Several creditors": each is paid at most its share; what is left goes to the bank', () => {
+    // s0 has 20 + 200 for Galle Face Penthouse = 220 at most; it owes s1 100, s2 60 and the bank 100
+    const d = structuredClone(chairman(20, [39]));
+    if (d.phase.k === 'debt') d.phase.owed = { s1: 100, s2: 60, bank: 100 };
+    const { state, events } = act(d, 's0', { k: 'bankrupt' });
+    expect(cash(state, 's1')).toBe(1600);
+    expect(cash(state, 's2')).toBe(1560);
+    expect(ofType(events, 'cash').filter((e) => e.to === 'bank').map((e) => e.amount)).toEqual([60]);
+    expect(state.props.p39).toBeUndefined();
   });
 
   it('decision "Several creditors": when selling and mortgaging covers it, bankruptcy is refused and autoRaise pays all', () => {
@@ -1119,8 +1139,9 @@ describe('audit: resigning', () => {
     const d = penthouseDebt(10, [1]);
     const { state, events } = act(d, 's0', { k: 'resign' });
     expect(ofType(events, 'bankrupt')).toEqual([{ t: 'bankrupt', seat: 's0', to: 's1', resigned: true }]);
-    expect(state.props.p1?.owner).toBe('s1');
-    expect(cash(state, 's1')).toBe(1510);
+    // Everything sold to the bank: 10 cash + 30 for the brown street go to s1; the deed goes back to the bank
+    expect(state.props.p1).toBeUndefined();
+    expect(cash(state, 's1')).toBe(1540);
     expect(state.turn.seat).toBe('s1');
   });
 

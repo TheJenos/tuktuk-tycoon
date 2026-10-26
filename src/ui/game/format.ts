@@ -90,6 +90,7 @@ export function actionText(names: Names, a: Action): string {
     case 'pass': return 'passes';
     case 'requestBuild': return `asks for ${a.n}`;
     case 'place': return `places a building on ${names.space(a.space)}`;
+    case 'sellProperty': return `sells ${names.space(a.space)} to the bank`;
     case 'settleMortgages': return a.lift.length ? 'lifts received mortgages' : 'keeps the received mortgages';
     case 'autoRaise': return 'raises cash automatically';
     case 'bankrupt': return 'declares bankruptcy';

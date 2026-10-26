@@ -86,7 +86,7 @@ export function optionRows(d: RulesDraft, { all = false, online = false, local =
     add(d.decisionTimer !== def.decisionTimer && d.turnTimer > 0, ['Decision timer', secs(d.decisionTimer)]);
     add(d.debtTimer !== def.debtTimer && d.turnTimer > 0, ['Debt timer', secs(d.debtTimer)]);
   }
-  if (online || local) add(d.auctionTimer !== def.auctionTimer, ['Auction countdown', `${secs(d.auctionTimer)}, restarting at each bid`]);
+  if (online || local) add(d.auctionTimer !== def.auctionTimer, ['Auction countdown', `${secs(d.auctionTimer)} from the start (bids don't add time)`]);
   add(d.botPace !== def.botPace, ['Bot speed', BOT_PACE_LABELS[d.botPace] ?? 'Normal']);
   add(d.botSkill !== def.botSkill, ['New bots', skillLabel(d.botSkill)]);
   if (online) {

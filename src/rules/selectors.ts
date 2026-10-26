@@ -17,7 +17,7 @@ import {
 import type { Handler } from './handler';
 import { HANDLERS } from './handlers';
 import { maxRaise as raise, netWorth as net, worth as taxWorth } from './money';
-import { unmortgageCost as liftCost, xferCost as settleCost } from './mortgage';
+import { saleValue, unmortgageCost as liftCost, xferCost as settleCost } from './mortgage';
 import { ranking as rank } from './over';
 import { type RentOpts, ownsGroup as owns, rentFor as rent } from './rent';
 import { tradeProblems as problems } from './trade';
@@ -74,6 +74,11 @@ export const canMortgage = (s: GameState, seat: SeatId, space: number): RuleErro
   check(s, seat, { k: 'mortgage', space });
 export const canUnmortgage = (s: GameState, seat: SeatId, space: number): RuleError | null =>
   check(s, seat, { k: 'unmortgage', space });
+/** null = the seat may sell the space back to the bank now (sellProperty); otherwise why not */
+export const canSellProperty = (s: GameState, seat: SeatId, space: number): RuleError | null =>
+  check(s, seat, { k: 'sellProperty', space });
+/** What the bank pays for the space if it is sold back now: the mortgage value, 0 when it is mortgaged */
+export const sellPropertyValue = (s: GameState, space: number): number => saleValue(s, boardOf(s), space);
 /** The lowest legal bid in the current auction */
 export const minBid = (s: GameState): number | undefined =>
   s.phase.k === 'auction' ? auctionMinBid(s.phase) : undefined;

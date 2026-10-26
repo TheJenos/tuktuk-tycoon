@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { apply, awaiting, defaultAction, RULES_VERSION, timeoutCommand, timer, type Action, type SeatId } from '../../rules';
-import { animBudget, AUCTION_BID_SECS, ONLINE_TIMERS } from '../../shared/timing';
+import { animBudget, ONLINE_TIMERS } from '../../shared/timing';
 import {
   applyEnvelope,
   decodeDoc,
@@ -50,6 +50,16 @@ describe('createDoc', () => {
       expect((err as DocError).code).toBe('version');
     }
     expect(() => decodeDoc('{nope')).toThrow(DocError);
+  });
+
+  it('a local save of the previous rules version is upgraded; a shared room of it is refused', () => {
+    const d = makeDoc('hh', { timers: ONLINE_TIMERS });
+    const prev = JSON.parse(encodeDoc(d)) as Doc;
+    prev.game.v = 3;
+    expect(() => decodeDoc(JSON.stringify(prev))).toThrow(DocError);
+    expect(decodeDoc(JSON.stringify(prev), { upgrade: true }).game.v).toBe(RULES_VERSION);
+    prev.game.v = 2;
+    expect(() => decodeDoc(JSON.stringify(prev), { upgrade: true })).toThrow(DocError);
   });
 });
 
@@ -170,16 +180,21 @@ describe('applyEnvelope', () => {
     const rolled = apply(before.game, { by: turnSeat(before), a: { k: 'roll' } });
     if (!rolled.ok) throw new Error('roll refused');
     expect(d.deadline).toEqual({ key: timer(d.game)!.key, at: at + animBudget(rolled.events) + ONLINE_TIMERS.decision * 1000 });
-    // Declining opens the auction; each bid restarts the clock and gives at least AUCTION_BID_SECS
-    d = act(d, { k: 'decline' }, at + 1_000);
+    // Declining opens the auction: a fixed countdown from now; bids never restart or extend it
+    const declineAt = at + 1_000;
+    const pre = d;
+    d = act(d, { k: 'decline' }, declineAt);
     expect(d.game.phase.k).toBe('auction');
-    const auctionKey = d.deadline!.key;
-    const bidder = (['s0', 's1', 's2'] as SeatId[]).find((s) => s !== turnSeat(d))!;
-    const bidAt = at + 2_000;
-    d = must(d, envelope({ by: bidder, a: { k: 'bid', amount: 10 } }, pidOf(d, bidder), bidAt));
-    expect(d.deadline!.key).not.toBe(auctionKey);
-    expect(d.deadline!.at).toBeGreaterThanOrEqual(bidAt + AUCTION_BID_SECS * 1000);
-    expect(d.deadline!.at).toBe(bidAt + ONLINE_TIMERS.auction * 1000);
+    const declined = apply(pre.game, { by: turnSeat(pre), a: { k: 'decline' } });
+    if (!declined.ok) throw new Error('decline refused');
+    const auction = d.deadline!;
+    expect(auction).toEqual({ key: timer(d.game)!.key, at: declineAt + animBudget(declined.events) + ONLINE_TIMERS.auction * 1000 });
+    const bidders = (['s0', 's1', 's2'] as SeatId[]).filter((s) => s !== turnSeat(d));
+    d = must(d, envelope({ by: bidders[0]!, a: { k: 'bid', amount: 10 } }, pidOf(d, bidders[0]!), declineAt + 2_000));
+    expect(d.deadline).toEqual(auction);
+    // A bid in the last moment adds no time either
+    d = must(d, envelope({ by: bidders[1]!, a: { k: 'bid', amount: 11 } }, pidOf(d, bidders[1]!), auction.at - 100));
+    expect(d.deadline).toEqual(auction);
   });
 });
 

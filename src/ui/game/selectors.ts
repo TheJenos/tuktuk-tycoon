@@ -188,7 +188,8 @@ export function debtOf(s: GameState, seat: SeatId): DebtPhase | null {
 
 /**
  * The resign confirmation. Resigning in a debt that selling and mortgaging everything can't cover is a bankruptcy
- * to the creditor (docs/rules.md, Resigning): a single player creditor gets everything, several share the cash.
+ * to the creditor (docs/rules.md, Resigning): everything is sold to the bank and the creditors get the cash (each
+ * at most what it is owed); no property passes to them.
  */
 export function resignQuestion(s: GameState, seat: SeatId, names: Names, many: boolean): string {
   const ask = `Resign${many ? ` ${names.seat(seat)}` : ''}?`;
@@ -198,6 +199,8 @@ export function resignQuestion(s: GameState, seat: SeatId, names: Names, many: b
   const total = owed.reduce((a, [, n]) => a + (n ?? 0), 0);
   const players = owed.map(([c]) => c).filter((c): c is SeatId => c !== 'bank');
   if (!players.length || maxRaise(s, seat) >= total) return `${ask} Your debt is paid first, then your property goes back to the bank.`;
-  if (players.length === 1 && owed.length === 1) return `${ask} You can't pay ${names.seat(players[0]!)}: everything you own goes to them.`;
-  return `${ask} You can't pay in full: your cash goes to ${listText(players.map(names.seat))}, your property to the bank.`;
+  if (players.length === 1 && owed.length === 1) {
+    return `${ask} You can't pay ${names.seat(players[0]!)}: everything you own is sold to the bank and they get the cash.`;
+  }
+  return `${ask} You can't pay in full: everything you own is sold to the bank and the cash goes to ${listText(players.map(names.seat))}.`;
 }

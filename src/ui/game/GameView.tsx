@@ -14,13 +14,14 @@ import { priceOf } from './format';
 import { GameSessionProvider, useDoc, useMySeats, useSessionSel } from './context';
 import { AuctionModal } from './decisions/AuctionModal';
 import { CardModal } from './decisions/CardModal';
-import { Decisions } from './decisions/Decisions';
+import { AuctionStatus, Decisions, promptUp } from './decisions/Decisions';
 import { GameOver } from './decisions/GameOver';
 import { PassDevice } from './decisions/PassDevice';
 import { TileInspector } from './deeds/TileInspector';
 import { GameMenu, type OwnerActions } from './GameMenu';
 import { hotSeatCards } from './hotSeat';
 import { ActionBar } from './hud/ActionBar';
+import { BoardCenter, usePhoneLayout } from './hud/BoardCenter';
 import { DiceReadout } from './hud/DiceReadout';
 import { EventLog } from './hud/EventLog';
 import { MyProperties } from './hud/MyProperties';
@@ -51,8 +52,9 @@ export interface GameViewProps {
 }
 
 /**
- * The whole in-game DOM layer over the 3D board: players on the left, the decision, offers and log on the right,
- * the turn bar on top and the action bar at the bottom (a bottom sheet on phones), plus the dialogs. Every
+ * The whole in-game DOM layer over the 3D board: players on the left, offers and log on the right, the turn bar on
+ * top, the action bar at the bottom (a bottom sheet on phones), Roll / End turn and my decisions over the middle of
+ * the board (the decisions join the bottom sheet on phones), plus the dialogs. Every
  * action is here, so the game plays without WebGL (the MiniBoard stands in for the board).
  */
 export function GameView(props: GameViewProps) {
@@ -104,6 +106,7 @@ function GameScreen({ session, onLeave, onRematch, isOwner = false, ownerActions
   const turnSeat = shown && s && (phase === 'preRoll' || phase === 'postRoll') && mine.includes(s.turn.seat) ? s.turn.seat : null;
   const bidders = shown && s && phase === 'auction' ? myBidders(s, mine) : [];
   const over = shown === 'over';
+  const phone = usePhoneLayout();
 
   const [manageSeat, setManageSeat] = useState<SeatId | null>(null);
   const [trade, setTrade] = useState<{ seat: SeatId; draft?: TradeDraft; n: number } | null>(null);
@@ -123,6 +126,8 @@ function GameScreen({ session, onLeave, onRematch, isOwner = false, ownerActions
   const toggleLog = useCallback(() => uiStore.update({ panel: uiStore.get().panel === 'log' ? null : 'log' }), []);
   const toggleProps = useCallback(() => uiStore.update({ panel: uiStore.get().panel === 'props' ? null : 'props' }), []);
   const openMenu = useCallback(() => uiStore.update({ panel: 'menu' }), []);
+  // Decisions sit over the middle of the board, or in the bottom sheet on phones (the board stays in sight)
+  const decision = promptUp(phase, shown) ? <Decisions shown={shown} mine={mine} onManage={openManage} onTrade={openTrade} /> : null;
 
   const menuOpen = ui.panel === 'menu';
   const inspecting = ui.selected !== null;
@@ -256,7 +261,8 @@ function GameScreen({ session, onLeave, onRematch, isOwner = false, ownerActions
           <aside className="hud-context" data-inset aria-label="Game">
             <DiceReadout />
             <div className="hud-decision" data-inset>
-              <Decisions shown={shown} mine={mine} onManage={openManage} onTrade={openTrade} />
+              {phase === 'auction' && !shown && <AuctionStatus />}
+              {phone && decision}
               <TradeOffers onCounter={(from, draft) => openTrade(from, draft)} />
             </div>
             <MyProperties onClose={closePanel} />
@@ -264,7 +270,6 @@ function GameScreen({ session, onLeave, onRematch, isOwner = false, ownerActions
           </aside>
           <div className="hud-dock" data-inset>
             <ActionBar
-              turnSeat={turnSeat}
               seat={seat}
               onManage={() => openManage(seat)}
               onTrade={() => openTrade(seat)}
@@ -274,6 +279,7 @@ function GameScreen({ session, onLeave, onRematch, isOwner = false, ownerActions
               miniBoard={!glOk || mini}
             />
           </div>
+          <BoardCenter turnSeat={turnSeat}>{phone ? null : decision}</BoardCenter>
           <CardModal threeD={glOk && !mini} />
           {bidders.length > 0 && (
             <AuctionModal seats={bidders} covered={manageOpen || tradeOpen || inspecting || menuOpen} onRaise={openManage} />

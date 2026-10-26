@@ -259,7 +259,7 @@ function RulesView() {
     ['Time limit', doc.timeLimit ? `${minutes(doc.timeLimit)}, then ranked by net worth` : 'None'],
     ['Turn timer', secs(t.turn)],
     ['Decision timer', secs(t.decision)],
-    ['Auction countdown', `${secs(t.auction)}, restarting at each bid`],
+    ['Auction countdown', `${secs(t.auction)} from the start (bids don't add time)`],
     ['Debt timer', secs(t.debt)],
     ['Bot speed', BOT_PACE_LABELS[doc.botPace ?? 1] ?? 'Normal'],
     ...(online ? [

@@ -106,16 +106,62 @@ describe('timed open auction', () => {
     expect(after.state.props.p6?.owner).toBe('s0');
   });
 
-  it('restarts the deadline on every bid but not on a pass', () => {
+  it('has a fixed countdown: the timer key holds through bids, passes and mortgaging', () => {
     let s = declined();
     own(s, 's0', [1]);
     const k0 = timer(s)?.key;
+    expect(k0).toMatch(/^auction:/);
+    s = act(s, 's1', { k: 'bid', amount: 5 }).state;
+    expect(timer(s)?.key).toBe(k0);
+    s = act(s, 's2', { k: 'bid', amount: 9 }).state;
+    expect(timer(s)?.key).toBe(k0);
     s = act(s, 's1', { k: 'pass' }).state;
     expect(timer(s)?.key).toBe(k0);
-    s = act(s, 's2', { k: 'bid', amount: 5 }).state;
-    const k1 = timer(s)?.key;
-    expect(k1).not.toBe(k0);
     s = act(s, 's0', { k: 'mortgage', space: 1 }).state;
-    expect(timer(s)?.key).toBe(k1);
+    expect(timer(s)?.key).toBe(k0);
+    s = act(s, 's0', { k: 'bid', amount: 20 }).state;
+    expect(timer(s)?.key).toBe(k0);
+  });
+
+  it('keeps the countdown when the high bidder leaves the game (its bid is wiped)', () => {
+    let s = declined(4);
+    s = act(s, 's2', { k: 'bid', amount: 30 }).state;
+    const k0 = timer(s)?.key;
+    s = act(s, 's2', { k: 'resign' }).state;
+    expect(s.phase).toMatchObject({ k: 'auction' });
+    expect(s.phase.k === 'auction' && s.phase.high).toBeUndefined();
+    expect(timer(s)?.key).toBe(k0);
+  });
+
+  it('still ends early once every eligible seat but the high bidder has passed', () => {
+    let s = declined(4);
+    s = act(s, 's3', { k: 'bid', amount: 12 }).state;
+    s = act(s, 's0', { k: 'pass' }).state;
+    s = act(s, 's1', { k: 'pass' }).state;
+    expect(s.phase.k).toBe('auction');
+    const { state, events } = act(s, 's2', { k: 'pass' });
+    expect(ofType(events, 'auctionEnd')).toEqual([{ t: 'auctionEnd', lot: { k: 'prop', space: 6 }, winner: 's3', amount: 12 }]);
+    expect(state.props.p6?.owner).toBe('s3');
+    expect(state.phase.k).toBe('postRoll');
+  });
+
+  it("a new lot gets a new timer key (the bank auctioning a bankrupt's property one space at a time)", () => {
+    const s = scenario({ n: 3 });
+    own(s, 's0', [1, 3]);
+    setCash(s, 's0', 10);
+    s.players.s0!.pos = 0;
+    rig(s, [2, 2]);
+    // Income tax on 4 in a fixed mode: 200 owed to the bank, more than the 10 + 30 + 30 s0 could raise
+    s.cfg.incomeTaxMode = 'flat';
+    let t = run(s, ['s0', { k: 'roll' }]).state;
+    expect(t.phase.k).toBe('debt');
+    t = act(t, 's0', { k: 'bankrupt' }).state;
+    expect(t.phase).toMatchObject({ k: 'auction', lot: { k: 'prop', space: 1 }, queue: [3] });
+    const k1 = timer(t)?.key;
+    t = act(t, 's1', { k: 'bid', amount: 5 }).state;
+    expect(timer(t)?.key).toBe(k1);
+    t = act(t, 's2', { k: 'pass' }).state;
+    expect(t.phase).toMatchObject({ k: 'auction', lot: { k: 'prop', space: 3 } });
+    expect(timer(t)?.key).not.toBe(k1);
   });
 });

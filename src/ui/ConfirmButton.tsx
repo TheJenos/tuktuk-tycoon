@@ -15,6 +15,7 @@ interface Props {
   yesClassName?: string;
   disabled?: boolean;
   'aria-label'?: string;
+  'aria-describedby'?: string;
   title?: string;
 }
 
@@ -44,7 +45,7 @@ export function ConfirmButton({ children, question, yes, no, onConfirm, classNam
     );
   }
   return (
-    <button ref={button} type="button" className={className} disabled={disabled} title={title} aria-label={rest['aria-label']} onClick={() => setAsking(true)}>
+    <button ref={button} type="button" className={className} disabled={disabled} title={title} aria-label={rest['aria-label']} aria-describedby={rest['aria-describedby']} onClick={() => setAsking(true)}>
       {children}
     </button>
   );

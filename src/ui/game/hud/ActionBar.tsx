@@ -1,12 +1,8 @@
 import type { SeatId } from '../../../rules';
-import { useBusy, useSend } from '../actions';
 import { useGame } from '../context';
-import { JailPanel } from '../decisions/JailPanel';
-import { speedActive, tradeLock } from '../selectors';
+import { tradeLock } from '../selectors';
 
 interface Props {
-  /** My turn seat's preRoll / postRoll is up (and the board has caught up) */
-  turnSeat: SeatId | null;
   /** The seat Manage and Trade act for; null for spectators */
   seat: SeatId | null;
   onManage(): void;
@@ -20,28 +16,15 @@ interface Props {
   miniBoard: boolean;
 }
 
-/** Bottom centre: Roll / End turn (or the jail choices), then Manage, Trade, Recenter, the log and the menu */
-export function ActionBar({ turnSeat, seat, onManage, onTrade, onRecenter, onLog, onMenu, onMiniBoard, miniBoard }: Props) {
+/**
+ * Bottom centre: Manage, Trade, Recenter, the 2D board, the log and the menu. The turn's Roll / End turn and the
+ * jail choices are over the middle of the board (BoardCenter).
+ */
+export function ActionBar({ seat, onManage, onTrade, onRecenter, onLog, onMenu, onMiniBoard, miniBoard }: Props) {
   const s = useGame();
-  const send = useSend();
-  const busy = useBusy();
-  const phase = s?.phase.k;
-  const jailed = !!(turnSeat && s?.players[turnSeat]?.jail);
   const lock = tradeLock(s, seat);
   return (
     <nav className="action-bar panel" aria-label="Actions">
-      {turnSeat && phase === 'preRoll' && jailed && <JailPanel seat={turnSeat} />}
-      {turnSeat && phase === 'preRoll' && !jailed && (
-        <button type="button" className="primary big" disabled={busy} onClick={() => void send(turnSeat, { k: 'roll' })}>
-          Roll <kbd>R</kbd>
-          {s && speedActive(s, turnSeat) && <span className="badge speed">+ Speed Die</span>}
-        </button>
-      )}
-      {turnSeat && phase === 'postRoll' && (
-        <button type="button" className="primary big" disabled={busy} onClick={() => void send(turnSeat, { k: 'endTurn' })}>
-          End turn <kbd>E</kbd>
-        </button>
-      )}
       <div className="action-row tools">
         <button type="button" disabled={!seat} onClick={onManage} title="Build, sell and mortgage (M)">
           Manage <kbd>M</kbd>

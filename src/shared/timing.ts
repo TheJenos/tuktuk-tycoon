@@ -61,8 +61,6 @@ export interface TimerRules {
 export const ONLINE_TIMERS: TimerRules = { turn: 60, decision: 45, auction: 8, debt: 120 };
 /** Offline: nobody waits on a human except the auction countdown */
 export const OFFLINE_TIMERS: TimerRules = { turn: 0, decision: 0, auction: 8, debt: 0 };
-/** Each new bid gives everyone at least this long to answer */
-export const AUCTION_BID_SECS = 5;
 
 export function phaseSecs(kind: TimerInfo['kind'], t: TimerRules): number {
   switch (kind) {

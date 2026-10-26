@@ -8,7 +8,7 @@ import { endTurn } from './flow';
 import { type Handler, type HandlerTable, isInt, seatAction } from './handler';
 import { payFine, useCard } from './jail';
 import { buy, decline, incomeTax } from './landing';
-import { build, mortgage, sell, unmortgage } from './manage';
+import { build, mortgage, sell, sellProperty, unmortgage } from './manage';
 import { transfer } from './money';
 import { settleMortgages } from './mortgage';
 import { endGame, timeUp } from './over';
@@ -100,6 +100,7 @@ export const HANDLERS: HandlerTable = {
   sell,
   mortgage,
   unmortgage,
+  sellProperty,
   settleMortgages,
   propose,
   accept,

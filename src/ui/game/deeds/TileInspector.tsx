@@ -3,6 +3,7 @@ import { useSelector } from '../../../state/store';
 import { uiStore } from '../../../state/ui';
 import { useView } from '../../../view';
 import { safeColor } from '../../colors';
+import { ConfirmButton } from '../../ConfirmButton';
 import { useBusy, useSend } from '../actions';
 import { useDoc, useGame, useMySeats, useNames } from '../context';
 import { Dialog } from '../Dialog';
@@ -51,7 +52,8 @@ export function TileInspector({ covered }: { covered: boolean }) {
 
 /**
  * My property's one-click actions, from the LOGICAL state: build (or sell) one level on exactly this street,
- * mortgage or lift it. A disabled action says why under it. The dialog stays open, so Build can be pressed again.
+ * mortgage or lift it, or sell it back to the bank (asked once more first: it can't be undone). A disabled action
+ * says why under it. The dialog stays open, so Build can be pressed again.
  */
 function SpaceActionRow({ space }: { space: number }) {
   const s = useGame();
@@ -88,6 +90,19 @@ function SpaceActionRow({ space }: { space: number }) {
           {step.reason && <small id={`why-${key}-${space}`} className="muted">{step.reason}</small>}
         </div>
       ))}
+      <div className="inspector-action">
+        <ConfirmButton
+          disabled={!x.sale.action || busy}
+          aria-describedby={x.sale.reason ? `why-sale-${space}` : undefined}
+          question={x.sale.mortgaged ? 'Give it back to the bank for nothing (it is mortgaged)?' : `Sell it to the bank for ${money(x.sale.amount)}?`}
+          yes="Sell"
+          no="Keep"
+          onConfirm={() => x.sale.action && void send(x.seat, x.sale.action)}
+        >
+          Sell to bank{' '}<span className="amt">(+{money(x.sale.amount)})</span>
+        </ConfirmButton>
+        {x.sale.reason && <small id={`why-sale-${space}`} className="muted">{x.sale.reason}</small>}
+      </div>
     </div>
   );
 }

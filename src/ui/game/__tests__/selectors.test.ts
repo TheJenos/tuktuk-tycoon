@@ -157,13 +157,13 @@ describe('resignQuestion', () => {
     expect(resignQuestion(g, 's0', names(g), false)).toMatch(/debt is paid first/);
   });
 
-  it("says everything goes to the one player who can't be paid", () => {
+  it("says everything is sold to the bank and the cash goes to the player who can't be paid", () => {
     const g = game();
     own(g, 's0', [1, 3]);
     g.players.s0!.cash = 10;
     inDebt(g, { s1: 1200 });
-    expect(resignQuestion(g, 's0', names(g), false)).toBe("Resign? You can't pay Bob: everything you own goes to them.");
+    expect(resignQuestion(g, 's0', names(g), false)).toBe("Resign? You can't pay Bob: everything you own is sold to the bank and they get the cash.");
     inDebt(g, { s1: 1200, bank: 50 });
-    expect(resignQuestion(g, 's0', names(g), true)).toMatch(/^Resign Ann\? You can't pay in full: your cash goes to Bob/);
+    expect(resignQuestion(g, 's0', names(g), true)).toMatch(/^Resign Ann\? You can't pay in full: everything you own is sold to the bank and the cash goes to Bob/);
   });
 });

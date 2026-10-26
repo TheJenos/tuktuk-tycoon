@@ -9,7 +9,7 @@ import { activeDeadline } from '../selectors';
  * button can start below the panel's fold, and keyboard focus must not sit on a button nobody can see.
  */
 function reveal(el: HTMLElement): void {
-  const box = el.closest<HTMLElement>('.hud-decision');
+  const box = el.closest<HTMLElement>('.hud-decision, .board-center');
   if (!box) return;
   const r = el.getBoundingClientRect();
   const b = box.getBoundingClientRect();
@@ -18,8 +18,8 @@ function reveal(el: HTMLElement): void {
 }
 
 /**
- * A decision in the context panel (the bottom sheet on phones): not modal, so Manage and Trade stay reachable
- * while deciding. It takes focus when it appears unless the player is busy with something else on the page.
+ * A decision over the middle of the board (the bottom sheet on phones): not modal, so Manage and Trade stay
+ * reachable while deciding. It takes focus when it appears unless the player is busy with something else on the page.
  */
 export function Prompt({ title, children, className, timed = true }: { title: ReactNode; children: ReactNode; className?: string; timed?: boolean }) {
   const id = useId();

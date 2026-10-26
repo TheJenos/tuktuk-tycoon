@@ -5,8 +5,8 @@ import { confirm } from './support/ui';
 
 /*
  * Owing more than you have: raise the cash (here by mortgaging in Manage, after which the debt settles by itself),
- * or, when even selling everything couldn't cover it, declare bankruptcy, which hands everything to the creditor
- * and in a two-player game ends it.
+ * or, when even selling everything couldn't cover it, declare bankruptcy: everything is sold to the bank and the
+ * creditor gets the cash (no property passes to it); in a two-player game that ends it.
  */
 
 needsEmulator();
@@ -47,7 +47,7 @@ test('rent Alice can only pay by mortgaging: Manage from the debt panel, and the
   }
 });
 
-test('a debt nothing can cover: bankruptcy to the creditor ends a two-player game', async ({ table }) => {
+test('a debt nothing can cover: bankruptcy sells everything to the bank, the creditor gets the cash, and a two-player game ends', async ({ table }) => {
   const { alice, bob } = await table({
     position: (setup) => roomPosition(setup, {
       edit: (s) => {
@@ -67,13 +67,18 @@ test('a debt nothing can cover: bankruptcy to the creditor ends a two-player gam
   await expect(debt.getByRole('heading', { level: 2 })).toHaveText('You owe Rs. 200,000');
   await expect(debt).toContainText('could raise up to Rs. 33,000');
   await expect(debt.getByRole('button', { name: 'Auto-raise and pay' })).toHaveCount(0);
+  await expect(debt).toContainText(`Bankruptcy: everything you own is sold to the bank and ${bob.name} gets the cash, up to what you owe.`);
   await confirm(debt.getByRole('button', { name: 'Declare bankruptcy' }));
 
   for (const p of [alice, bob]) {
     await expect(gameOver(p.page).getByRole('heading', { level: 2 })).toHaveText(`${bob.name} wins!`);
     await expect(gameOver(p.page)).toContainText('Last player standing');
     await expect(gameLog(p.page)).toContainText(`${alice.name} goes bankrupt to ${bob.name}`);
+    // Pettah Pavement was sold to the bank for its Rs. 3,000 mortgage value: Bob gets all Rs. 33,000, not the deed
+    await expect(gameLog(p.page)).toContainText(`${alice.name} pays ${bob.name} Rs. 33,000 rent for Galle Face Penthouse`);
+    await expect(gameLog(p.page)).toContainText('Pettah Pavement goes back to the bank');
+    await expect(cashOn(p.page, bob.name)).toHaveText('Rs. 183,000');
     await expect(badge(p.page, alice.name, 'Bankrupt')).toBeAttached();
-    await expect(swatch(p.page, bob.name, 'Pettah Pavement')).toBeAttached();
+    await expect(swatch(p.page, bob.name, 'Pettah Pavement')).toHaveCount(0);
   }
 });

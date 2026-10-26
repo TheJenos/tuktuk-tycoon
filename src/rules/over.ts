@@ -23,7 +23,7 @@ export function finish(c: Ctx, why: OverPhase['why']): void {
   c.s.pending = [];
   for (const id of Object.keys(c.s.trades)) {
     delete c.s.trades[id];
-    emit(c, { t: 'tradeCancelled', id, why: 'turnEnd' });
+    emit(c, { t: 'tradeCancelled', id, why: 'over' });
   }
   setPhase(c, { k: 'over', winner, ranking: order, why });
   emit(c, { t: 'over', winner, ranking: order, why });
