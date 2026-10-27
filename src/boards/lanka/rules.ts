@@ -1,4 +1,4 @@
-import type { BoardDef, CardDef, SpaceDef } from '../types';
+import type { BoardDef, CardDef, SpaceDef } from '../../rules/types';
 
 /*
  * THE swappable data file: a light-hearted Sri Lankan board. Prices, rents and card effects follow the 2007

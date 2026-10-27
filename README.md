@@ -15,15 +15,16 @@ plays without WebGL too.
 
 ## Theme
 
-Everything themed comes from a board data file; prices, rents and card effects are the rulebook's and the same on
-every board. Four boards, picked when a room or local game is set up (the Board cards at the top of the rules):
+Each board is one folder, `src/boards/<board>/`: its spaces, cards, size, player cap and standard rules, its tokens
+(shapes and icons), its bots' names and its sounds (see `src/boards/README.md`). Four boards, picked when a room or
+local game is set up (the Board cards at the top of the rules):
 
-- **All Island** (`src/rules/data/lanka.ts`, the default, described below): the whole island in one lap.
-- **Colombo** (`colombo.ts`): Pettah Market Lane up to a Galle Face Sky Suite; Fort, Maradana, Kompannavidiya and
+- **All Island** (`src/boards/lanka/`, the default, described below): the whole island in one lap, 40 spaces.
+- **Colombo** (`colombo/`, 32 spaces, 2–4 players): Pettah Market Lane up to a Galle Face Sky Suite; Fort, Maradana, Kompannavidiya and
   Bambalapitiya stations; the Load Shedding and Low Pressure Water Boards; Rush Hour and Office Seettu decks.
-- **Hill Country** (`hill.ts`): Gampola Bazaar up to Little England Mansion; Kandy, Nanu Oya, Haputale and Ella
+- **Hill Country** (`hill/`, 36 spaces, 2–6 players): Gampola Bazaar up to Little England Mansion; Kandy, Nanu Oya, Haputale and Ella
   stations; Mountain Mist and Tea Tin decks.
-- **Down South** (`south.ts`): Hambantota Salt Pans up to Bentota Beach Palace; Hikkaduwa, Galle, Weligama and
+- **Down South** (`south/`, 48 spaces, 2–8 players): Hambantota Salt Pans up to Bentota Beach Palace; Hikkaduwa, Galle, Weligama and
   Matara stations; Lucky Wave and Fishermen's Kitty decks.
 
 The All Island board:
@@ -388,7 +389,7 @@ state**: a mulberry32 generator whose whole state is one integer in the game sta
 shuffles, the opening roll), `roll` and the nearest-Board card's fresh throw. So the same commands give the same
 dice on every client, and nobody can change the next roll by slipping in a free action first. The engine has no
 clock: `timer(state)` names the decision being waited on, and the net layer keeps the deadline. Every name, price,
-rent and card comes from the board's data file (`src/rules/data/`). In dev and test builds every command is
+rent and card comes from the board's data file (`src/boards/<board>/rules.ts`). In dev and test builds every command is
 checked against the invariants (no negative cash, the bank's stock adds up, even building, buildings only on whole
 sets, every card accounted for...).
 
@@ -719,8 +720,6 @@ src/
     README.md             its API: commands, phases, events, timers, the engine's own decisions
     index.ts              the public API (import from src/rules only)
     types.ts              every public type: state, actions, phases, events, board data
-    data/lanka.ts         the default board's data: 40 spaces, rents, both decks, Speed Die faces, title and colours
-    data/colombo.ts, hill.ts, south.ts   the other boards: the same numbers and card effects, other names
     board.ts              registered boards and space helpers
     config.ts             RulesConfig defaults and clamping; RULES_VERSION
     create.ts             createGame: seats, starting cash, shuffles, the opening roll
@@ -948,12 +947,12 @@ src/
 
 ## Changing the theme
 
-Every name, price, rent and card text is in one board data file, `src/rules/data/lanka.ts` and its siblings
-(`display.title` is the word in the middle of the board, `display.subtitle` the line under it, `display.name` and
-`display.blurb` what the board picker shows, `display.decks` names the two card decks); the rules logic never
-hard-codes any of them. To add a board, write another file of the same shape, add it to the list in
-`src/rules/board.ts` (the picker follows) and allow its id in `database.rules.json` (`lobby/$room/board` and
-`rooms/$room/setup/rules/board`); `src/rules/__tests__/boards.test.ts` checks it matches the All Island numbers. The app's own name, "Tuk-Tuk Tycoon", is in `index.html`,
+Everything about a board is in its folder, `src/boards/<board>/` (see `src/boards/README.md`): every name, price,
+rent and card text in `rules.ts` (`display.title` is the word in the middle of the board, `display.subtitle` the line
+under it, `display.name` and `display.blurb` what the board picker shows, `display.decks` names the two card decks),
+its tokens and bots' names in `theme.ts`, the tokens' shapes in `tokens.ts` and `icons.tsx`, its sounds in `sounds/`.
+The rules logic never hard-codes any of them. `src/boards/README.md` lists what adding a board takes;
+`src/rules/__tests__/boards.test.ts` checks every board's shape. The app's own name, "Tuk-Tuk Tycoon", is in `index.html`,
 `src/ui/Brand.tsx`, the share text in `src/ui/lobby/WaitingRoom.tsx`, `public/credits.html`, the logo's label in
 `public/brand/logo.svg`, and the heading `e2e/smoke.spec.ts` looks for.
 
@@ -965,8 +964,10 @@ licenses. Every texture, model and icon is generated in code, and text uses the 
 
 ### Assets: sounds and music
 
-Everything in `public/sounds` is public domain ([CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/)),
-trimmed and re-encoded (OGG Vorbis 64 kbps mono for effects, 96 kbps stereo for the music loop, plus MP3s):
+Every board's sounds (`src/boards/<board>/sounds`) are public domain
+([CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/)); `public/credits.html` lists each board's sources.
+All Island's, trimmed and re-encoded (OGG Vorbis 64 kbps mono for effects, 96 kbps stereo for the music loop, plus
+MP3s):
 
 | Source | Author | License | Files used → in the game |
 | --- | --- | --- | --- |
@@ -976,4 +977,5 @@ trimmed and re-encoded (OGG Vorbis 64 kbps mono for effects, 96 kbps stereo for 
 | [Happy Clappy Loop](https://opengameart.org/content/happy-clappy-loop) | [OwlishMedia](https://opengameart.org/users/owlishmedia) | CC0 | HappyClappyLoop.wav → music-loop (whole, it loops seamlessly) |
 | [Tropoix](https://opengameart.org/content/tropoix) | [Tozan](https://opengameart.org/users/tozan) | CC0 (credit optional) | Tropicx.ogg, its first phrase (0.9 s to 8 s) → music-intro |
 
-To swap a sound, replace both `public/sounds/<name>.ogg` and `.mp3`; volumes and overlap are in `src/audio/sounds.ts`.
+To swap a sound, replace both `src/boards/<board>/sounds/<name>.ogg` and `.mp3` (a board without a file plays All
+Island's); volumes and overlap are in `src/audio/sounds.ts`.

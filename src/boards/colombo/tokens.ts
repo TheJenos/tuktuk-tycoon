@@ -1,5 +1,5 @@
 import { BoxGeometry, ConeGeometry, CylinderGeometry, SphereGeometry, TorusGeometry } from 'three';
-import { B, extrude, lathe, part, type TokenBuilder } from '../kit';
+import { B, extrude, lathe, part, type TokenBuilder } from '../../scene/tokens/kit';
 
 /** Radius of the traffic cone's body at height y (above its base slab) */
 const coneR = (y: number) => 0.1 - (0.075 * (y - 0.012)) / 0.378;

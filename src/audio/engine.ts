@@ -130,9 +130,9 @@ export class AudioEngine {
    * music crossfades to the new board's loop.
    */
   setFolder(folder: string, loopSeconds = LOOP_SECONDS): void {
+    this.loopSeconds = loopSeconds;
     if (folder === this.folder) return;
     this.folder = folder;
-    this.loopSeconds = loopSeconds;
     if (!this.ctx) return;
     this.stopLoop(FADE_OUT_S);
     this.syncMusic();

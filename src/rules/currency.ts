@@ -1,4 +1,4 @@
-import { LANKA } from './data/lanka';
+import { LANKA } from '../boards/lanka/rules';
 
 /*
  * The display scale for money. The engine counts rulebook units (start 1500, prices 60..400, rents, fines, bids,

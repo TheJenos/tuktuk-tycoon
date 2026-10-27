@@ -2,7 +2,7 @@ import { BufferGeometry, Euler, ExtrudeGeometry, LatheGeometry, Matrix4, Quatern
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 /*
- * The token modelling kit, shared by every board's tokens (shapes.ts and tokens/sets/*.ts): tokens are built from
+ * The token modelling kit, shared by every board's tokens (src/boards/<board>/tokens.ts): tokens are built from
  * three.js primitives (no model files), each a few hundred triangles merged into one geometry standing on y = 0 and
  * facing +X, on the common round plinth (its top at B). Modelled about 0.5 tall inside a 0.2 radius, then scaled by
  * TOKEN_SCALE. A builder returns its parts; tokenGeometry() adds the plinth, merges and scales.

@@ -10,7 +10,7 @@ import {
   TorusGeometry,
   Vector3,
 } from 'three';
-import { B, extrude, lathe, part, type TokenBuilder, type V3 } from '../kit';
+import { B, extrude, lathe, part, type TokenBuilder, type V3 } from '../../scene/tokens/kit';
 
 /** The rotation that turns +Y (or `from`) onto the direction `dir` */
 function aim(dir: Vector3, from = new Vector3(0, 1, 0)): V3 {

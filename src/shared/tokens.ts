@@ -1,48 +1,21 @@
+import { COLOMBO_THEME } from '../boards/colombo/theme';
+import { HILL_THEME } from '../boards/hill/theme';
+import { LANKA_THEME } from '../boards/lanka/theme';
+import { SOUTH_THEME } from '../boards/south/theme';
+
+/** Each board's token set (src/boards/<board>/theme.ts) */
+const SETS = { lanka: LANKA_THEME.tokens, colombo: COLOMBO_THEME.tokens, hill: HILL_THEME.tokens, south: SOUTH_THEME.tokens };
+
 /**
  * The player tokens: eight per board, each board its own set (ids unique across boards). Ids are stored in rooms
- * (database.rules.json checks their form); labels are shown in the UI. A board's set is in seat-slot order: slot k of
- * one board stands for slot k of another (tokenOn), so a seat keeps a token of its own when the board changes.
+ * (database.rules.json lists them); labels are shown in the UI. A board's set is in seat-slot order: slot k of one
+ * board stands for slot k of another (tokenOn), so a seat keeps a token of its own when the board changes.
  */
-export const TOKENS = [
-  // All Island
-  { id: 'tuktuk', label: 'Tuk-tuk', board: 'lanka' },
-  { id: 'elephant', label: 'Elephant', board: 'lanka' },
-  { id: 'coconut', label: 'King coconut', board: 'lanka' },
-  { id: 'cricket', label: 'Cricket bat', board: 'lanka' },
-  { id: 'tea', label: 'Cup of tea', board: 'lanka' },
-  { id: 'drum', label: 'Kandyan drum', board: 'lanka' },
-  { id: 'oruwa', label: 'Oruwa canoe', board: 'lanka' },
-  { id: 'kite', label: 'New Year kite', board: 'lanka' },
-  // Colombo
-  { id: 'cityBus', label: 'Red bus', board: 'colombo' },
-  { id: 'lotusTower', label: 'Lotus Tower', board: 'colombo' },
-  { id: 'clockTower', label: 'Clock tower', board: 'colombo' },
-  { id: 'crow', label: 'Crow', board: 'colombo' },
-  { id: 'hopper', label: 'Hopper', board: 'colombo' },
-  { id: 'isso', label: 'Isso prawn', board: 'colombo' },
-  { id: 'briefcase', label: 'Briefcase', board: 'colombo' },
-  { id: 'trafficCone', label: 'Traffic cone', board: 'colombo' },
-  // Hill Country
-  { id: 'steamTrain', label: 'Steam train', board: 'hill' },
-  { id: 'adamsPeak', label: "Adam's Peak", board: 'hill' },
-  { id: 'archBridge', label: 'Nine Arch Bridge', board: 'hill' },
-  { id: 'teaBasket', label: 'Tea basket', board: 'hill' },
-  { id: 'strawberry', label: 'Strawberry', board: 'hill' },
-  { id: 'umbrella', label: 'Umbrella', board: 'hill' },
-  { id: 'leech', label: 'Leech', board: 'hill' },
-  { id: 'sambar', label: 'Sambar deer', board: 'hill' },
-  // Down South
-  { id: 'stiltFisher', label: 'Stilt fisherman', board: 'south' },
-  { id: 'seaTurtle', label: 'Sea turtle', board: 'south' },
-  { id: 'surfboard', label: 'Surfboard', board: 'south' },
-  { id: 'lighthouse', label: 'Galle lighthouse', board: 'south' },
-  { id: 'palmTree', label: 'Palm tree', board: 'south' },
-  { id: 'devilMask', label: 'Devil mask', board: 'south' },
-  { id: 'crab', label: 'Crab', board: 'south' },
-  { id: 'conch', label: 'Conch shell', board: 'south' },
-] as const;
+export const TOKENS = (Object.entries(SETS) as [string, (typeof SETS)[keyof typeof SETS]][]).flatMap(([board, set]) =>
+  set.map((t) => ({ ...t, board })),
+);
 
-export type TokenId = (typeof TOKENS)[number]['id'];
+export type TokenId = (typeof SETS)[keyof typeof SETS][number]['id'];
 
 export const isTokenId = (v: unknown): v is TokenId => TOKENS.some((t) => t.id === v);
 

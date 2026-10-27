@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { defaultAction, isProperty } from '..';
-import { LANKA } from '../data/lanka';
+import { LANKA } from '../../boards/lanka/rules';
 import type { GameState, SeatId } from '../types';
 import { act, cash, ofType, own, pos, refused, rig, run, scenario, setPos, stack } from './helpers';
 

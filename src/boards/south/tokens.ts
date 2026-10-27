@@ -11,7 +11,7 @@ import {
   Vector2,
   Vector3,
 } from 'three';
-import { B, extrude, lathe, part, type TokenBuilder, type V3 } from '../kit';
+import { B, extrude, lathe, part, type TokenBuilder, type V3 } from '../../scene/tokens/kit';
 
 /** A rod of radius r from a to b (a cylinder turned to lie along a -> b) */
 function stick(a: V3, b: V3, r: number, segments = 6, r2 = r): BufferGeometry {

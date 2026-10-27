@@ -1,4 +1,4 @@
-import type { BoardDef, CardDef, SpaceDef } from '../types';
+import type { BoardDef, CardDef, SpaceDef } from '../../rules/types';
 
 /*
  * "Down South": the south coast from Bentota to Hambantota along the coastal line, the biggest board: 48 spaces

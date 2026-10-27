@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RULES_VERSION } from '../../rules';
 import { ONLINE_TIMERS } from '../../shared/timing';
-import { TOKENS } from '../../shared/tokens';
+import { DEFAULT_TOKEN } from '../../shared/tokens';
 import { MemoryDb, MemoryServer, type Db } from '../db';
 import { EMPTY_GRACE_MS, RoomConnection, RoomError, watchRooms, type ClosedReason, type LobbyRecord, type RoomSummary } from '../network';
 import { rememberedPid, roomPlayerId } from '../rejoin';
@@ -54,7 +54,7 @@ describe('RoomConnection: waiting room', () => {
     });
     const setup = owner.setup()!;
     expect(setup.locked).toBe('');
-    expect(setup.seats.s0).toMatchObject({ kind: 'human', ctrl: PIDS[0], token: TOKENS[0].id });
+    expect(setup.seats.s0).toMatchObject({ kind: 'human', ctrl: PIDS[0], token: DEFAULT_TOKEN });
     expect(setup.seats.s1).toMatchObject({ kind: 'bot', ctrl: '', skill: 'normal' });
     expect(server.read(`rooms/${code}/presence/${PIDS[0]}`)).toMatchObject({ name: 'Alice', seat: 's0', vis: true });
 
@@ -74,7 +74,7 @@ describe('RoomConnection: waiting room', () => {
     expect(new Set(tokens).size).toBe(3);
     expect(bobSeat.ctrl).toBe(PIDS[1]);
     expect(lobbyOf(server, code)?.seatsTaken).toBe(3);
-    await expect(bob.claimSeat(TOKENS[0].id)).rejects.toMatchObject({ code: 'token' });
+    await expect(bob.claimSeat(DEFAULT_TOKEN)).rejects.toMatchObject({ code: 'token' });
 
     const { c: carol } = await join(PIDS[2], 'Carol');
     expect(carol.mySeat()).toBeNull();

@@ -1,8 +1,8 @@
 # Rules engine (`src/rules`)
 
 The pure property-trading rules: Classic rules plus the optional Speed Die (2007 rulebook, see `docs/rules.md`), on
-Tuk-Tuk Tycoon's boards (`data/lanka.ts`, the default, and its themed twins `data/colombo.ts`, `data/hill.ts`,
-`data/south.ts`: same numbers and card effects, other names). No React, three, R3F or Firebase imports; nothing but its own files. Every client runs the same reducer on the same JSON state,
+Tuk-Tuk Tycoon's boards (each board's data is `src/boards/<board>/rules.ts`, registered in `board.ts`: All Island,
+the default, and Colombo, Hill Country and Down South, each its own size). No React, three, R3F or Firebase imports; nothing but its own files. Every client runs the same reducer on the same JSON state,
 so a replay of the same commands gives the same state and the same events everywhere.
 
 Read this file and `types.ts`; everything else is implementation. Import from `src/rules` (`index.ts`) only.
@@ -32,7 +32,8 @@ if (r.ok) { state = r.state; play(r.events); } else showError(r.error.message);
 - **Money is in rulebook units** (start 1500, prices 60..400): state, actions, events, configs and bots all use
   them. Players see and type rupees at `board.display.currency.scale` (x100): `formatMoney(1500)` is
   `"Rs. 150,000"` and `toUnits(6049)` is 60. The engine's own error messages format through it too.
-- **One data file**: `data/lanka.ts` holds every name, price, rent, card and label. Logic never hard-codes them.
+- **One data file per board**: `src/boards/<board>/rules.ts` holds every name, price, rent, card and label. Logic
+  never hard-codes them.
 
 ## Config
 

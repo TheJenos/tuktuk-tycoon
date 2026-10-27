@@ -6,7 +6,7 @@ import { settings } from '../ui/settings';
 import { director, type PlayInfo } from '../view';
 import { AudioEngine, type Voice } from './engine';
 import { cuesFor, pickInstant, type Cue } from './events';
-import { LOOP_SECONDS, LOOP_SECONDS_BY_FOLDER, SOUND_NAMES } from './sounds';
+import { SOUND_NAMES } from './sounds';
 
 /*
  * Sound for the game: wires the engine (src/audio/engine.ts) to the settings, the first user gesture, the tab's
@@ -38,7 +38,16 @@ function prefer(): 'ogg' | 'mp3' {
   }
 }
 
-const base = (): string => (import.meta.env?.BASE_URL ?? '/').replace(/\/?$/, '/');
+/** Every board's sound files (src/boards/<board>/sounds), as the URLs the build gives them */
+const FILES: Record<string, string> = import.meta.glob<string>('../boards/*/sounds/*.{ogg,mp3}', { query: '?url&no-inline', import: 'default', eager: true });
+
+/** A sound's URL: `name` is All Island's, `board/name` that board's; '' when there is no such file */
+function soundUrl(path: string, ext: 'ogg' | 'mp3'): string {
+  const [board, name] = path.includes('/') ? (path.split('/') as [string, string]) : ['lanka', path];
+  return FILES[`../boards/${board}/sounds/${name}.${ext}`] ?? '';
+}
+
+const missing = { ok: false, arrayBuffer: async () => new ArrayBuffer(0) };
 
 /** The engine, made on first use (null in a silenced or audio-less browser) */
 export function audio(): AudioEngine | null {
@@ -52,8 +61,8 @@ export function audio(): AudioEngine | null {
         return null;
       }
     },
-    url: (name, ext) => `${base()}sounds/${name}.${ext}`,
-    fetch: (u) => fetch(u),
+    url: soundUrl,
+    fetch: (u) => (u ? fetch(u) : Promise.resolve(missing)),
     prefer: prefer(),
   });
   return engine;
@@ -95,8 +104,8 @@ export function setMenuBoard(board: string | null): void {
 function syncBoard(): void {
   const e = engine;
   if (!e?.ctx) return;
-  const folder = boardTheme(director.view.get().game?.cfg.board ?? menuBoard ?? 'lanka').sounds;
-  e.setFolder(folder, LOOP_SECONDS_BY_FOLDER[folder] ?? LOOP_SECONDS);
+  const theme = boardTheme(director.view.get().game?.cfg.board ?? menuBoard ?? 'lanka');
+  e.setFolder(theme.sounds, theme.loopSeconds);
   e.preload(SOUND_NAMES);
 }
 

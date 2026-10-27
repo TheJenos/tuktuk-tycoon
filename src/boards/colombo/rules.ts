@@ -1,4 +1,4 @@
-import type { BoardDef, CardDef, SpaceDef } from '../types';
+import type { BoardDef, CardDef, SpaceDef } from '../../rules/types';
 
 /*
  * "Colombo": the city board, the smallest: 32 spaces (seven between corners) for 2 to 4 players. Eight colour groups of

@@ -20,9 +20,3 @@
   for = "/brand/*"
   [headers.values]
     Cache-Control = "public, max-age=86400, stale-while-revalidate=604800"
-
-# The sounds keep their names too: a week, then the cached copy while checking for a new one.
-[[headers]]
-  for = "/sounds/*"
-  [headers.values]
-    Cache-Control = "public, max-age=604800, stale-while-revalidate=2592000"

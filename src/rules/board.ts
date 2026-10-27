@@ -1,7 +1,7 @@
-import { COLOMBO } from './data/colombo';
-import { HILL } from './data/hill';
-import { LANKA } from './data/lanka';
-import { SOUTH } from './data/south';
+import { COLOMBO } from '../boards/colombo/rules';
+import { HILL } from '../boards/hill/rules';
+import { LANKA } from '../boards/lanka/rules';
+import { SOUTH } from '../boards/south/rules';
 import type { BoardDef, CardDef, Deck, GroupDef, PropertyDef, SpaceDef, StreetDef } from './types';
 
 /** Every board, in picker order (the first is the default). Same rules and numbers; only the theme differs. */

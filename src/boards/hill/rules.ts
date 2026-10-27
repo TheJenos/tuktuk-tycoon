@@ -1,4 +1,4 @@
-import type { BoardDef, CardDef, SpaceDef } from '../types';
+import type { BoardDef, CardDef, SpaceDef } from '../../rules/types';
 
 /*
  * "Hill Country": Kandy to Nuwara Eliya and Ella along the main line. 36 spaces (eight between corners) for 2 to 6
