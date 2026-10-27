@@ -246,6 +246,8 @@ function GameScreen({ session, onLeave, onRematch, isOwner = false, ownerActions
                 </button>
               )}
             </div>
+            {/* Phones: under the turn bar, folded to one line (the context column has no room beside the board) */}
+            {phone && <HeroCard compact />}
             {session.online && !connected && (
               <p className="hud-banner danger" role="alert">
                 <span className="spinner" aria-hidden="true" />Connection lost: reconnecting…
@@ -274,7 +276,7 @@ function GameScreen({ session, onLeave, onRematch, isOwner = false, ownerActions
               {phone && decision}
               <TradeOffers onCounter={(from, draft) => openTrade(from, draft)} />
             </div>
-            <HeroCard />
+            {!phone && <HeroCard />}
             <MyProperties onClose={closePanel} />
             <EventLog expanded={ui.panel === 'log'} onToggle={toggleLog} />
           </aside>

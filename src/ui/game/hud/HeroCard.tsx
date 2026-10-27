@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { activeSeats, heroesOf, heroOf, powerReady, usablePowers, type GameState, type SeatId } from '../../../rules';
 import { useView } from '../../../view';
 import { safeColor } from '../../colors';
@@ -13,9 +13,12 @@ import '../heroes.css';
  * whether it is ready (and when it comes back once used), and for Steel Ace which heroes' superpowers Suit Up can
  * copy now. Hero cards are public in the board game, so nothing here is hidden. Hot-seat: the same local seat as My
  * locations shows, with the same switcher (a seat picked in either shows in both).
+ *
+ * compact (phones): under the turn bar, folded to its header line; the hero's name opens and closes the rest.
  */
 
-export function HeroCard() {
+export function HeroCard({ compact = false }: { compact?: boolean }) {
+  const [open, setOpen] = useState(false);
   const shown = useView((v) => v.game);
   const logical = useGame();
   const s = shown ?? logical;
@@ -28,25 +31,45 @@ export function HeroCard() {
   const ready = powerReady(s, seat);
   // What the logical state lets the seat use right now (a window open for it, Titan Smash before the roll)
   const now = logical ? usablePowers(logical, seat) : [];
+  const folded = compact && !open;
+  const title = (
+    <>
+      <span className="hero-icon">
+        <TokenIcon token={hero.id} size={compact ? 20 : 24} />
+      </span>
+      <strong>{hero.name}</strong>
+    </>
+  );
   return (
-    <section className="hero-card panel" aria-label="My hero" style={{ '--hero': safeColor(hero.colour) } as CSSProperties}>
+    <section
+      className={`hero-card panel${compact ? ' compact' : ''}`}
+      aria-label="My hero"
+      style={{ '--hero': safeColor(hero.colour) } as CSSProperties}
+    >
       <header className="hero-card-head">
-        <span className="hero-icon">
-          <TokenIcon token={hero.id} size={24} />
-        </span>
-        <strong>{hero.name}</strong>
+        {compact ? (
+          <button type="button" className="hero-card-toggle" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+            {title}
+          </button>
+        ) : (
+          title
+        )}
         <SeatSwitcher shown={shownSeat} names={names} className="hero-seats" />
         {ready ? <span className="badge good">{hero.powerName} ready</span> : <span className="badge">Superpower used</span>}
       </header>
-      <p>
-        <strong>{hero.powerName}</strong>: {hero.powerText}
-      </p>
-      {!ready && <p className="muted">Ready again when you collect a {startName(names.board)} salary (not in the turn you used it) or draw a Recharge card.</p>}
-      {ready && hero.power === 'copy' && <p className="muted">{copyLine(s, names, seat)}</p>}
-      {now.length > 0 && (
-        <p>
-          <span className="badge accent">Now</span> {listText(now.map((u) => (u.copied ? `${powerName(names.board, u.power)} (${names.hero(u.hero)}'s)` : powerName(names.board, u.power))))}
-        </p>
+      {!folded && (
+        <>
+          <p>
+            <strong>{hero.powerName}</strong>: {hero.powerText}
+          </p>
+          {!ready && <p className="muted">Ready again when you collect a {startName(names.board)} salary (not in the turn you used it) or draw a Recharge card.</p>}
+          {ready && hero.power === 'copy' && <p className="muted">{copyLine(s, names, seat)}</p>}
+          {now.length > 0 && (
+            <p>
+              <span className="badge accent">Now</span> {listText(now.map((u) => (u.copied ? `${powerName(names.board, u.power)} (${names.hero(u.hero)}'s)` : powerName(names.board, u.power))))}
+            </p>
+          )}
+        </>
       )}
     </section>
   );
