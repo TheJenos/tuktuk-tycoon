@@ -579,7 +579,8 @@ The same build runs as a Discord Activity: players launch it from a voice channe
 ## Deploying (Netlify)
 
 `netlify.toml` has it all: the build (`npm run build`, Node 22), the published folder (`dist`), the functions
-(`netlify/functions`), and cache headers (hashed `/assets/*` cached forever, `/brand/*` for a day).
+(`netlify/functions`), and cache headers (hashed `/assets/*` cached forever, `/brand/*` for a day, `/sw.js` and the
+manifest never).
 
 - **Netlify builds it** (link the repository): `.env` isn't committed, so set the `VITE_FIREBASE_*` values (and
   `VITE_DISCORD_CLIENT_ID`) in the site's environment variables; Vite bakes them in at build time. Add
@@ -591,6 +592,21 @@ The same build runs as a Discord Activity: players launch it from a voice channe
 
 A build with no `VITE_FIREBASE_*` values is an offline-only game (Play now and Local game) that any static host can
 serve. Only the Discord sign-in needs the function. `npm run preview` serves a built `dist/` locally.
+
+### Install as an app (PWA)
+
+The production build is a Progressive Web App: browsers offer to install it (Chrome/Edge: the install icon in the
+address bar or "Install app"; Android: "Add to Home screen"; iOS Safari: Share > "Add to Home Screen"), and it opens
+full screen with its own icon. Once loaded, it starts and plays offline (Play now and Local game); online rooms still
+need a connection.
+
+- `public/manifest.webmanifest`: name, colours, icons (`public/brand/icon-*.png`, made by `npm run build:brand`).
+- `scripts/sw.js`: the service worker. Pages are network first (the cached page when offline), hashed `/assets/*`
+  cache first, other files stale-while-revalidate. Other origins (Firebase, Discord, the functions) aren't touched.
+- `scripts/pwa.ts`: a Vite plugin that writes `dist/sw.js` with the build's files to precache (code, styles, Rapier's
+  wasm, fonts and the default board's sound effects; music and other boards' sounds are cached when first played).
+- `src/pwa.ts`: registers it, in production builds only and never inside Discord. A new version takes over once
+  every tab of the old one is closed, so a game in progress isn't swapped out under itself.
 
 ## Tests
 
@@ -716,7 +732,7 @@ e2e/
   tsconfig.json           type-checks e2e/ (npm run typecheck)
 firebase.json             the emulator (database on :9000, no UI) and the rules file
 index.html                the page: title, description, theme colour, favicon; loads src/main.tsx
-netlify.toml              Netlify: build, functions, cache headers
+netlify.toml              Netlify: build, functions, cache headers (the service worker's)
 netlify/functions/
   discord-token.mjs       Discord sign-in: trades the Activity's code for a token (holds the client secret)
 package.json              scripts, dependencies; React pinned to 19.3 (R3F 9 needs React below 19.4)
@@ -724,12 +740,15 @@ package-lock.json         exact dependency versions (npm ci)
 plans/                    the approved plan (tuk-tuk-tycoon.md)
 playwright.config.ts      e2e: port 5176, SwiftShader WebGL, the e2e dev server
 public/
-  brand/logo.svg          the logo
+  brand/logo.svg          the logo (the PNG icons beside it come from it: npm run build:brand)
+  manifest.webmanifest    the installable app: name, colours, icons
   sounds/                 the sound effects and music: OGG Vorbis, and an MP3 of each (credits.html says whose)
   credits.html            the credits page (linked from the lobby)
   favicon.svg             the logo simplified for tiny sizes
 README.md                 this file
 scripts/
+  pwa.ts                  Vite plugin: writes dist/sw.js with the build's files to precache
+  sw.js                   the service worker (offline play, installable app)
   sim.ts                  npm run sim: random-legal-move games through the engine
   sim-bots.ts             npm run sim:bots: bot-vs-bot games, wins by level, decision times
   test-rules.mjs          npm run test:rules: the database rules against the emulator
@@ -739,6 +758,7 @@ vitest.config.ts          unit tests in Node
 src/
   main.tsx                entry: imports discord/patch first, then loads start.tsx
   start.tsx               mounts <App> (no StrictMode: its double mount would leave and rejoin rooms)
+  pwa.ts                  registers the service worker (production builds, not inside Discord)
   style.css               the look: glass panels, the menu shell, the game screen, phone layouts
   vite-env.d.ts           the VITE_* variables
   __tests__/smoke.test.ts the test runner itself
