@@ -18,7 +18,8 @@ export const isTokenId = (v: unknown): v is TokenId => TOKENS.some((t) => t.id =
 export const DEFAULT_TOKEN: TokenId = 'tuktuk';
 
 /**
- * Seat colours, one per seat (s0..s7). Picked to stay distinguishable with the common colour-vision deficiencies;
- * the token silhouette is always shown next to the colour, so colour is never the only cue.
+ * Seat colours, one per seat (s0..s7): saturated, and spread as far apart around the colour wheel as eight hues go
+ * (red, blue, yellow, green, then purple, orange, cyan, pink), so the first four seats get the four most distinct.
+ * The token silhouette is always shown next to the colour, so colour is never the only cue.
  */
-export const SEAT_COLORS = ['#e8a33d', '#3d8fe8', '#d6475b', '#3fae6a', '#9b6ae0', '#e07ac0', '#2bb3b3', '#c9c9c9'] as const;
+export const SEAT_COLORS = ['#e01e2b', '#2457ff', '#f5c400', '#1e9e3a', '#a32eff', '#ff7f00', '#00b7cc', '#ff40c0'] as const;

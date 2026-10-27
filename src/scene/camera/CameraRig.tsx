@@ -5,14 +5,16 @@ import type { PerspectiveCamera } from 'three';
 import { uiStore } from '../../state/ui';
 import { settings } from '../../ui/settings';
 import { director } from '../../view';
-import { BOARD_AREA, frameArea, pathArea, shotPolar, tileArea, zoomOutLimit, type Area } from './framing';
+import { BOARD_AREA, frameArea, laneAzimuth, nearestAzimuth, pathArea, shotPolar, tileArea, zoomOutLimit, type Area } from './framing';
 import { setOverview } from './recenter';
 
 export { recenter } from './recenter';
 
 /*
  * The game camera: drei's CameraControls (orbit, zoom, pan; touch: one finger turns, pinch zooms, two fingers pan)
- * with automatic framing on top: the whole board, a move's path, or one tile. Any drag or zoom by the player sets
+ * with automatic framing on top: the whole board, a move's path, or one tile. A move (and an auction's lot) also turns
+ * the board so its lane is the near side; the whole-board shots between keep that turn, and Recenter swings back
+ * to the front. Hovering spaces in a list or the picker's cursor don't turn it. Any drag or zoom by the player sets
  * uiStore.cameraManual, which pauses the automatic framing until recenter() (the Recenter button / C key).
  * A space previewed from a list (uiStore.preview) holds the camera on its tile: the director's shots wait meanwhile
  * and the latest is taken up when the preview ends (with a hand-moved camera the tile is only highlighted).
@@ -33,15 +35,15 @@ export function CameraRig() {
   const ref = useRef<CameraControls>(null);
   const camera = useThree((s) => s.camera) as PerspectiveCamera;
   const get = useThree((s) => s.get);
-  const last = useRef<{ area: Area; shot: Shot; turn: boolean }>({ area: BOARD_AREA, shot: 'overview', turn: true });
+  const last = useRef<{ area: Area; shot: Shot; face?: number }>({ area: BOARD_AREA, shot: 'overview', face: 0 });
   /** While a preview holds the camera: the shot to go back to (the director's latest) */
-  const held = useRef<{ area: Area; shot: Shot; turn: boolean } | null>(null);
+  const held = useRef<{ area: Area; shot: Shot; face?: number } | null>(null);
 
-  /** Frames `area`; `turn` also swings the camera back round to the board's front */
+  /** Frames `area`; `face` also swings the camera round to that azimuth (0: the board's front) */
   const frame = useCallback(
-    (area: Area, shot: Shot, opts: { smooth?: boolean; force?: boolean; turn?: boolean } = {}): Promise<void> => {
+    (area: Area, shot: Shot, opts: { smooth?: boolean; force?: boolean; face?: number } = {}): Promise<void> => {
       const c = ref.current;
-      last.current = { area, shot, turn: !!opts.turn };
+      last.current = { area, shot, ...(opts.face !== undefined ? { face: opts.face } : {}) };
       if (!c) return Promise.resolve();
       const { size } = get();
       const ins = uiStore.get().insets;
@@ -54,9 +56,9 @@ export function CameraRig() {
       c.maxDistance = zoomOutLimit(camera.fov, aspect, insets, shotPolar(POLAR.overview, aspect), LIMITS.maxDistance);
       if (!opts.force && !auto()) return Promise.resolve();
       const polar = shotPolar(POLAR[shot], aspect);
-      // Swinging round to the front takes the short way, however far the player had turned the board.
+      // Swinging round takes the short way, however far the player had turned the board
       const a = c.azimuthAngle;
-      const azimuth = opts.turn ? a - Math.atan2(Math.sin(a), Math.cos(a)) : a;
+      const azimuth = opts.face !== undefined ? nearestAzimuth(a, opts.face) : a;
       const lens = { fov: camera.fov, aspect, minDistance: LIMITS.minDistance, maxDistance: c.maxDistance };
       const f = frameArea(area, azimuth, polar, lens, insets);
       const smooth = (opts.smooth ?? true) && !settings.get().reduceMotion;
@@ -73,21 +75,22 @@ export function CameraRig() {
   useEffect(() => {
     const offOverview = setOverview(() => {
       held.current = null;
-      return frame(BOARD_AREA, 'overview', { force: true, turn: true });
+      return frame(BOARD_AREA, 'overview', { force: true, face: 0 });
     });
     /** The director's shots: taken now, or kept for when a preview lets go of the camera */
-    const shot = (area: Area, kind: Shot): Promise<void> => {
-      if (!held.current) return frame(area, kind);
-      held.current = { area, shot: kind, turn: false };
+    const shot = (area: Area, kind: Shot, face?: number): Promise<void> => {
+      const s = { area, shot: kind, ...(face !== undefined ? { face } : {}) };
+      if (!held.current) return frame(area, kind, s);
+      held.current = s;
       return Promise.resolve();
     };
     // A picker already open (a game resumed at a triple) gets its cursor framed straight away
     const g0 = uiStore.get().picker?.ghost ?? null;
-    if (g0 === null) void frame(BOARD_AREA, 'overview', { smooth: false, force: true, turn: true });
+    if (g0 === null) void frame(BOARD_AREA, 'overview', { smooth: false, force: true, face: 0 });
     else void frame(tileArea(g0), 'focus', { smooth: false, force: true });
     const offApi = director.register('camera', {
-      focus: (space) => (space === null ? shot(BOARD_AREA, 'overview') : shot(tileArea(space), 'focus')),
-      follow: (path) => shot(pathArea(path), 'follow'),
+      focus: (space) => (space === null ? shot(BOARD_AREA, 'overview') : shot(tileArea(space), 'focus', laneAzimuth([space]))),
+      follow: (path) => shot(pathArea(path), 'follow', laneAzimuth(path)),
     });
     // Re-frame when the HUD's panels change size, and follow the picker's cursor (Bus choice, triples)
     let insets = uiStore.get().insets;
@@ -98,14 +101,14 @@ export function CameraRig() {
       settle = null;
       const back = held.current;
       held.current = null;
-      if (back) void frame(back.area, back.shot, { turn: back.turn });
+      if (back) void frame(back.area, back.shot, back);
     };
     const offUi = uiStore.subscribe(() => {
       const u = uiStore.get();
       if (u.insets !== insets) {
         insets = u.insets;
         const l = last.current;
-        void frame(l.area, l.shot, { turn: l.turn });
+        void frame(l.area, l.shot, l);
       }
       const g = u.picker?.ghost ?? null;
       if (g !== ghost) {
@@ -139,7 +142,7 @@ export function CameraRig() {
   const size = useThree((s) => s.size);
   useEffect(() => {
     const l = last.current;
-    void frame(l.area, l.shot, { smooth: false, turn: l.turn });
+    void frame(l.area, l.shot, { ...l, smooth: false });
   }, [size, frame]);
 
   return (

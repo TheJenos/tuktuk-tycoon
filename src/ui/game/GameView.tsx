@@ -217,7 +217,7 @@ function GameScreen({ session, onLeave, onRematch, isOwner = false, ownerActions
     };
   }, [doc === null]);
 
-  const classes = ['game-hud', menuOpen && 'paused', ui.panel === 'log' && 'log-open', ui.panel === 'props' && 'props-open', (!glOk || mini) && 'mini-on'].filter(Boolean).join(' ');
+  const classes = ['game-hud', menuOpen && 'paused', ui.panel === 'log' && 'log-open', ui.panel === 'props' && 'props-open', tradeOpen && 'trade-open', (!glOk || mini) && 'mini-on'].filter(Boolean).join(' ');
   return (
     <div id="hud" ref={hud} className={classes} style={{ '--ui-scale': scale } as CSSProperties}>
       <Announcer />
@@ -277,9 +277,10 @@ function GameScreen({ session, onLeave, onRematch, isOwner = false, ownerActions
               onMenu={openMenu}
               {...(glOk ? { onRecenter: recenter, onMiniBoard: () => setMini((m) => !m) } : {})}
               miniBoard={!glOk || mini}
+              {...(tradeOpen ? { turnSeat } : {})}
             />
           </div>
-          <BoardCenter turnSeat={turnSeat}>{phone ? null : decision}</BoardCenter>
+          <BoardCenter turnSeat={turnSeat} turnDocked={tradeOpen}>{phone ? null : decision}</BoardCenter>
           <CardModal threeD={glOk && !mini} />
           {bidders.length > 0 && (
             <AuctionModal seats={bidders} covered={manageOpen || tradeOpen || inspecting || menuOpen} onRaise={openManage} />

@@ -1,4 +1,4 @@
-import { FRAME, HALF, tileBounds, tileCenter } from '../board/layout';
+import { FRAME, HALF, isCorner, sideOf, sideRotation, TILES, tileBounds, tileCenter } from '../board/layout';
 
 /*
  * Camera framing, pure: where to put the camera so a box on the board fills the part of the screen the HUD leaves
@@ -60,6 +60,23 @@ export function pathArea(path: readonly number[], pad = 1, min = 5.5): Area {
   const [minX, maxX] = grow(a.minX, a.maxX);
   const [minZ, maxZ] = grow(a.minZ, a.maxZ);
   return { minX, maxX, minZ, maxZ };
+}
+
+/**
+ * The camera azimuth that looks at the lane (board side) a path ends on from outside it, so that row is nearest
+ * and its names read the right way up. A path ending on a corner belongs to the side it came along (a step from
+ * the neighbouring tile); a jump onto a corner takes the corner's own side.
+ */
+export function laneAzimuth(path: readonly number[]): number {
+  const end = path[path.length - 1] ?? 0;
+  const prev = path[path.length - 2];
+  const stepped = prev !== undefined && Math.abs(((end - prev + TILES + TILES / 2) % TILES) - TILES / 2) === 1;
+  return sideRotation(isCorner(end) && stepped ? sideOf(prev) : sideOf(end));
+}
+
+/** `from` turned to face `to` the short way round (camera-controls' azimuth isn't wrapped) */
+export function nearestAzimuth(from: number, to: number): number {
+  return from + Math.atan2(Math.sin(to - from), Math.cos(to - from));
 }
 
 /** A square of side `size` around a tile */

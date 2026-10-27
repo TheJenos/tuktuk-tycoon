@@ -11,7 +11,8 @@ import { BOX_GROUP_FACE, WHITE_FACES } from './remap';
 
 const SIZE = 256;
 
-const PIPS: Record<number, [number, number][]> = {
+/** Where each face's pips sit, as fractions of the face (the HUD's dice readout draws the same) */
+export const PIPS: Record<number, [number, number][]> = {
   1: [[0.5, 0.5]],
   2: [[0.27, 0.27], [0.73, 0.73]],
   3: [[0.25, 0.25], [0.5, 0.5], [0.75, 0.75]],

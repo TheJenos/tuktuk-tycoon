@@ -1,6 +1,7 @@
 import type { SeatId } from '../../../rules';
 import { useGame } from '../context';
 import { tradeLock } from '../selectors';
+import { TurnButton } from './BoardCenter';
 
 interface Props {
   /** The seat Manage and Trade act for; null for spectators */
@@ -14,18 +15,21 @@ interface Props {
   /** Show / hide the 2D board (absent when it is the only board) */
   onMiniBoard?: () => void;
   miniBoard: boolean;
+  /** Roll / End turn for this seat sit at the bar's start (while the trade dialog covers the board's middle) */
+  turnSeat?: SeatId | null;
 }
 
 /**
  * Bottom centre: Manage, Trade, Recenter, the 2D board, the log and the menu. The turn's Roll / End turn and the
- * jail choices are over the middle of the board (BoardCenter).
+ * jail choices are over the middle of the board (BoardCenter), but Roll / End turn move here while trading.
  */
-export function ActionBar({ seat, onManage, onTrade, onRecenter, onLog, onMenu, onMiniBoard, miniBoard }: Props) {
+export function ActionBar({ seat, onManage, onTrade, onRecenter, onLog, onMenu, onMiniBoard, miniBoard, turnSeat }: Props) {
   const s = useGame();
   const lock = tradeLock(s, seat);
   return (
     <nav className="action-bar panel" aria-label="Actions">
       <div className="action-row tools">
+        {turnSeat && <TurnButton seat={turnSeat} docked />}
         <button type="button" disabled={!seat} onClick={onManage} title="Build, sell and mortgage (M)">
           Manage <kbd>M</kbd>
         </button>

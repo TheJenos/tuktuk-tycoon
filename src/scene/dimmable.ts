@@ -4,10 +4,11 @@ import { uiStore } from '../state/ui';
 /*
  * Things on the board that stand above the spotlight's dark overlay (the deck stacks, the dice) dim with it by
  * darkening their materials while a player is spotlighted (uiStore.spotlight), and get their colour back after.
+ * The other players' pieces (tokens, owner bars, buildings) dim by the same amount, each where it is drawn.
  */
 
 /** How much of their colour dimmed materials keep (linear: about a third of the brightness on screen, like the overlay) */
-const DIM = 0.1;
+export const DIM = 0.1;
 
 const registered = new Map<MeshStandardMaterial, Color>();
 let dimmed = false;

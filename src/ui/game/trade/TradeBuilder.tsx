@@ -21,6 +21,9 @@ export interface TradeDraft {
 
 const EMPTY: Bundle = { cash: 0, props: [], cards: [] };
 
+/** The quick-add buttons under the cash slider, in shown rupees (the slider snaps to the smallest) */
+const CASH_STEPS = [1_000, 10_000, 50_000];
+
 const toggled = <T,>(list: readonly T[], v: T, on: boolean): T[] => (on ? [...list.filter((x) => x !== v), v] : list.filter((x) => x !== v));
 
 /** Why a property can't be in a trade now (its colour group has buildings), or null */
@@ -143,6 +146,12 @@ function Side({ title, s, owner, bundle, onChange, receiving, names }: {
     if (typedUnits !== bundle.cash) setCashText(bundle.cash ? String(toRupees(bundle.cash)) : '');
   }, [bundle.cash, typedUnits]);
   const rounded = cashText !== '' && Number.isFinite(Number(cashText)) && toRupees(typedUnits) !== Number(cashText);
+  const maxCash = p?.cash ?? 0;
+  // The slider and the quick-add buttons set an exact amount, so the box shows it as is
+  const setCash = (units: number) => {
+    setCashText(units ? String(toRupees(units)) : '');
+    onChange({ ...bundle, cash: units });
+  };
   return (
     <fieldset className="trade-side">
       <legend>{title}</legend>
@@ -163,9 +172,34 @@ function Side({ title, s, owner, bundle, onChange, receiving, names }: {
           }}
         />
         <small className="muted">
-          {rounded ? `counts as ${money(typedUnits)} ` : ''}of {money(p?.cash ?? 0)}
+          {rounded ? `counts as ${money(typedUnits)} ` : ''}of {money(maxCash)}
         </small>
       </label>
+      <input
+        type="range"
+        className="trade-cash-range"
+        aria-label={receiving ? 'Cash you get' : 'Cash you give'}
+        aria-valuetext={money(Math.min(bundle.cash, maxCash))}
+        min={0}
+        max={maxCash}
+        step={toUnits(CASH_STEPS[0]!)}
+        value={Math.min(bundle.cash, maxCash)}
+        disabled={maxCash === 0}
+        onChange={(e) => setCash(Number(e.target.value))}
+      />
+      <div className="trade-cash-steps">
+        {CASH_STEPS.map((r) => (
+          <button
+            key={r}
+            type="button"
+            aria-label={`Add ${money(toUnits(r))}`}
+            disabled={bundle.cash >= maxCash}
+            onClick={() => setCash(Math.min(maxCash, bundle.cash + toUnits(r)))}
+          >
+            +{r.toLocaleString('en-US')}
+          </button>
+        ))}
+      </div>
       {props.length === 0 && <p className="muted small">No property</p>}
       <ul className="trade-props">
         {props.map((i) => {

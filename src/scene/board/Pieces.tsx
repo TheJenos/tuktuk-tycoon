@@ -16,7 +16,10 @@ import {
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { GameState, SeatId } from '../../rules';
 import { ANIM } from '../../shared/timing';
+import { useSelector } from '../../state/store';
+import { uiStore } from '../../state/ui';
 import { director, useView, type BoardEvent } from '../../view';
+import { DIM } from '../dimmable';
 import { useSeatLooks } from '../seats';
 import { fitText, makeCanvas, toTexture } from '../textures/canvas';
 import { BOARD_TOP, buildingPos, chipPos, FRAME, tileCenter, tileRotation, TILE_D, TILE_W } from './layout';
@@ -117,6 +120,10 @@ export function Pieces() {
   const state = useRef<{ game: GameState | null; list: PieceList; dirty: boolean }>({ game: null, list: piecesOf(null), dirty: true });
   const looksRef = useRef(looks);
   looksRef.current = looks;
+  // While a player is spotlighted, the pieces on everyone else's property go dark with their tiles
+  const spotlight = useSelector(uiStore, (u) => u.spotlight);
+  const spotRef = useRef(spotlight);
+  spotRef.current = spotlight;
   state.current.dirty = true;
 
   useEffect(
@@ -168,6 +175,9 @@ export function Pieces() {
     st.dirty = false;
     const now = performance.now();
     const looksNow = looksRef.current;
+    const spot = spotRef.current;
+    const dark = (space: number) => spot !== null && st.game?.props[`p${space}`]?.owner !== spot;
+    const shade = (mesh: InstancedMesh, n: number, space: number) => mesh.setColorAt(n, tmp.c.setScalar(dark(space) ? DIM : 1));
     const put = (mesh: InstancedMesh, n: number, x: number, y: number, z: number, yaw: number, scale: number) => {
       tmp.q.setFromAxisAngle(tmp.up, yaw);
       tmp.p.set(x, y, z);
@@ -191,7 +201,8 @@ export function Pieces() {
         if (n >= houseCap) return;
         const s = step(key, true);
         const [x, z] = buildingPos(space, slot);
-        put(h, n++, x, BOARD_TOP + s.lift, z, tileRotation(space), s.scale);
+        put(h, n, x, BOARD_TOP + s.lift, z, tileRotation(space), s.scale);
+        shade(h, n++, space);
       };
       for (const p of st.list.houses) {
         present.add(p.key);
@@ -203,6 +214,7 @@ export function Pieces() {
       }
       h.count = n;
       h.instanceMatrix.needsUpdate = true;
+      if (h.instanceColor) h.instanceColor.needsUpdate = true;
     }
     const H = hotels.current;
     if (H) {
@@ -211,7 +223,8 @@ export function Pieces() {
         if (n >= hotelCap) return;
         const s = step(key, true);
         const [x, z] = buildingPos(space, 4);
-        put(H, n++, x, BOARD_TOP + s.lift, z, tileRotation(space), s.scale);
+        put(H, n, x, BOARD_TOP + s.lift, z, tileRotation(space), s.scale);
+        shade(H, n++, space);
       };
       for (const p of st.list.hotels) {
         present.add(p.key);
@@ -223,6 +236,7 @@ export function Pieces() {
       }
       H.count = n;
       H.instanceMatrix.needsUpdate = true;
+      if (H.instanceColor) H.instanceColor.needsUpdate = true;
     }
     const c = chips.current;
     if (c) {
@@ -234,6 +248,7 @@ export function Pieces() {
         put(c, n, x, BOARD_TOP, z, tileRotation(space), s.scale);
         tmp.c.set(color);
         if (dim) tmp.c.lerp(new Color('#555555'), 0.65);
+        if (dark(space)) tmp.c.multiplyScalar(DIM);
         c.setColorAt(n++, tmp.c);
       };
       for (const p of st.list.chips) {
@@ -258,7 +273,8 @@ export function Pieces() {
         const [x, z] = tileCenter(space);
         // A stamp lands from slightly bigger; a lifted one shrinks away
         const scale = a?.enter ? 1.25 - 0.25 * Math.min(1, (now - a.start) / a.dur) : s.scale;
-        put(m, n++, x, BOARD_TOP + 0.004, z, tileRotation(space), scale);
+        put(m, n, x, BOARD_TOP + 0.004, z, tileRotation(space), scale);
+        shade(m, n++, space);
       };
       for (const p of st.list.stamps) {
         present.add(p.key);
@@ -270,6 +286,7 @@ export function Pieces() {
       }
       m.count = n;
       m.instanceMatrix.needsUpdate = true;
+      if (m.instanceColor) m.instanceColor.needsUpdate = true;
     }
     if (anyActive) invalidate();
   });

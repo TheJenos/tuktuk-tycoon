@@ -37,7 +37,7 @@ test('an offer, a counter-offer with cash, and an accept', async ({ table }) => 
   const counter = tradeDialog(bob.page);
   await expect(counter.getByRole('group', { name: 'You give' }).getByRole('checkbox', { name: 'Maradana Lane' })).toBeChecked();
   await expect(counter.getByRole('group', { name: `You get from ${alice.name}` }).getByRole('checkbox', { name: 'Pettah Pavement' })).toBeChecked();
-  await counter.getByRole('group', { name: `You get from ${alice.name}` }).getByLabel('Cash').fill('2500');
+  await counter.getByRole('group', { name: `You get from ${alice.name}` }).getByLabel('Cash', { exact: true }).fill('2500');
   await expect(counter.locator('.trade-problems')).toHaveText('The offer is valid');
   await counter.getByRole('button', { name: 'Send offer' }).click();
   await expect(counter).toBeHidden();

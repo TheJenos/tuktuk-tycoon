@@ -24,9 +24,39 @@ export function usePhoneLayout(): boolean {
   return phone;
 }
 
+/**
+ * The turn's Roll (preRoll) or End turn (postRoll) for `seat`, or nothing in other phases. Big over the board; in
+ * the action bar (`docked`) while the trade dialog would otherwise hide the board's middle behind it.
+ */
+export function TurnButton({ seat, docked = false }: { seat: SeatId; docked?: boolean }) {
+  const s = useGame();
+  const send = useSend();
+  const busy = useBusy();
+  const phase = s?.phase.k;
+  const cls = docked ? 'primary big turn-button' : 'primary big';
+  if (phase === 'preRoll') {
+    return (
+      <button type="button" className={cls} disabled={busy} onClick={() => void send(seat, { k: 'roll' })}>
+        Roll <kbd>R</kbd>
+        {s && speedActive(s, seat) && <span className="badge speed">+ Speed Die</span>}
+      </button>
+    );
+  }
+  if (phase === 'postRoll') {
+    return (
+      <button type="button" className={cls} disabled={busy} onClick={() => void send(seat, { k: 'endTurn' })}>
+        End turn <kbd>E</kbd>
+      </button>
+    );
+  }
+  return null;
+}
+
 interface Props {
   /** My turn seat's preRoll / postRoll is up (and the board has caught up) */
   turnSeat: SeatId | null;
+  /** Roll / End turn are in the action bar for now (the trade dialog is up): only the jail choices stay here */
+  turnDocked?: boolean;
   /** The decision prompt to show over the board (null: none, or it is in the phone's bottom sheet) */
   children?: ReactNode;
 }
@@ -37,10 +67,8 @@ interface Props {
  * the side panels, the top bar and the dock leave free (uiStore.insets), which is where the camera frames the
  * board, so it sits on the board's middle; not an inset itself, so the board never moves away from it.
  */
-export function BoardCenter({ turnSeat, children }: Props) {
+export function BoardCenter({ turnSeat, turnDocked = false, children }: Props) {
   const s = useGame();
-  const send = useSend();
-  const busy = useBusy();
   const insets = useSelector(uiStore, (u) => u.insets, shallowEqual);
   const phase = s?.phase.k;
   const jailed = !!(turnSeat && s?.players[turnSeat]?.jail);
@@ -51,21 +79,10 @@ export function BoardCenter({ turnSeat, children }: Props) {
         <JailPanel seat={turnSeat} />
       </div>
     );
-  } else if (turnSeat && phase === 'preRoll') {
+  } else if (turnSeat && !turnDocked && (phase === 'preRoll' || phase === 'postRoll')) {
     turn = (
       <div className="turn-center">
-        <button type="button" className="primary big" disabled={busy} onClick={() => void send(turnSeat, { k: 'roll' })}>
-          Roll <kbd>R</kbd>
-          {s && speedActive(s, turnSeat) && <span className="badge speed">+ Speed Die</span>}
-        </button>
-      </div>
-    );
-  } else if (turnSeat && phase === 'postRoll') {
-    turn = (
-      <div className="turn-center">
-        <button type="button" className="primary big" disabled={busy} onClick={() => void send(turnSeat, { k: 'endTurn' })}>
-          End turn <kbd>E</kbd>
-        </button>
+        <TurnButton seat={turnSeat} />
       </div>
     );
   }

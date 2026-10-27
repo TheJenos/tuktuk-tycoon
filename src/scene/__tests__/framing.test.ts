@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PerspectiveCamera, Vector3 } from 'three';
-import { BOARD_AREA, frameArea, pathArea, shotPolar, tileArea, zoomOutLimit, type Area, type Framing, type Insets } from '../camera/framing';
+import { BOARD_AREA, frameArea, laneAzimuth, nearestAzimuth, pathArea, shotPolar, tileArea, zoomOutLimit, type Area, type Framing, type Insets } from '../camera/framing';
 import { tileAt, tileCenter } from '../board/layout';
 
 /** Where the area's corners land on screen (NDC, -1..1) with the camera placed as camera-controls would */
@@ -147,5 +147,27 @@ describe('camera framing', () => {
     expect(tileAt(long.maxX - 1.01, long.maxZ - 1.01)).toBe(0);
     const t = tileArea(24);
     expect(tileAt((t.minX + t.maxX) / 2, (t.minZ + t.maxZ) / 2)).toBe(24);
+  });
+
+  it("faces the lane a move ends on, from outside it", () => {
+    // The camera at that azimuth sits on the lane's side of the board
+    for (const end of [3, 15, 27, 34]) {
+      const az = laneAzimuth([end - 2, end - 1, end]);
+      const [x, z] = tileCenter(end);
+      expect(Math.sin(az) * x + Math.cos(az) * z).toBeGreaterThan(5);
+    }
+    expect(laneAzimuth([7, 8, 9, 10, 11, 12])).toBeCloseTo(laneAzimuth([12]));
+    // A corner reached by stepping belongs to the side walked along, across Start too
+    expect(laneAzimuth([8, 9, 10])).toBeCloseTo(laneAzimuth([5]));
+    expect(laneAzimuth([38, 39, 0])).toBeCloseTo(laneAzimuth([35]));
+    expect(laneAzimuth([12, 11, 10])).toBeCloseTo(laneAzimuth([15]));
+    // Jumped onto (Go to Jail): the corner's own side
+    expect(laneAzimuth([30, 10])).toBeCloseTo(laneAzimuth([10]));
+  });
+
+  it('turns the short way round, however far the camera had turned', () => {
+    expect(nearestAzimuth(0.1, -Math.PI / 2)).toBeCloseTo(-Math.PI / 2);
+    expect(nearestAzimuth(4 * Math.PI + 0.2, 0)).toBeCloseTo(4 * Math.PI);
+    expect(nearestAzimuth(3, -Math.PI / 2 * 3)).toBeCloseTo(Math.PI / 2);
   });
 });

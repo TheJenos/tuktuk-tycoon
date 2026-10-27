@@ -1,12 +1,12 @@
 import { CanvasTexture, LinearMipmapLinearFilter, SRGBColorSpace } from 'three';
 
 /*
- * Canvas drawing helpers for every procedural texture (board, cards, dice faces, labels). Text uses the system's
- * condensed sans faces (nothing is downloaded) and shrinks to fit, so any font the machine has still fits its box.
+ * Canvas drawing helpers for every procedural texture (board, cards, dice faces, labels). Text uses the game's display
+ * face (bundled, and loaded before the first render) and shrinks to fit, so a fallback font still fits its box.
  */
 
 export const FONT =
-  "'Bahnschrift SemiCondensed', Bahnschrift, 'DIN Condensed', 'Arial Narrow', 'Roboto Condensed', 'Helvetica Neue', Arial, system-ui, sans-serif";
+  "'League Spartan Variable', 'Bahnschrift SemiCondensed', Bahnschrift, 'DIN Condensed', 'Arial Narrow', 'Roboto Condensed', 'Helvetica Neue', Arial, system-ui, sans-serif";
 
 export function makeCanvas(w: number, h: number): HTMLCanvasElement {
   const c = document.createElement('canvas');

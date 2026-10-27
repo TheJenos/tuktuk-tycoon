@@ -3,7 +3,7 @@
 
 /* ---------- Form lines: a label, its options or switch, a hint ---------- */
 
-.lobby-form { display: flex; flex-direction: column; gap: 14px; max-width: 820px; }
+.lobby-form { display: flex; flex-direction: column; gap: 14px; }
 .lobby-lead { margin: 0; font-size: 15px; line-height: 1.45; }
 .lobby-setting { display: grid; grid-template-columns: 150px minmax(0, 1fr); align-items: center; gap: 6px 14px; min-height: 44px; font-size: 15px; }
 .lobby-setting-label { font-weight: 600; }
@@ -16,7 +16,8 @@
 /* The board picker: a card per board (colour strip, name, blurb) */
 .board-setting { align-items: start; }
 .board-setting > .lobby-setting-label { padding-top: 10px; }
-.board-choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+/* Two to a row however wide the panel gets (so the four boards stay 2 by 2), one when there isn't room */
+.board-choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(max(220px, calc(50% - 4px)), 1fr)); gap: 8px; }
 .board-choice {
   display: flex;
   flex-direction: column;
@@ -223,7 +224,7 @@
 
 /* ---------- Settings ---------- */
 
-.lobby-settings { display: flex; flex-direction: column; gap: 14px; max-width: 760px; }
+.lobby-settings { display: flex; flex-direction: column; gap: 14px; }
 .rename-row { padding-bottom: 14px; border-bottom: 1px solid var(--glass-line); }
 .rename-row .field { margin-bottom: 6px; }
 .rename-row .row { margin: 0; }

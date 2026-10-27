@@ -19,7 +19,7 @@ import { useSeatLooks, type SeatLook } from '../seats';
 import { makeCanvas } from '../textures/canvas';
 import { movePoints, moveMs, poseAt, type MoveMode, type Pose } from './hop';
 import { ringGeometry, tokenGeometry } from './shapes';
-import { tokenMaterial, trimMaterial } from './materials';
+import { dimTrimMaterial, tokenMaterial, trimMaterial } from './materials';
 
 /*
  * The players' tokens. Where each one rests comes from the displayed state (director.view); a move runs as a
@@ -113,6 +113,7 @@ export function Tokens({ tier }: { tier: Tier }) {
   const key = useView((v) => seatsKey(v.game));
   const seats = useMemo(() => (key ? (key.split(',') as SeatId[]) : []), [key]);
   const ghost = useSelector(uiStore, (u) => u.picker?.ghost ?? null);
+  const spotlight = useSelector(uiStore, (u) => u.spotlight);
   const turnSeat = useView((v) => v.game?.turn.seat ?? null);
   const invalidate = useThree((s) => s.invalidate);
   const groups = useRef(new Map<SeatId, Group>());
@@ -237,10 +238,12 @@ export function Tokens({ tier }: { tier: Tier }) {
     <group>
       {seats.map((seat) => {
         const look = looks[seat];
+        // Another player is spotlighted: this token goes dark with the tiles they don't own
+        const dim = spotlight !== null && spotlight !== seat;
         return (
           <group key={seat} ref={refFor(seat)}>
-            <mesh geometry={tokenGeometry(look.token)} material={tokenMaterial(look.color)} castShadow />
-            <mesh geometry={ringGeometry()} material={trimMaterial} />
+            <mesh geometry={tokenGeometry(look.token)} material={tokenMaterial(look.color, dim)} castShadow />
+            <mesh geometry={ringGeometry()} material={dim ? dimTrimMaterial : trimMaterial} />
             {tier.shadowMap === 0 && <mesh geometry={blobGeo} material={blobMat()} />}
           </group>
         );

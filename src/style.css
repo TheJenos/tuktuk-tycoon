@@ -10,8 +10,8 @@
   /* Glass panels over the 3D table (menus and the game's panels) */
   --glass: rgba(12, 15, 21, 0.78);
   --glass-line: rgba(255, 255, 255, 0.09);
-  /* Condensed capitals for headings and the big menu entries */
-  --display: 'Bahnschrift', 'DIN Condensed', 'DIN Alternate', 'Roboto Condensed', 'Arial Narrow', system-ui, sans-serif;
+  /* Bold geometric capitals for headings and the big menu entries, in the classic property-game style */
+  --display: 'League Spartan Variable', 'Bahnschrift', 'DIN Condensed', 'DIN Alternate', 'Roboto Condensed', 'Arial Narrow', system-ui, sans-serif;
   --menu-pad: max(16px, 2.5vw);
   /* The menu's widest: on bigger screens it sits in the middle, the table either side */
   --menu-width: 1400px;
@@ -641,6 +641,8 @@ button.chip:hover { background: rgba(255, 255, 255, 0.1); }
 .wizard { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .wizard-steps { list-style: none; display: flex; gap: 6px; margin: 0; padding: 14px 22px; border-bottom: 1px solid var(--glass-line); counter-reset: step; }
 .wizard-steps li { flex: 1; display: flex; align-items: center; gap: 6px; }
+/* The last step has no line after it: it takes only its label's width, so the lines run to the panel's edge */
+.wizard-steps li:last-child { flex: none; }
 .wizard-steps li:not(:last-child)::after { content: ''; flex: 1; height: 2px; border-radius: 2px; background: var(--glass-line); }
 .wizard-steps li.done:not(:last-child)::after { background: rgba(255, 181, 71, 0.5); }
 .wizard-steps button { display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px 6px 6px; min-height: 44px; border: 0; background: transparent; color: var(--muted); font-family: var(--display); font-size: 18px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; }
@@ -660,7 +662,7 @@ button.chip:hover { background: rgba(255, 255, 255, 0.1); }
 .wizard-foot .create-button { width: auto; min-width: 240px; }
 
 /* The last step: what was picked, each a button back to its step, then the room's name */
-.launch { display: flex; flex-direction: column; gap: 16px; max-width: 760px; }
+.launch { display: flex; flex-direction: column; gap: 16px; }
 .launch-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .launch-pick { display: flex; align-items: center; gap: 12px; padding: 12px; min-height: 88px; border-radius: 12px; border: 1px solid var(--glass-line); background: rgba(255, 255, 255, 0.04); text-align: left; white-space: normal; }
 .launch-pick:hover { border-color: rgba(255, 181, 71, 0.5); }
@@ -1200,6 +1202,8 @@ button.link:hover { background: none; filter: brightness(1.1); }
    the UI size. Never an inset itself: the board must not move away from it. */
 .board-center-wrap { position: fixed; z-index: 20; top: var(--top, 0px); bottom: var(--bottom, 0px); left: var(--left, 0px); right: var(--right, 0px); display: grid; place-items: center; padding: 12px; pointer-events: none; }
 .board-center { display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 100%; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; border-radius: 14px; scrollbar-width: thin; }
+/* Roll / End turn alone never needs to scroll: unclipped, so the plate's shadow isn't cut to the box's smaller corners */
+.board-center:has(> .turn-center:not(.jail-center):only-child) { overflow: visible; }
 .board-center > .prompt { width: 380px; max-width: 100%; background: rgba(13, 16, 22, 0.95); box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5); animation: panel-in 160ms ease-out; }
 .prompt .action-row { justify-content: center; }
 /* The Roll / End turn button sits on a framed plate: a dark gradient with a gold rim, so it reads on any part of the board */
@@ -1218,6 +1222,14 @@ button.link:hover { background: none; filter: brightness(1.1); }
 @media (max-width: 640px) {
   .turn-center { padding: 10px; border-radius: 20px; }
   .turn-center button.big { min-height: 68px; min-width: 210px; padding: 12px 36px; font-size: 28px; }
+}
+.action-bar button.turn-button { min-height: 40px; padding: 6px 18px; font-size: 18px; }
+/* While trading (the dialog hugs the right), the bar with Roll / End turn and the decision the roll brings (in the
+   space the dialog leaves free) stay above the dialog's dimmed backdrop, so the turn can go on without closing the
+   trade. Phones: the trade is a bottom sheet over both instead. */
+@media (min-width: 641px) {
+  .game-hud.trade-open .hud-dock { position: relative; z-index: 31; }
+  .game-hud.trade-open .board-center-wrap { z-index: 31; }
 }
 .jail-center { padding: 12px 14px; background: rgba(13, 16, 22, 0.95); box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5); }
 
@@ -1258,6 +1270,9 @@ button.link:hover { background: none; filter: brightness(1.1); }
 .trade-cash input { width: 110px; min-width: 0; padding: 6px 8px; }
 .trade-cash small { white-space: nowrap; }
 .game-dialog.trade .trade-cash input { width: 96px; flex: 0 1 96px; }
+.trade-cash-range { width: 100%; margin: 0; padding: 0; accent-color: var(--accent); }
+.trade-cash-steps { display: flex; gap: 6px; }
+.trade-cash-steps button { flex: 1; min-width: 0; padding: 6px 4px; font-variant-numeric: tabular-nums; }
 .trade-props { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .trade-props li { display: flex; flex-direction: column; gap: 2px; padding: 0 4px; border-radius: 8px; }
 .trade-props li:hover, .trade-props li:focus-within { background: rgba(255, 255, 255, 0.05); }
