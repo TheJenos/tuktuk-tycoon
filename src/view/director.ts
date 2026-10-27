@@ -21,7 +21,7 @@ export const LOG_MAX = 200;
 /** Longest one animation may hold the queue (a frame loop that stopped can't freeze the game) */
 const STEP_MAX_MS = 12_000;
 
-export const EMPTY_VIEW: ViewState = { seq: -1, game: null, log: [], card: null, dice: null };
+export const EMPTY_VIEW: ViewState = { seq: -1, game: null, log: [], card: null, dice: null, heroDie: null };
 
 /** Playback speed for a setting and the number of batches waiting behind the one playing */
 export function playSpeed(anim: AnimSpeed, queued: number): number {
@@ -46,6 +46,7 @@ export function applyEvent(v: ViewState, ev: GameEvent, seq: number): ViewState 
     log,
     card: ev.t === 'card' ? { seat: ev.seat, deck: ev.deck, text: ev.text } : ev.t === 'turn' ? null : v.card,
     dice: ev.t === 'dice' && ev.purpose !== 'order' ? ev : v.dice,
+    ...(ev.t === 'heroDie' ? { heroDie: ev } : {}),
   };
 }
 
@@ -232,6 +233,9 @@ class DirectorImpl implements DirectorControl {
       signal: this.ac.signal,
       speed: playSpeed(this.animSpeed(), this.queue.length),
       seed: eventSeed(p.b.seq, p.i),
+      game: this.view.get().game,
+      events: p.b.events,
+      index: p.i,
     };
   }
 

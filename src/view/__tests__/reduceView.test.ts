@@ -97,7 +97,16 @@ function drawn(s: GameState) {
   const players = Object.fromEntries(
     Object.entries(s.players).map(([seat, p]) => [
       seat,
-      { cash: p?.cash, pos: p?.pos, jail: p?.jail?.tries ?? null, goojf: [...(p?.goojf ?? [])].sort(), speed: p?.speed, out: p?.out ?? null },
+      {
+        cash: p?.cash,
+        pos: p?.pos,
+        jail: p?.jail?.tries ?? null,
+        goojf: [...(p?.goojf ?? [])].sort(),
+        speed: p?.speed,
+        out: p?.out ?? null,
+        hero: p?.hero ?? null,
+        powerUsed: p?.powerUsed ?? null,
+      },
     ]),
   );
   const props = Object.fromEntries(
@@ -105,7 +114,8 @@ function drawn(s: GameState) {
       .filter(([, p]) => p)
       .map(([key, p]) => [key, { owner: p?.owner, level: p?.level, mortgaged: !!p?.mortgaged }]),
   );
-  return { players, props, bank: s.bank, turn: { seat: s.turn.seat, no: s.turn.no }, over: s.phase.k === 'over' };
+  const over = s.phase.k === 'over' ? { why: s.phase.why, scores: s.phase.scores ?? null } : null;
+  return { players, props, bank: s.bank, turn: { seat: s.turn.seat, no: s.turn.no }, over };
 }
 
 /** Event types seen, with the owner change's `via`, so the test can prove it covered the interesting ones */
@@ -131,7 +141,7 @@ function play(seed: number, cfg: Parameters<typeof createGame>[0], steps: number
     if (!res.ok) continue; // random offers may be refused
     for (const ev of res.events) {
       view = reduceView(view, ev);
-      seen.add(ev.t === 'owner' ? `owner:${ev.via}` : ev.t);
+      seen.add(ev.t === 'owner' ? `owner:${ev.via}` : ev.t === 'move' && ev.via === 'swap' ? 'move:swap' : ev.t);
     }
     events += res.events.length;
     state = res.state;
@@ -168,6 +178,35 @@ describe('reduceView drift', () => {
     for (let seed = 101; seed <= 108; seed++) events += play(seed, { speedDie: true, startCash: [1500, 400][seed % 2] }, 1200).events;
     expect(events).toBeGreaterThan(5_000);
     expect(seen).toContain('speedOn');
+  });
+
+  it('matches the engine on Hero League: superpowers used and ready again, swaps, saves, the score at the end', () => {
+    let events = 0;
+    let overs = 0;
+    for (let seed = 201; seed <= 212; seed++) {
+      const res = play(seed, { board: 'heroes', startCash: [1500, 600][seed % 2] }, 1500);
+      events += res.events;
+      overs += res.overs;
+    }
+    expect(events).toBeGreaterThan(8_000);
+    expect(overs).toBeGreaterThan(0);
+    for (const t of ['heroDie', 'power', 'powerReady', 'aimPeek', 'move:swap', 'short', 'noSave', 'jail', 'jailExit']) expect(seen, t).toContain(t);
+    for (const via of ['buy', 'backup', 'free', 'villain']) expect(seen, via).toContain(`owner:${via}`);
+  });
+
+  it('marks a superpower used in the turn it is used, and ready again', () => {
+    const { state } = createGame({ board: 'heroes' }, [{ id: 's0', name: 'A' }, { id: 's1', name: 'B' }], 7);
+    const g = { ...state, turn: { ...state.turn, no: 4 } };
+    const used = reduceView(g, { t: 'power', seat: 's1', power: 'thunder', target: 's0' });
+    expect(used.players.s1?.powerUsed).toBe(4);
+    expect(used.players.s0).toBe(g.players.s0);
+    const ready = reduceView(used, { t: 'powerReady', seat: 's1' });
+    expect(ready.players.s1?.powerUsed).toBeUndefined();
+    expect('powerUsed' in (ready.players.s1 ?? {})).toBe(false);
+    expect(reduceView(ready, { t: 'powerReady', seat: 's1' })).toBe(ready);
+    // The Hero die and the events that only say something leave the state alone
+    expect(reduceView(g, { t: 'heroDie', seat: 's0', face: 2, hero: 'starCaptain', purpose: 'card' })).toBe(g);
+    expect(reduceView(g, { t: 'noSave', seat: 's0', space: 4 })).toBe(g);
   });
 
   it('keeps the identity of what an event does not touch', () => {

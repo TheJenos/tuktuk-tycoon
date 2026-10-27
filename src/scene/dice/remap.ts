@@ -20,6 +20,9 @@ export const FACE_NORMALS: readonly Vector3[] = [
 /** Pips on each face index of a white die (opposite faces add up to 7) */
 export const WHITE_FACES: readonly number[] = [1, 6, 2, 5, 3, 4];
 
+/** The Hero die's face value (1-6: the hero list's order) on each face index, laid out like a white die's pips */
+export const HERO_FACES: readonly number[] = WHITE_FACES;
+
 /** BoxGeometry's material groups are +X, -X, +Y, -Y, +Z, -Z: the face index each group shows */
 export const BOX_GROUP_FACE: readonly number[] = [2, 3, 0, 1, 4, 5];
 

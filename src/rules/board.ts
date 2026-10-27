@@ -1,11 +1,15 @@
 import { COLOMBO } from '../boards/colombo/rules';
+import { HEROES } from '../boards/heroes/rules';
 import { HILL } from '../boards/hill/rules';
 import { LANKA } from '../boards/lanka/rules';
 import { SOUTH } from '../boards/south/rules';
 import type { BoardDef, CardDef, Deck, GroupDef, PropertyDef, SpaceDef, StreetDef } from './types';
 
-/** Every board, in picker order (the first is the default). Same rules and numbers; only the theme differs. */
-const ALL: readonly BoardDef[] = [LANKA, COLOMBO, HILL, SOUTH];
+/**
+ * Every board, in picker order (the first is the default). The classic boards share the rules and differ in theme and
+ * size; Hero League (a `heroes` block) plays the Hero League rules (docs/heroes.md).
+ */
+const ALL: readonly BoardDef[] = [LANKA, COLOMBO, HILL, SOUTH, HEROES];
 
 const REGISTRY: Record<string, BoardDef> = Object.fromEntries(ALL.map((b) => [b.id, b]));
 
@@ -72,7 +76,7 @@ export function cardById(b: BoardDef, id: string): CardDef | undefined {
 /** The deck a card belongs to (a Get Out of Jail Free card returns there) */
 export const deckOf = (b: BoardDef, id: string): Deck => (b.chance.some((c) => c.id === id) ? 'chance' : 'chest');
 
-/** Forward distance from one space to another (1-40; a full lap is 40) */
+/** Forward distance from one space to another (1 to the board's size; a full lap is the size) */
 export function forward(b: BoardDef, from: number, to: number): number {
   const n = b.spaces.length;
   const d = (((to - from) % n) + n) % n;

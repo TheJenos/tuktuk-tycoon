@@ -1,6 +1,7 @@
-import { applyBuild, applySell, planBuild, planSell } from './buildings';
+import { NO_BUILDINGS, applyBuild, applySell, planBuild, planSell } from './buildings';
 import { findContest, startClaim } from './claim';
-import { err, player, rs } from './ctx';
+import { err, player } from './ctx';
+import { boardMoney } from './currency';
 import { type Handler, MANAGE_PHASES, RAISE_PHASES, seatAction } from './handler';
 import {
   mortgageNow,
@@ -16,15 +17,17 @@ import {
  * Building, selling, mortgaging: open to every owner, not only the turn seat. Building and lifting mortgages
  * happen in calm phases (before or after a roll, or while the turn seat decides on a purchase); selling buildings,
  * mortgaging and selling property back to the bank, which raise cash, are also open during auctions, debts,
- * Income Tax and mortgage settlements. Buildings are always paid in cash and never open a debt.
+ * Income Tax and mortgage settlements. Buildings are always paid in cash and never open a debt. Hero League refuses
+ * them all (code `heroes`), whatever the phase.
  */
 
 export const build: Handler<'build'> = seatAction(
   (s, b, seat, a) => {
+    if (b.heroes) return NO_BUILDINGS;
     if (!MANAGE_PHASES.has(s.phase.k)) return err('phase', 'You can build before or after rolling');
     const plan = planBuild(s, b, seat, a.group, a.levels);
     if ('code' in plan) return plan;
-    if (player(s, seat).cash < plan.cost) return err('cash', `Building costs ${rs(plan.cost)}`);
+    if (player(s, seat).cash < plan.cost) return err('cash', `Building costs ${boardMoney(b, plan.cost)}`);
     return null;
   },
   (c, seat, a) => {
@@ -38,6 +41,7 @@ export const build: Handler<'build'> = seatAction(
 
 export const sell: Handler<'sell'> = seatAction(
   (s, b, seat, a) => {
+    if (b.heroes) return NO_BUILDINGS;
     if (!RAISE_PHASES.has(s.phase.k)) return err('phase', 'You cannot sell buildings now');
     const plan = planSell(s, b, seat, a.group, a.levels);
     return 'code' in plan ? plan : null;
@@ -50,13 +54,13 @@ export const sell: Handler<'sell'> = seatAction(
 
 export const mortgage: Handler<'mortgage'> = seatAction(
   (s, b, seat, a) =>
-    RAISE_PHASES.has(s.phase.k) ? mortgageProblem(s, b, seat, a.space) : err('phase', 'You cannot mortgage now'),
+    b.heroes || RAISE_PHASES.has(s.phase.k) ? mortgageProblem(s, b, seat, a.space) : err('phase', 'You cannot mortgage now'),
   (c, seat, a) => mortgageNow(c, seat, a.space),
 );
 
 export const unmortgage: Handler<'unmortgage'> = seatAction(
   (s, b, seat, a) =>
-    MANAGE_PHASES.has(s.phase.k)
+    b.heroes || MANAGE_PHASES.has(s.phase.k)
       ? unmortgageProblem(s, b, seat, a.space)
       : err('phase', 'You can lift mortgages before or after rolling'),
   (c, seat, a) => unmortgageNow(c, seat, a.space, unmortgageCost(c.s, c.b, a.space)),
@@ -65,6 +69,6 @@ export const unmortgage: Handler<'unmortgage'> = seatAction(
 /** Sell an unimproved property back to the bank: it pays 80% of the price, less the loan when mortgaged (saleValue) */
 export const sellProperty: Handler<'sellProperty'> = seatAction(
   (s, b, seat, a) =>
-    RAISE_PHASES.has(s.phase.k) ? saleProblem(s, b, seat, a.space) : err('phase', 'You cannot sell property now'),
+    b.heroes || RAISE_PHASES.has(s.phase.k) ? saleProblem(s, b, seat, a.space) : err('phase', 'You cannot sell property now'),
   (c, seat, a) => sellToBank(c, seat, a.space, 'sold'),
 );

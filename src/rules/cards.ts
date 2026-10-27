@@ -1,7 +1,9 @@
-import { cardById } from './board';
-import { type Ctx, emit, isActive, levelOf, ownedBy, player, seatsAfter } from './ctx';
+import { cardById, propertyAt } from './board';
+import { type Ctx, emit, isActive, levelOf, ownedBy, player, propKey, seatsAfter } from './ctx';
+import { recharge } from './heroes';
 import { pay, transfer } from './money';
-import { nearest, sendToJail } from './movement';
+import { nearest, nextBankOwned, sendToJail } from './movement';
+import { aimedAtDrawer, hit } from './react';
 import type { CardFx, Deck, Owed, SeatId, Step } from './types';
 
 /** Draw the top card of a deck and follow it. Non-keepers go straight to the bottom. */
@@ -16,7 +18,32 @@ export function drawCard(c: Ctx, seat: SeatId, deck: Deck): void {
     c.s.decks[deck].push(id);
     emit(c, { t: 'cardReturn', deck, cardId: id });
   }
-  applyFx(c, seat, card.fx);
+  follow(c, seat, deck, id, card.fx);
+}
+
+/**
+ * Dead Aim's pick among the revealed top cards: they all leave the top, the ones not chosen go to the bottom first,
+ * then the chosen one, which is played as if drawn
+ */
+export function playPicked(c: Ctx, seat: SeatId, deck: Deck, cards: string[], chosen: string): void {
+  const card = cardById(c.b, chosen);
+  if (!card) return;
+  c.s.decks[deck] = c.s.decks[deck].filter((id) => !cards.includes(id));
+  for (const id of cards) {
+    if (id === chosen) continue;
+    c.s.decks[deck].push(id);
+    emit(c, { t: 'cardReturn', deck, cardId: id });
+  }
+  emit(c, { t: 'card', seat, deck, cardId: chosen, text: card.text, kept: false });
+  c.s.decks[deck].push(chosen);
+  emit(c, { t: 'cardReturn', deck, cardId: chosen });
+  follow(c, seat, deck, chosen, card.fx);
+}
+
+/** Follows a card: on a heroes board a Villain Strike effect aimed at its drawer may meet a Star Shield first */
+function follow(c: Ctx, seat: SeatId, deck: Deck, id: string, fx: CardFx): void {
+  if (c.b.heroes && deck === 'chance' && aimedAtDrawer(fx)) hit(c, { k: 'hit', seat, fx, card: id });
+  else applyFx(c, seat, fx, id);
 }
 
 /** Houses (levels 1-4) and hotels (level 5) a seat has standing */
@@ -31,7 +58,20 @@ export function buildingCounts(c: Ctx, seat: SeatId): { houses: number; hotels: 
   return { houses, hotels };
 }
 
-function applyFx(c: Ctx, seat: SeatId, fx: CardFx): void {
+/** The cheapest location a seat owns (ties: the lowest board index) goes back to its villain */
+function loseCheapest(c: Ctx, seat: SeatId): void {
+  let best: number | undefined;
+  for (const space of ownedBy(c.s, seat)) {
+    const price = propertyAt(c.b, space)?.price ?? 0;
+    if (best === undefined || price < (propertyAt(c.b, best)?.price ?? 0)) best = space;
+  }
+  if (best === undefined) return;
+  delete c.s.props[propKey(best)];
+  emit(c, { t: 'owner', space: best, from: seat, via: 'villain' });
+}
+
+/** A card's effect on `seat` (`card`: its id, for the Hero-die throws it starts) */
+export function applyFx(c: Ctx, seat: SeatId, fx: CardFx, card = ''): void {
   const s = c.s;
   const front = (...steps: Step[]): void => {
     s.pending.unshift(...steps);
@@ -76,5 +116,22 @@ function applyFx(c: Ctx, seat: SeatId, fx: CardFx): void {
       pay(c, seat, { bank: houses * fx.house + hotels * fx.hotel }, 'card');
       return;
     }
+    // Heroes boards
+    case 'heroDie':
+      // Every throw first (each with its Thunder window), then the heroes hit, in throw order (react.ts)
+      front({ k: 'throwHero', seat, card, left: fx.rolls, hits: [] });
+      return;
+    case 'lose':
+      loseCheapest(c, seat);
+      return;
+    case 'nearestFree': {
+      const to = nextBankOwned(c, player(s, seat).pos);
+      if (to === undefined) return;
+      front({ k: 'move', seat, to, via: 'card' }, fx.free ? { k: 'land', seat, free: true } : { k: 'land', seat });
+      return;
+    }
+    case 'recharge':
+      recharge(c, seat, false);
+      return;
   }
 }

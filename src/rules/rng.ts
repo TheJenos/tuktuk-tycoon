@@ -2,8 +2,10 @@
  * mulberry32, with its whole state (one uint32) kept in the game state, so a replay of the same commands rolls the
  * same dice on every client. Integer arithmetic only, so every JS engine agrees.
  *
- * Only createGame (deck shuffles, the opening roll), `roll` and the Nearest Utility fresh throw may call these. A
- * player must not be able to change future dice by slipping in a free action (mortgage, trade, ...) first.
+ * Only throws may call these: createGame (deck shuffles, the opening roll), `roll`, the Nearest Utility fresh throw, and
+ * on Hero League the Hero die (a card's throws, a back-up throw) and Thunder Call re-rolls, each with its `dice` or
+ * `heroDie` event. A player must not be able to change future dice by slipping in a free action (mortgage, trade, ...)
+ * first; a Hero League answer that lets the next throw happen (a pass, a closed window) throws in deterministic order.
  */
 
 export interface RngHolder {

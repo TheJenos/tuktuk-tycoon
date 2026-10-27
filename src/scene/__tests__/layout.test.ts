@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { createGame } from '../../rules';
+import { createGame, HEROES } from '../../rules';
+import { artIcon } from '../board/icons';
 import { pieceChanges, piecesOf } from '../board/pieceList';
 import { deckSpot, throwHalf } from '../board/centre';
 import {
@@ -155,7 +156,7 @@ describe('board pieces', () => {
 describe('board sizes', () => {
   afterEach(() => setBoardSize(40));
 
-  it.each([32, 36, 40, 48])('lays out %i spaces: every tile found where it is drawn, the ring exactly filled', (n) => {
+  it.each([28, 32, 36, 40, 48])('lays out %i spaces: every tile found where it is drawn, the ring exactly filled', (n) => {
     setBoardSize(n);
     expect(TILES).toBe(n);
     expect(PER_SIDE).toBe(n / 4);
@@ -183,5 +184,36 @@ describe('board sizes', () => {
     expect(CENTRE).toBeCloseTo(INNER / 4.5);
     expect(throwHalf()).toBeLessThan(INNER);
     expect(Math.abs(deckSpot('chance').x) + 0.95).toBeLessThan(INNER);
+  });
+});
+
+describe('Hero League', () => {
+  afterEach(() => setBoardSize(40));
+
+  it('lays out its 28 spaces with the corners at 0, 7, 14 and 21, and up to six heroes on any space', () => {
+    setBoardSize(HEROES.spaces.length);
+    expect(TILES).toBe(28);
+    expect(JAIL).toBe(HEROES.jailIndex);
+    for (const [i, k] of [[0, 'go'], [7, 'jail'], [14, 'parking'], [21, 'goToJail']] as const) {
+      expect(HEROES.spaces[i]?.k).toBe(k);
+      expect(i % PER_SIDE).toBe(0);
+    }
+    expect(HEROES.goToJailIndex).toBe(3 * PER_SIDE);
+    // Six heroes sharing a location, a Villain Strike space or a corner (visiting or in the cell) all stand on it, apart
+    for (const i of [1, 5, 13, 14, 26, JAIL]) {
+      for (const cell of i === JAIL ? [false, true] : [false]) {
+        const slots = Array.from({ length: 6 }, (_, k) => slotPos(i, 6, k, cell));
+        for (const p of slots) expect(tileAt(...p), `tile ${i}`).toBe(i);
+        for (let a = 0; a < 6; a++) for (let b = a + 1; b < 6; b++) expect(Math.hypot(slots[a]![0] - slots[b]![0], slots[a]![1] - slots[b]![1])).toBeGreaterThan(0.2);
+      }
+    }
+  });
+
+  it('draws its own art for the special spaces, and the classic art for a name it does not know', () => {
+    const art = HEROES.display.art ?? {};
+    expect([art.chance, art.chest, art.parking, art.goToJail].map(artIcon)).toEqual(['mask', 'shield', 'lookout', 'ambush']);
+    expect(artIcon('cape')).toBeNull();
+    expect(artIcon(undefined)).toBeNull();
+    expect(artIcon('toString')).toBeNull();
   });
 });

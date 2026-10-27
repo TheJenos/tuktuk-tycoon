@@ -45,7 +45,7 @@ export function Prompt({ title, children, className, timed = true }: { title: Re
     <section ref={root} className={['prompt', 'panel', className].filter(Boolean).join(' ')} aria-labelledby={id} data-testid="prompt">
       <header className="prompt-head">
         <h2 id={id}>{title}</h2>
-        {deadline && <TimerRing deadline={deadline} size={30} label="Time to decide" />}
+        {deadline && <TimerRing deadline={deadline} size={30} label={deadline.kind === 'reaction' ? 'Time to react' : 'Time to decide'} />}
       </header>
       {children}
     </section>

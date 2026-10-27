@@ -1,4 +1,5 @@
 import { COLOMBO_THEME } from '../boards/colombo/theme';
+import { HEROES_THEME } from '../boards/heroes/theme';
 import { HILL_THEME } from '../boards/hill/theme';
 import { LANKA_THEME } from '../boards/lanka/theme';
 import { SOUTH_THEME } from '../boards/south/theme';
@@ -7,7 +8,7 @@ import { boardTokens, type TokenId } from './tokens';
 /*
  * What each board brings besides its spaces and rules, collected from its folder (src/boards/<board>/theme.ts): its
  * tokens, its bots' names and its sounds (src/boards/<board>/sounds). All Island's are the game's originals; a board
- * without a theme uses them.
+ * without a theme uses them, and so does a board that ships no sounds of its own (Hero League).
  */
 
 export interface BoardTheme {
@@ -20,17 +21,20 @@ export interface BoardTheme {
   loopSeconds: number;
 }
 
-const THEMES: Record<string, { botNames: readonly string[]; loopSeconds: number }> = {
-  lanka: LANKA_THEME,
+/** `sounds`: the board's sound folder when it is not the board id ('' = All Island's) */
+const THEMES: Record<string, { botNames: readonly string[]; loopSeconds: number; sounds?: string }> = {
+  lanka: { ...LANKA_THEME, sounds: '' },
   colombo: COLOMBO_THEME,
   hill: HILL_THEME,
   south: SOUTH_THEME,
+  // No sound files: every sound is All Island's, and its theme cuts the music loop where All Island's is cut
+  heroes: { ...HEROES_THEME, sounds: '' },
 };
 
 export function boardTheme(board: string): BoardTheme {
   const own = THEMES[board];
   const t = own ?? LANKA_THEME;
-  return { tokens: boardTokens(board), botNames: t.botNames, sounds: own && board !== 'lanka' ? board : '', loopSeconds: t.loopSeconds };
+  return { tokens: boardTokens(board), botNames: t.botNames, sounds: own ? (own.sounds ?? board) : '', loopSeconds: t.loopSeconds };
 }
 
 /** The first of the board's bot names nobody at the table has (case-insensitive), else "Bot n" */

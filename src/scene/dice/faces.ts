@@ -1,12 +1,14 @@
 import { MeshStandardMaterial } from 'three';
-import type { SpeedFace } from '../../rules';
+import { HERO_GLYPHS, type HeroGlyph } from '../../boards/heroes/icons';
+import type { HeroDef, SpeedFace } from '../../rules';
 import { drawIcon } from '../board/icons';
 import { fitText, makeCanvas, roundRect, toTexture } from '../textures/canvas';
-import { BOX_GROUP_FACE, WHITE_FACES } from './remap';
+import { BOX_GROUP_FACE, HERO_FACES, WHITE_FACES } from './remap';
 
 /*
  * Die face textures drawn on canvases: pips on the white dice; on the red Speed Die pips for 1-3, a bus silhouette
- * and a tuk-tuk glyph for Tuk-Tuk Uncle, with the data file's labels under the pictures.
+ * and a tuk-tuk glyph for Tuk-Tuk Uncle, with the data file's labels under the pictures; on Hero League's Hero die
+ * each hero's silhouette and name.
  */
 
 const SIZE = 256;
@@ -74,6 +76,61 @@ export function speedDieMaterials(faces: readonly SpeedFace[], labels: Record<st
           };
     mats = BOX_GROUP_FACE.map((i) => faceMaterial(face('#c1121f', draw(faces[i] ?? 1))));
     speedCache.set(key, mats);
+  }
+  return mats;
+}
+
+/** A Hero-die face for a hero nobody plays */
+export const NOBODY = '#6c727c';
+
+/** Dark ink on a light face, white on a dark one */
+function inkOn(bg: string): string {
+  const n = Number.parseInt(bg.replace('#', '').padEnd(6, '0').slice(0, 6), 16);
+  const lum = (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+  return lum > 0.62 ? '#1d1d1f' : '#ffffff';
+}
+
+/** A hero's silhouette (24 x 24 glyph) centred at (x, y), `size` wide; its cut-outs in the face colour */
+function drawGlyph(ctx: CanvasRenderingContext2D, g: HeroGlyph, x: number, y: number, size: number, color: string, bg: string): void {
+  ctx.save();
+  ctx.translate(x - size / 2, y - size / 2);
+  ctx.scale(size / 24, size / 24);
+  ctx.fillStyle = color;
+  ctx.fill(new Path2D(g.d), 'evenodd');
+  if (g.line) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = g.w ?? 1.5;
+    ctx.lineCap = 'round';
+    ctx.stroke(new Path2D(g.line));
+  }
+  if (g.cut) {
+    ctx.fillStyle = bg;
+    ctx.fill(new Path2D(g.cut), 'evenodd');
+  }
+  ctx.restore();
+}
+
+const heroCache = new Map<string, MeshStandardMaterial[]>();
+/**
+ * The Hero die: face value f (1-6, HERO_FACES) shows heroes[f - 1], its silhouette and name on `colours[f - 1]` (the
+ * colour of the seat playing that hero, null: nobody does)
+ */
+export function heroDieMaterials(heroes: readonly HeroDef[], colours: readonly (string | null)[]): MeshStandardMaterial[] {
+  const key = heroes.map((h, k) => `${h.id}:${colours[k] ?? ''}`).join(',');
+  let mats = heroCache.get(key);
+  if (!mats) {
+    const draw = (f: number) => {
+      const hero = heroes[f - 1];
+      const bg = colours[f - 1] ?? NOBODY;
+      const ink = inkOn(bg);
+      const glyph = hero && HERO_GLYPHS[hero.id];
+      return face(bg, (ctx) => {
+        if (glyph) drawGlyph(ctx, glyph, 0.5, 0.4, 0.56, ink, bg);
+        fitText(ctx, (hero?.name ?? String(f)).toUpperCase(), 0.5, 0.82, 0.12, 0.84, { weight: 800, color: ink });
+      });
+    };
+    mats = BOX_GROUP_FACE.map((i) => faceMaterial(draw(HERO_FACES[i] ?? 1)));
+    heroCache.set(key, mats);
   }
   return mats;
 }

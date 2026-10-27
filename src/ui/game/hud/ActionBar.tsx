@@ -1,6 +1,6 @@
 import type { SeatId } from '../../../rules';
 import { useGame } from '../context';
-import { tradeLock } from '../selectors';
+import { heroesOn, tradeLock } from '../selectors';
 import { TurnButton } from './BoardCenter';
 
 interface Props {
@@ -21,7 +21,8 @@ interface Props {
 
 /**
  * Bottom centre: Manage, Trade, Recenter, the 2D board, the log and the menu. The turn's Roll / End turn and the
- * jail choices are over the middle of the board (BoardCenter), but Roll / End turn move here while trading.
+ * jail choices are over the middle of the board (BoardCenter), but Roll / End turn move here while trading. Hero
+ * League has nothing to manage (no buildings, mortgages or sales) and no trading: neither button is there.
  */
 export function ActionBar({ seat, onManage, onTrade, onRecenter, onLog, onMenu, onMiniBoard, miniBoard, turnSeat }: Props) {
   const s = useGame();
@@ -30,9 +31,11 @@ export function ActionBar({ seat, onManage, onTrade, onRecenter, onLog, onMenu, 
     <nav className="action-bar panel" aria-label="Actions">
       <div className="action-row tools">
         {turnSeat && <TurnButton seat={turnSeat} docked />}
-        <button type="button" disabled={!seat} onClick={onManage} title="Build, sell and mortgage (M)">
-          Manage <kbd>M</kbd>
-        </button>
+        {!heroesOn(s) && (
+          <button type="button" disabled={!seat} onClick={onManage} title="Build, sell and mortgage (M)">
+            Manage <kbd>M</kbd>
+          </button>
+        )}
         {!lock?.off && (
           <button type="button" disabled={!seat || !!lock} onClick={onTrade} title={lock ? lock.message : 'Offer a trade (T)'}>
             Trade <kbd>T</kbd>

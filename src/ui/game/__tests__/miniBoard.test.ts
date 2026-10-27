@@ -4,8 +4,7 @@ import { shortSpaceName } from '../format';
 
 describe('shortSpaceName (the MiniBoard cells)', () => {
   it('keeps every word of every space short enough for a cell, and tells them apart', () => {
-    const b = getBoard('lanka');
-    for (const max of [9, 6]) {
+    for (const b of [getBoard('lanka'), getBoard('heroes')]) for (const max of [9, 6]) {
       const labels = b.spaces.map((sp) => shortSpaceName(sp.name, max));
       for (const l of labels) for (const w of l.split(' ')) expect(w.length).toBeLessThanOrEqual(max);
       // Different spaces with different names never share a label
@@ -38,5 +37,7 @@ describe('shortSpaceName (the MiniBoard cells)', () => {
     ]);
     // Nothing but the generic word: kept
     expect(shortSpaceName('Station')).toBe('Station');
+    // A cut never ends on a hyphen
+    expect(shortSpaceName('Island Lock-Up', 6)).toBe('Island Lock.');
   });
 });

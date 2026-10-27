@@ -9,6 +9,7 @@ import {
 } from '../rules';
 import { type BotCtx, pickOne } from './ctx';
 import { raiseStep } from './debt';
+import { heroesBoard } from './heroes';
 import {
   type GroupInfo,
   buildable,
@@ -162,8 +163,9 @@ function liftChoice(c: BotCtx, roomToBuild: boolean): Action | null {
   return null;
 }
 
-/** The bot's own turn after rolling: lift, build, then end the turn */
+/** The bot's own turn after rolling: lift, build, then end the turn (Hero League: nothing to build or lift) */
 export function postRollChoice(c: BotCtx): Action {
+  if (heroesBoard(c)) return { k: 'endTurn' };
   return manageChoice(c) ?? { k: 'endTurn' };
 }
 

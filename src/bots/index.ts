@@ -16,12 +16,18 @@ export type { BotTable } from './ctx';
  *   against the bots' own acceptance rules; buy and auction limits are checked by rollouts too. Bounded by a budget of
  *   engine commands per decision, not a clock: a few ms on average and some 30 ms at most on a desktop. About 70% of
  *   2-player games against Hard (npm run sim:bots -- --players 2 --skills hard,expert --games 600 --jobs 8 --fast).
+ * On Hero League (heroes.ts) the only choices are the superpowers: when to re-roll a throw, say no to a Villain Strike
+ * or a Titan Smash, take aim, sting or smash, judged analytically by the score-aware valuation and from public
+ * information only (a deck's make-up, never its order or the dice to come). Expert plays Hard's choices there, and
+ * Hard plays no better than Normal: about 50% of 2-player games against it, while Normal wins some 55% against Easy
+ * (npm run sim:bots -- --board heroes --players 2 --skills hard,normal --games 3000 --jobs 4 --fast). The lobby says so.
  *
  * Driver contract: after every committed seq, call decide() for each bot seat in seatsToAsk(state) (receivers of
- * open offers first, then every awaited seat) and dispatch a non-null result with basis = state.seq; a stale
- * dispatch is simply decided again on the new state. A bot only builds, lifts mortgages and proposes on its own
- * turn, proposes at most once per turn (at its start; see trade.ts for how repeats are avoided without memory), and
- * never waits on an offer: offers never block play.
+ * open offers first, then every awaited seat, on Hero League each seat still open in a reaction window and the Dead
+ * Aim or Viper Strike seat included) and dispatch a non-null result with basis = state.seq; a stale dispatch is
+ * simply decided again on the new state. A bot only builds, lifts mortgages and proposes on its own turn, proposes at
+ * most once per turn (at its start; see trade.ts for how repeats are avoided without memory), and never waits on an
+ * offer: offers never block play.
  */
 
 /**
@@ -40,7 +46,8 @@ export function thinkMs(skill: BotSkill): number {
 
 /**
  * Seats a driver should ask decide() for now, in order: receivers of open trade offers first (so a bot answers an
- * offer before the proposer moves on), then every seat the game is waiting for. Out seats are never listed.
+ * offer before the proposer moves on), then every seat the game is waiting for (on Hero League: every seat still open
+ * in a reaction window, in its order, and the seat of an aim or boost phase). Out seats are never listed.
  */
 export function seatsToAsk(state: GameState): SeatId[] {
   if (state.phase.k === 'over') return [];

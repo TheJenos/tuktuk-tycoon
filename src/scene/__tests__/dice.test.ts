@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Quaternion, Vector3 } from 'three';
 import { LANKA } from '../../rules';
 import { kinematicThrow, randomQuat } from '../dice/kinematic';
-import { correction, faceFor, landedFace, restingQuat, upness, WHITE_FACES } from '../dice/remap';
+import { correction, faceFor, HERO_FACES, landedFace, restingQuat, upness, WHITE_FACES } from '../dice/remap';
 import { loadRapier, simulateThrow } from '../dice/simulate';
 import { seeded } from '../util/random';
 
@@ -47,6 +47,10 @@ describe('dice remap', () => {
     expect(faceFor(faces, 'uncle', both[1])).toBe(both[1]);
     expect(faces[faceFor(faces, 'uncle', 0)]).toBe('uncle');
     expect(faces[faceFor(faces, 'bus')]).toBe('bus');
+    // The Hero die: every face value 1-6 (a hero, in the heroes' order) on one face, opposite faces adding up to 7
+    expect(HERO_FACES.slice().sort()).toEqual([1, 2, 3, 4, 5, 6]);
+    for (let v = 1; v <= 6; v++) expect(HERO_FACES[faceFor(HERO_FACES, v)]).toBe(v);
+    for (const [a, b] of [[0, 1], [2, 3], [4, 5]] as const) expect(HERO_FACES[a]! + HERO_FACES[b]!).toBe(7);
   });
 
   it('the kinematic throw ends at rest on the wanted face', () => {
@@ -73,7 +77,8 @@ describe('dice physics (Rapier, Node build)', () => {
     let frames = 0;
     let made = 0;
     for (let seed = 1; seed <= 24; seed++) {
-      const count = seed % 3 === 0 ? 3 : 2;
+      // Two white dice, with the Speed Die, or the Hero die thrown alone
+      const count = seed % 4 === 0 ? 1 : seed % 3 === 0 ? 3 : 2;
       const rec = simulateThrow(R, count, seed * 7919);
       if (!rec) continue;
       made++;

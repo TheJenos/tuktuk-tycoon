@@ -2,7 +2,9 @@
 
 The pure property-trading rules: Classic rules plus the optional Speed Die (2007 rulebook, see `docs/rules.md`), on
 Tuk-Tuk Tycoon's boards (each board's data is `src/boards/<board>/rules.ts`, registered in `board.ts`: All Island,
-the default, and Colombo, Hill Country and Down South, each its own size). No React, three, R3F or Firebase imports; nothing but its own files. Every client runs the same reducer on the same JSON state,
+the default, and Colombo, Hill Country and Down South, each its own size), and Hero League, a board whose `heroes`
+block switches on the superhero edition's rules (see [Hero League](#hero-league) and `docs/heroes.md`). No React,
+three, R3F or Firebase imports; nothing but its own files. Every client runs the same reducer on the same JSON state,
 so a replay of the same commands gives the same state and the same events everywhere.
 
 Read this file and `types.ts`; everything else is implementation. Import from `src/rules` (`index.ts`) only.
@@ -24,14 +26,19 @@ if (r.ok) { state = r.state; play(r.events); } else showError(r.error.message);
   In dev and test builds (`import.meta.env.DEV`) it also runs `checkInvariants` and refuses (`code: 'invariant'`) a
   command that would break one; pass `{ check: true | false }` to override.
 - **No clock.** Deadlines belong to the net layer (see [Timers](#timers-and-timeouts)).
-- **Randomness lives in the state** (`state.rng`, a mulberry32 uint32). Only `createGame` (deck shuffles, opening
-  roll, the quick-start deal), `roll` and the Nearest Utility card's fresh throw consume it, so nobody can change future dice by slipping in
-  a free action first. The seed and deck order are readable by anyone holding the state (a known, accepted limit).
+- **Randomness lives in the state** (`state.rng`, a mulberry32 uint32). Only throws consume it: `createGame` (deck
+  shuffles, opening roll, the quick-start deal), `roll`, the Nearest Utility card's fresh throw, and on Hero League the
+  Hero die (a card's throws, a back-up throw) and Thunder Call re-rolls, each with its `dice` or `heroDie` event. So
+  nobody can change future dice by slipping in a free action first; a Hero League answer that lets the next throw
+  happen (a pass, a closed window) throws in a fixed order. The seed and deck order are readable by anyone holding the
+  state (a known, accepted limit).
 - **JSON-safe state**: no `null`, `undefined`, `NaN` or class instances anywhere; whole money units; optional fields are
   absent rather than undefined. `encode()` is `JSON.stringify`.
 - **Money is in rulebook units** (start 1500, prices 60..400): state, actions, events, configs and bots all use
-  them. Players see and type rupees at `board.display.currency.scale` (x100): `formatMoney(1500)` is
-  `"Rs. 150,000"` and `toUnits(6049)` is 60. The engine's own error messages format through it too.
+  them. Players see and type the board's currency (`board.display.currency`, `currencyOf(board)`): rupees at x100 on
+  the classic boards (`formatMoney(1500)` is `"Rs. 150,000"`, `toUnits(6049)` is 60), "Power" at x1 after the number
+  on Hero League (`boardMoney(HEROES, 1500)` is `"1,500 Power"`). The engine's own error messages print the board's
+  currency.
 - **One data file per board**: `src/boards/<board>/rules.ts` holds every name, price, rent, card and label. Logic
   never hard-codes them.
 
@@ -42,7 +49,7 @@ and wrong types replaced by the default). The defaults are the classic rules.
 
 | Field | Type (range) | Default | Meaning |
 |---|---|---|---|
-| `board` | `'lanka'` \| `'colombo'` \| `'hill'` \| `'south'` | `'lanka'` | the theme (All Island, Colombo, Hill Country, Down South); the rules and numbers are the same on every board |
+| `board` | `'lanka'` \| `'colombo'` \| `'hill'` \| `'south'` \| `'heroes'` | `'lanka'` | the board (All Island, Colombo, Hill Country, Down South, Hero League); the rules are the same on the four classic boards; Hero League plays its own and pins `HEROES_FIXED` (below) |
 | `speedDie` | boolean | false | the Speed Die (2007 rules) |
 | `startCash` / `speedBonus` | 0-100000 | 1500 / 1000 | starting cash; extra each with the Speed Die |
 | `goSalary` | 0-10000 | 200 | Start salary |
@@ -67,6 +74,11 @@ and wrong types replaced by the default). The defaults are the classic rules.
 
 State fields the options use: `GameState.pot` (the jackpot, 0 unless `jackpot`) and `PlayerState.laps` (Start
 salaries collected, counted whatever the rules).
+
+On a heroes board `normalizeConfig` forces `HEROES_FIXED` whatever was asked (and `decode` re-applies it): `speedDie`
+off, `houses` / `hotels` 0, `auctions` and `auctionAll` off, `jailRent` off, `buyAfterFirstLap` off, `dealProperties`
+0, `endMode` `'lastStanding'`, `jackpot` off, `trading` `'off'`. The others stay adjustable (`startCash`, `goSalary`,
+`jailFine`, `doubleGoLanding`, `threeDoublesJail`, `turnLimit`); the tax and mortgage fields have nothing to act on.
 
 ## Commands
 
@@ -95,7 +107,7 @@ interface Command { by: SeatId | 'system'; a: Action; basis?: number }
 | `useCard {card?}` | turn seat | `preRoll`, jailed, holds a Get Out of Jail Free card |
 | `endTurn` | turn seat | `postRoll` |
 | `bid {amount}` | any eligible seat | `auction`; not passed, not already high; `amount > high` (>= 1), `<= cash` |
-| `pass` | any | `auction` (eligible, not passed, not the high bidder) or `buildClaim` (seat is in `open`) |
+| `pass {at?}` | any | `auction` (eligible, not passed, not the high bidder) or `buildClaim` (seat is in `open`); Hero League: `react` (seat in `open`), `aim` before the reveal and `boost` (the phase's seat), with `at` = the window's `state.since` |
 | `requestBuild {n}` | any | `buildClaim`, seat in `open`; `1 <= n <= buildCapacity()` |
 | `place {space}` | the placing seat | `place`; a site from `placeSites()` |
 | `build {group, levels}` | owner | `preRoll`/`postRoll`/`buy`; target levels per `GroupDef.spaces`, raises only |
@@ -110,13 +122,24 @@ interface Command { by: SeatId | 'system'; a: Action; basis?: number }
 | `autoRaise` | debtor | `debt`: raise cash deterministically and pay, or go bankrupt |
 | `bankrupt` | debtor | `debt` and `maxRaise < owed` |
 | `resign` | any active seat | any time |
+| `reroll {at}` | a seat in `open` | Hero League: `react` of kind `thunder`; Thunder Call usable (own or Steel Ace's copy) |
+| `shield {at}` | the window's seat | Hero League: `react` of kind `shield`; Star Shield usable |
+| `sting {n, at}` | the boost seat | Hero League: `boost`; `1 <= n <= stingMax`; Viper Strike usable |
+| `smash {a, b}` | turn seat | Hero League: `preRoll` before the turn's first roll; Titan Smash usable; a pair from `smashPairs()` |
+| `aim {at}` | the aim seat | Hero League: `aim` before the reveal; Dead Aim usable |
+| `pickCard {card, at}` | the aim seat | Hero League: `aim` after the reveal; `card` one of `phase.cards` |
 | `closeAuction` | system | `auction` (its deadline passed) |
 | `closeClaim` | system | `buildClaim` with seats still open (its deadline passed) |
+| `closeReact` | system | `react` (its deadline passed): every seat still open passes |
 | `endGame` | system | any time: ends the game ranked by net worth (owner's "Finish now") |
 | `timeUp` | system | any time: the room's time limit ran out; ends the game ranked by net worth (`why: 'timeUp'`) |
 | `forced {seat, a}` | system | a timeout: `seat` is awaited and `a` deep-equals `defaultAction(state, seat)` |
-| `debugRig {dice}` | anyone | `cfg.debug` only: queue throws `[a,b]` or `[a,b,face]` used by the next rolls |
+| `debugRig {dice, hero?}` | anyone | `cfg.debug` only: queue throws `[a,b]` or `[a,b,face]` used by the next rolls; `hero`: Hero-die faces 1-6 for the next Hero-die throws (heroes boards; both queues count to 100) |
 | `debugSetCash {seat, cash}` | anyone | `cfg.debug` only |
+
+On a heroes board `build`, `sell`, `mortgage`, `unmortgage` and `sellProperty` are refused (`code: 'heroes'`) in every
+phase, and a window answer whose `at` is not the current `state.since` is refused `stale` (so a late click never
+answers the next window).
 
 Building is expressed as **target levels for the whole group** (`levels[i]` for `GroupDef.spaces[i]`, 0-4 houses,
 5 = hotel). `buildOptions(state, seat)` lists the legal single-step raises and sales per group as ready-made actions,
@@ -153,10 +176,14 @@ auction):
 | `place {seat, kind, count, bid?, resume}` | `seat`: place a won/granted unit | units placed, or no legal site left (an auctioned unit is refunded) |
 | `buildClaim {kind, by, build?, req, open, auctioning?, resume}` | seats in `open`: `requestBuild` or `pass` | `open` empty -> grant or auction units |
 | `mortgageXfer {seat, spaces, resume}` | `seat`: `settleMortgages` | settled |
-| `debt {debtor, owed, why, space?, resume}` | `debtor`: raise cash, `autoRaise`, `bankrupt` or `resign` | settles by itself the moment cash covers `owed` (`space`: what the payment is for, kept for the settling `cash` events) |
+| `debt {debtor, owed, why, space?, resume}` | `debtor`: raise cash, `autoRaise`, `bankrupt` or `resign` | settles by itself the moment cash covers `owed` (`space`: what the payment is for, kept for the settling `cash` events); never on Hero League |
+| `react {kind, seat, open, about, then, resume}` | Hero League: the active seats in `open` (`reroll` / `shield` or `pass`) | nobody active is open (passes, a `closeReact`): `then` runs; a `shield` drops it; a `reroll` re-enters it with `open` recomputed |
+| `aim {seat, deck, cards?, resume}` | Hero League: `seat` (Dead Aim: `aim` or `pass`, then `pickCard`) | answered |
+| `boost {seat, total, then, resume}` | Hero League: `seat` (Viper Strike: `sting` or `pass`) | answered |
 
-`state.pending` holds the rest of the turn (move, land, Tuk-Tuk Uncle, pay, free, afterRoll, nextTurn). It is
-internal; do not read it for game logic.
+`state.pending` holds the rest of the turn (move, land, Tuk-Tuk Uncle, pay, free, afterRoll, nextTurn; on Hero League
+also throwDone, throwHero, heroFace, hit, backupPick, swap, beforeRoll). It is internal; do not read it for game
+logic. The Hero League windows always sit on `busy` (`resume: {k:'busy'}`) and hold back one step (`then`).
 
 ### Flow of a roll
 1. White dice always; the Speed Die too when `cfg.speedDie`, the roller has unlocked it (first GO salary) and it is
@@ -173,6 +200,11 @@ internal; do not read it for game logic.
    the bank owns none, the next unmortgaged property of another player (pay rent); else stay put.
 6. Doubles -> `preRoll` again; otherwise `postRoll`. Jail ends the turn and drops the rest (Speed Die moves too).
 
+On Hero League the throw first opens a Thunder window when anyone can re-roll it; doubles, the third-doubles capture,
+Viper Strike (`boost`) and the move then follow from the final throw. Landing on an unowned location saves it at once
+(or a back-up hero does); on Villain Strike Dead Aim may come first (`aim`). Jailing the turn seat drops only its own
+continuation: other heroes' queued hits still run, and the turn ends when the queue runs dry.
+
 ## Events
 
 `apply()` returns `events: GameEvent[]` in the order things happened (`createGame` too). Each carries post-change
@@ -186,7 +218,7 @@ values, so a view can set rather than accumulate.
 | `speedOn` | `seat` | Speed Die unlocked (used from the next roll) |
 | `bus` | `seat, opts` | Bus rolled: choose a move |
 | `chooseSpace` | `seat` | triple rolled: choose a space |
-| `move` | `seat, from, to, path, via` | `path` = every space entered, ending at `to`; `via`: `dice`, `bus`, `triple`, `card`, `uncle`, `back` (walk backwards), `jail` (jump, path `[10]`) |
+| `move` | `seat, from, to, path, via` | `path` = every space entered, ending at `to`; `via`: `dice`, `bus`, `triple`, `card`, `uncle`, `back` (walk backwards), `jail` (jump, path `[jailIndex]`), `swap` (a Titan Smash jump, path `[to]`); `power` is reserved |
 | `salary` | `seat, amount` | marker: passed/landed on GO (doubled for an exact landing with `doubleGoLanding`); the money is the next `cash` event (`why:'salary'`) |
 | `land` | `seat, space` | arrived and the space resolves |
 | `cash` | `from, to, amount, why, after, space?` | **every** cash change; `from`/`to` a seat or `'bank'`; `after[seat]` = cash after; `space`: the square paid for (rent, tax, an auctioned lot), also when the payment settles a `debt` later; `why:'jackpot'`: the pot won on the parking space (`space` = it); `why:'sale'`: a property sold to the bank (`space` = it); `why:'sell'`: buildings sold |
@@ -197,7 +229,7 @@ values, so a view can set rather than accumulate.
 | `jailStay` | `seat, tries` | failed jail roll |
 | `jailExit` | `seat, how:'doubles'\|'fine'\|'card'\|'forced'` | out of jail |
 | `uncle` | `seat, to?, target?:'bank'\|'rent'` | Tuk-Tuk Uncle advance (no `to`: stays put) |
-| `owner` | `space, from?, to?, via` | ownership changed; no `to` = back to the bank; `via:'deal'`: the quick-start deal (`createGame`, after `order`, before `turn`); `via:'sold'`: sold to the bank (`sellProperty`); `via:'bankrupt'`: a bankrupt's property back to the bank |
+| `owner` | `space, from?, to?, via` | ownership changed; no `to` = back to the bank; `via:'deal'`: the quick-start deal (`createGame`, after `order`, before `turn`); `via:'sold'`: sold to the bank (`sellProperty`); `via:'bankrupt'`: a bankrupt's (or a resigner's) property back to the bank; Hero League: `'backup'` a back-up hero's save, `'free'` a free save, `'villain'` lost to a card (no `to`) |
 | `level` | `space, from, to, bank:{houses, hotels}` | buildings changed; bank supply after |
 | `mortgage` | `space, on` | mortgaged / lifted (also `on:false` when the bank clears it) |
 | `auctionStart` | `lot, eligible, queue` | an auction opens |
@@ -215,7 +247,14 @@ values, so a view can set rather than accumulate.
 | `debt` / `debtPaid` | `debtor, owed, total, why` / `debtor` | |
 | `bankrupt` | `seat, to, resigned` | the seat is out (`to`: creditor seat or `'bank'`) |
 | `timeout` | `seat, a` | a `forced` command played `a` for `seat` |
-| `over` | `winner, ranking, why:'lastStanding'\|'turnLimit'\|'endGame'\|'firstBankrupt'\|'timeUp'` | |
+| `over` | `winner, ranking, why:'lastStanding'\|'turnLimit'\|'endGame'\|'firstBankrupt'\|'timeUp'\|'allSaved'` | `allSaved`: Hero League, every location saved (`OverPhase.scores` holds the scores) |
+| `heroDie` | `seat, face, hero, purpose:'backup'\|'card', card?` | Hero League: a Hero-die throw (face 1-6 = `heroes.list[face - 1]`); a re-roll is a new one |
+| `power` | `seat, power, copied?, target?` | a superpower used (`copied`: Steel Ace's Suit Up; `target`: whose throw a Thunder Call re-rolls) |
+| `powerReady` | `seat` | the superpower is ready again (a Rally Point salary in a later turn, or a Recharge card) |
+| `aimPeek` | `seat, deck, cards` | Dead Aim revealed the top cards (show them to that seat's players only) |
+| `noSave` | `seat, space` | nobody could save the location `seat` landed on |
+| `short` | `seat, why, space?, owed, paid` | a payment fell short: `paid` of `owed` (by creditor), the rest forgiven |
+| `reactTimeout` | `seats` | `closeReact` with these seats still open |
 
 ## Timers and timeouts
 
@@ -224,7 +263,7 @@ The engine is clock-free. A network layer keeps one deadline at a time:
 ```ts
 const t = timer(state);          // { key, kind } | null (null only when over)
 // kind: 'turn' (preRoll/postRoll), 'decision' (bus, chooseSpace, buy, incomeTax, place, buildClaim,
-//       mortgageXfer), 'auction', 'debt'; 'trade' is reserved (offers never block play).
+//       mortgageXfer, aim, boost), 'auction', 'debt', 'reaction' (react); 'trade' is reserved (offers never block play).
 if (t && t.key !== doc.deadline?.key) doc.deadline = { key: t.key, at: env.at + animBudget(events) + phaseSecs(t.kind) };
 // ... once serverNow() >= doc.deadline.at:
 const cmd = timeoutCommand(state); // already carries basis: state.seq
@@ -239,22 +278,26 @@ if (cmd) apply(state, cmd);
 - `timeoutCommand(state)`:
   - `auction` -> `{ by:'system', a:{ k:'closeAuction' }, basis }` (high bidder wins; no bids: bank keeps it);
   - `buildClaim` -> `{ by:'system', a:{ k:'closeClaim' }, basis }` (every open seat passes);
+  - `react` -> `{ by:'system', a:{ k:'closeReact' }, basis }` (every open seat passes: `reactTimeout`);
   - otherwise -> `{ by:'system', a:{ k:'forced', seat, a: defaultAction(state, seat) }, basis }` for the awaited seat.
 - `forced` is accepted only when `seat` is awaited **and** `a` deep-equals `defaultAction(state, seat)`, so a client
   sending chores can never make another player's real decisions. It emits a `timeout` event (count these for AFK).
 - Because the timeout carries `basis`, a late or duplicate one (two drivers racing) is refused as `stale`.
 - `defaultAction(state, seat)` (also a safe bot fallback): `roll`; the largest Bus move; for a triple the next
   bank-owned property ahead, else GO; `decline` (the property is auctioned); the cheaper Income Tax; `pass`; the first
-  legal `place` site; `settleMortgages {lift: []}`; `autoRaise`; `endTurn`. Null for a seat that is not awaited.
+  legal `place` site; `settleMortgages {lift: []}`; `autoRaise`; `endTurn`; Hero League: `pass {at}` in `react`,
+  `boost` and `aim` (after the reveal `pickCard` of the first card). Null for a seat that is not awaited.
 - `awaiting(state)`: seats whose input blocks progress (the turn seat, every seat that may still bid, the open
-  contest seats, the placing / settling seat, the debtor). Never empty unless the game is over.
+  contest seats, the placing / settling seat, the debtor, the open reactors, the aiming / boosting seat). Never empty
+  unless the game is over.
 
 ## Public API (`index.ts`)
 
 Core:
-- `createGame(cfg, seats, seed)` -> `{ state, events }`: new game; `cfg` is normalized; 2-8 unique `SeatId`s
-  (throws otherwise); names trimmed to 24 chars. Seats tied on the opening roll re-roll; play follows lobby order
-  from the winner.
+- `createGame(cfg, seats, seed)` -> `{ state, events }`: new game; `cfg` is normalized; 2-8 unique `SeatId`s, at most
+  the board's `maxPlayers` (throws otherwise); names trimmed to 24 chars. Seats tied on the opening roll re-roll; play
+  follows lobby order from the winner. On a heroes board each seat gets a hero: first every valid, free
+  `SeatSetup.hero` in seat order, then the rest in list order (no RNG, never an error).
 - `apply(state, cmd, opts?)` -> `{ ok:true, state, events } | { ok:false, error }`.
 - `legalActions(state, seat)` -> `Action[]`: every concrete action the seat may take now (bids as the minimum bid,
   build/sell as single steps plus "sell the whole group"; trade proposals are open-ended and not listed). It always
@@ -269,12 +312,18 @@ Core:
 
 Board data:
 - `getBoard(id)` -> `BoardDef` (unknown ids fall back to the All Island board); `boardOf(state)`; `LANKA`, `COLOMBO`,
-  `HILL`, `SOUTH`; `BOARD_IDS`; `BOARDS` (`{id, name, blurb}` for the board picker); `boardName(id)`.
+  `HILL`, `SOUTH`, `HEROES`; `BOARD_IDS`; `BOARDS` (`{id, name, blurb}` for the board picker); `boardName(id)`;
+  `HEROES_FIXED` (Hero League's pinned config).
 - `isProperty(space)`, `isStreet(space)` (type guards on a `SpaceDef`), `deckOf(board, cardId)`,
   `pathForward(board, from, to)`, `pathBack(board, from, n)`, `cardOf(state, cardId)`.
 - `board.display.title`, `.name` ("Colombo"), `.subtitle` (under the title on the board), `.blurb` (the picker's line),
-  `board.display.decks[deck]` (the decks' printed names), `board.display.groupColours[group]`,
-  `board.speedDie.faces` / `.labels[String(face)]`.
+  `board.display.decks[deck]` (the decks' printed names), `board.display.groupColours[group]`, `.currency`
+  (`{symbol, scale, after?}`), Hero League's `.terms` and `.art` (UI wording and icon names),
+  `board.speedDie.faces` / `.labels[String(face)]`, `board.heroes` (Hero League's heroes and numbers).
+- Money: `formatMoney(units, opts?, currency?)` (`opts.signed`: "+" on gains; `opts.bare`: the amount without the
+  symbol), `boardMoney(board | id, units, opts?)` (in that board's currency), `currencyOf(board)`,
+  `toUnits(shown, currency?)`, `toShown(units, currency?)` (the currency defaults to All Island's, `DEFAULT_CURRENCY`);
+  `toRupees`, `MONEY_SCALE`. `owedTotal(owed)`: what an `Owed` adds up to.
 
 Dice helpers: `isDoubles(roll)`, `isTriples(roll)`, `busOptions(roll)`, `faceValue(face)`, `rollTotal(roll)`.
 
@@ -297,6 +346,12 @@ Selectors (all take the state first):
 - `mayBuy(state, seat)`: false only on a first lap with `buyAfterFirstLap`.
 - `minBid(state)`, `placeSites(state, seat, kind)`, `buildCapacity(state, seat, kind)`.
 - `deepEqual(a, b)` for plain JSON values.
+- Hero League: `heroesOf(board)` (heroes in Hero-die face order), `heroOf(state, seat)`, `powerReady(state, seat)`,
+  `canUsePower(state, seat, power)` (its own or Suit Up's copy of a ready hero's, phases aside),
+  `shieldableByDrawer(fx)` (a Villain Strike effect Star Shield can say no to for its drawer),
+  `usablePowers(state, seat)` -> `{power, copied, hero}[]` usable now by one of the seat's actions,
+  `smashPairs(state, seat)` -> the `{a, b}` pairs `smash` accepts now (15 at most), `score(state, seat)` (cash + 100 per
+  location). `ranking` orders by score there; `maxRaise` is the cash; `buildOptions` is empty.
 
 Dev only (not exported from `index.ts`): `randomPlayer.ts` (`randFrom`, `randomCommand`) drives the fuzz test and
 `npm run sim`.
@@ -368,15 +423,51 @@ Dev only (not exported from `index.ts`): `randomPlayer.ts` (`randFrom`, `randomC
   not end it, and when only one player is left the reason is still `lastStanding`.
 - **Trading** `afterLap`: both parties need `laps >= tradeAfterLap` to propose or accept; reject and cancel always work.
 
+## Hero League
+
+A board with a `heroes` block (`HEROES`, id `'heroes'`) plays the superhero edition's rules; `docs/heroes.md` has the
+rules as implemented and the full API. In short:
+
+- **Power, no bankruptcy.** A payment that cannot be made in full pays what there is, in creditor order, and emits
+  `short`; there is never a `debt` phase. The jailed seat pays the fine at the start of its next turn (what it has) and
+  rolls as usual.
+- **Compulsory saving.** Landing on an unowned location saves it at once when the lander has the cost; otherwise a
+  back-up hero (another seat with the cost) does: one eligible saves at once, several are picked by one Hero-die throw.
+  Nobody: `noSave`. Every save checks the end: all locations owned -> `over why:'allSaved'`, ranked by score.
+- **The Hero die.** A card's throws all come first, then each distinct hero rolled takes the hit in throw order, each
+  resolving fully before the next.
+- **Superpowers** (`PlayerState.powerUsed`): Thunder Call and Star Shield answer `react` windows, Viper Strike the
+  `boost` phase, Dead Aim the `aim` phase, Titan Smash is `smash` in `preRoll`; Steel Ace copies any of them while its
+  hero is ready. Ready again on a Rally Point salary in a later turn, or a Recharge card.
+- **Windows** sit on `busy` and hold back one step; every answer names the window (`at`). Leaving: `purge` filters a
+  window's `open`, drops it (and its `then`) when its own seat leaves, and drops an `aim` / `boost` whose seat leaves.
+  drain keeps a `react` window open only to the seats that can still answer it (`liveOpen`: a Steel Ace whose copied
+  hero left, a back-up throw only one hero could now win, a Titan Smash whose other hero left) and lets a `boost` or
+  unrevealed `aim` whose copied superpower left go on as a pass, so a resting window always offers its superpower.
+
 ## Tests and sim
 
 `npx vitest run src/rules`: suites per rule area (`data`, `rng`, `config`, `move`, `cards`, `rent`, `tax`,
 `auction`, `jail`, `build`, `mortgage`, `trade`, `bankrupt`, `speed`, `autoplay`, `codec`, `options` for the optional
-rules) plus the fuzz test
-(`fuzz.test.ts` classic, `fuzzSpeed.test.ts` Speed Die: 30 seeds x 3000 random commands each, checking invariants,
-the cash ledger and the jackpot pot, RNG use, state size < 48 KB, codec round trips, `awaiting`, and that `defaultAction` is legal).
+rules, `boards` for every board's data; Hero League: `heroes` (setup, saving, power-ups, the Holding Cell, the end,
+what is refused), `heroesPowers` (the six superpowers), `heroesCards`, `heroesContract` (stale answers, leaving inside
+windows, invariants, RNG, rigs, codec, money, timing), `heroesEdge` (adversarial chains: leaving inside every kind of
+window, nested windows and re-rolls, hits that move heroes, the end mid-chain) and `heroesEnd` (games end
+`allSaved`: at least 95% within 60 rounds over 2-6 seats, the plan's bar; two players on 600 Power, the slowest table
+at about 94.5%, held to a 93% floor)) plus the fuzz test (`fuzz.test.ts` classic, `fuzzSpeed.test.ts` Speed Die,
+`heroesFuzz.test.ts` Hero League with 2-6 seats asking for random heroes, 1,500, 600 or 300 to start and resignations
+inside windows: 30 seeds x 3000 random commands each, checking invariants, the cash ledger and the jackpot pot, RNG use
+(a `dice` or `heroDie` event whenever it moves), state size < 48 KB, codec round trips, `awaiting`, timers, that
+`defaultAction` is legal, and on Hero League that a stale answer is always refused, nobody owes or goes bankrupt, the
+decks stay whole, nobody moves silently or while jailed, superpowers are spent and readied in step, scores add up, the
+game ends once every location is saved, and no window rests without its superpower, after a resignation too; the
+games end `allSaved` (or by a resignation) and random play reaches every kind of window).
 
 Two fuzz games in three vary the optional rules by seed (`variedRules` in `randomPlayer.ts`).
 
-`npm run sim -- [games=100] [--players=4] [--speed] [--seed=1] [--turns=400] [--options]` plays random-legal-action
-games headless with invariants on and prints how they ended (`--options`: vary the optional rules game by game).
+`npm run sim -- [games=100] [--board=lanka] [--players=4] [--cash=N] [--speed] [--seed=1] [--turns=400] [--options]`
+plays random-legal-action games headless (`playRandomGame` in `randomPlayer.ts`, which `heroesEnd` plays too) with
+invariants on and prints how they ended and their median / p95 rounds
+(`--board`: the players are clamped to its cap; on Hero League also the share ending `allSaved` within 60 rounds,
+judged against 95% on the exact counts and shown rounded down with PASS / FAIL; `--options`: vary the optional rules
+game by game).

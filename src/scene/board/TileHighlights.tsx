@@ -3,15 +3,17 @@ import { useEffect, useLayoutEffect, useRef } from 'react';
 import { CanvasTexture, Color, InstancedMesh, Matrix4, MeshBasicMaterial, PlaneGeometry, Quaternion, SRGBColorSpace, Vector3 } from 'three';
 import { uiStore, type UiState } from '../../state/ui';
 import { settings } from '../../ui/settings';
-import { director } from '../../view';
+import { director, type LogEntry } from '../../view';
 import { makeCanvas, roundRect } from '../textures/canvas';
 import { BOARD_TOP, TILES, tileCenter, tileRotation, tileSize } from './layout';
+import { saveTarget } from './saveTarget';
 import { uncleTarget } from './uncleTarget';
 
 /*
  * Frames laid over tiles: the picker's legal targets in amber (pulsing while a picker is open), its cursor / ghost
  * and a space previewed from a list (a property in a trade) in blue, pulsing, the space Tuk-Tuk Uncle is sending a token to in red (pulsing while it walks there), the inspected tile
- * and the hovered one in slate. One InstancedMesh of 40 quads with a border texture (solid edge, faint fill)
+ * and the hovered one in slate. Hero League's location a back-up hero is being picked for is marked like Tuk-Tuk
+ * Uncle's target. One InstancedMesh of 40 quads with a border texture (solid edge, faint fill)
  * tinted per instance; tiles with nothing to show are scaled away.
  */
 
@@ -32,6 +34,9 @@ function colourOf(u: UiState, uncle: number | null, i: number, out: Color): Colo
 }
 
 const pulsing = (u: UiState, uncle: number | null): boolean => !!u.picker || u.preview !== null || uncle !== null;
+
+/** The space marked red: Tuk-Tuk Uncle's target, or a location waiting for its back-up hero */
+const markOf = (log: readonly LogEntry[]): number | null => uncleTarget(log) ?? saveTarget(log);
 
 /** The frame drawn over a tile: a bold one for pickers and previews, a thin one for the hovered / inspected tile */
 function frameTexture(thin = false): CanvasTexture {
@@ -128,12 +133,12 @@ export function TileHighlights() {
       pulse();
     };
     const readUncle = () => {
-      const next = uncleTarget(director.view.get().log);
+      const next = markOf(director.view.get().log);
       if (next === null && uncle.current !== null) {
         // The token has landed: let the mark linger (a snap or a new turn while it does changes nothing)
         linger ??= setTimeout(() => {
           linger = null;
-          setUncle(uncleTarget(director.view.get().log));
+          setUncle(markOf(director.view.get().log));
         }, UNCLE_LINGER_MS);
         return;
       }

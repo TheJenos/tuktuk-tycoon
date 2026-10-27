@@ -4,6 +4,7 @@ import { capacity, groupLevels, placeSites } from './buildings';
 import { isActive, isSeat, ownedBy } from './ctx';
 import type { Handler } from './handler';
 import { HANDLERS } from './handlers';
+import { smashPairs } from './heroes';
 import type { Action, BoardDef, GameState, SeatId } from './types';
 
 /** Single-step build and sell actions (and "sell the whole group") for every group the seat could touch */
@@ -27,9 +28,15 @@ export function manageCandidates(s: GameState, b: BoardDef, seat: SeatId): Actio
 
 function phaseCandidates(s: GameState, b: BoardDef, seat: SeatId): Action[] {
   const ph = s.phase;
+  const at = s.since;
   switch (ph.k) {
     case 'preRoll':
-      return [{ k: 'roll' }, { k: 'payFine' }, { k: 'useCard' }];
+      return [
+        { k: 'roll' },
+        { k: 'payFine' },
+        { k: 'useCard' },
+        ...smashPairs(b, s, seat).map((p): Action => ({ k: 'smash', a: p.a, b: p.b })),
+      ];
     case 'bus':
       return ph.opts.map((n) => ({ k: 'bus', n }));
     case 'chooseSpace':
@@ -59,6 +66,18 @@ function phaseCandidates(s: GameState, b: BoardDef, seat: SeatId): Action[] {
       ];
     case 'debt':
       return [{ k: 'autoRaise' }, { k: 'bankrupt' }];
+    case 'react':
+      return [
+        { k: 'reroll', at },
+        { k: 'shield', at },
+        { k: 'pass', at },
+      ];
+    case 'aim':
+      return [{ k: 'aim', at }, { k: 'pass', at }, ...(ph.cards ?? []).map((card): Action => ({ k: 'pickCard', card, at }))];
+    case 'boost': {
+      const stings = Array.from({ length: b.heroes?.stingMax ?? 0 }, (_, i): Action => ({ k: 'sting', n: i + 1, at }));
+      return [{ k: 'pass', at }, ...stings];
+    }
     default:
       return [];
   }
@@ -73,7 +92,8 @@ export function legalActions(s: GameState, seat: SeatId): Action[] {
   const b = getBoard(s.cfg.board);
   const candidates: Action[] = [
     ...phaseCandidates(s, b, seat),
-    ...(ownedBy(s, seat).length ? manageCandidates(s, b, seat) : []),
+    // Hero League: nothing to build, sell or mortgage
+    ...(ownedBy(s, seat).length && !b.heroes ? manageCandidates(s, b, seat) : []),
     ...Object.values(s.trades).flatMap((t): Action[] => {
       if (t.to === seat) return [{ k: 'accept', id: t.id }, { k: 'reject', id: t.id }];
       return t.from === seat ? [{ k: 'cancel', id: t.id }] : [];

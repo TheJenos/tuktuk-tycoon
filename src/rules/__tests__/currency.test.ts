@@ -13,6 +13,8 @@ describe('currency display scale', () => {
     expect(formatMoney(200, { signed: true })).toBe('+Rs. 20,000');
     expect(formatMoney(-50, { signed: true })).toBe('−Rs. 5,000');
     expect(formatMoney(0, { signed: true })).toBe('Rs. 0');
+    expect(formatMoney(1500, { bare: true })).toBe('150,000');
+    expect(formatMoney(200, { signed: true, bare: true })).toBe('+20,000');
   });
 
   it('converts typed rupees to the nearest unit', () => {

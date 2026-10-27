@@ -1,5 +1,5 @@
 import type { DispatchResult, GameSession } from '../net/types';
-import { awaiting, type Action, type GameState, type RigRoll, type SeatId, type SpeedFace } from '../rules';
+import { awaiting, getBoard, heroesOf, type Action, type BoardDef, type GameState, type RigRoll, type SeatId, type SpeedFace } from '../rules';
 import { uiStore } from '../state/ui';
 import { director } from '../view';
 
@@ -28,6 +28,8 @@ export interface GameHooks {
   test: {
     /** The next throw: two white dice, then the speed face when it's in play (1-3, 'bus', 'uncle'); or a list of throws */
     rig(dice: (number | string)[] | (number | string)[][]): Promise<void>;
+    /** Hero League: the next Hero-die throws, by face (1-6) or by hero (id or name: 'stormLord', 'Storm Lord') */
+    rigHero(faces: (number | string)[]): Promise<void>;
     setCash(seat: SeatId, cash: number): Promise<void>;
     /** A click on a board space, as the 3D board would send it */
     pickTile(index: number): void;
@@ -58,6 +60,18 @@ export function toRigRoll(dice: readonly (number | string)[]): RigRoll {
 
 export function toRigRolls(dice: (number | string)[] | (number | string)[][]): RigRoll[] {
   return Array.isArray(dice[0]) ? (dice as (number | string)[][]).map(toRigRoll) : [toRigRoll(dice as (number | string)[])];
+}
+
+/** Hero-die faces from what a test wrote: 4, '4', 'stormLord' or 'Storm Lord' (face = the hero's place in the list) */
+export function toHeroFaces(b: BoardDef, faces: readonly (number | string)[]): number[] {
+  const heroes = heroesOf(b);
+  return faces.map((f) => {
+    const n = Number(f);
+    if (Number.isInteger(n) && n >= 1 && n <= heroes.length) return n;
+    const i = heroes.findIndex((h) => h.id === f || h.name.toLowerCase() === String(f).toLowerCase());
+    if (i < 0) throw new Error(`Unknown Hero-die face: ${String(f)}`);
+    return i + 1;
+  });
 }
 
 function makeHooks(session: GameSession): GameHooks {
@@ -99,6 +113,10 @@ function makeHooks(session: GameSession): GameHooks {
     dispatch,
     test: {
       rig: (dice) => must({ k: 'debugRig', dice: toRigRolls(dice) }),
+      rigHero: (faces) => {
+        const s = game();
+        return must({ k: 'debugRig', dice: [], hero: toHeroFaces(getBoard(s?.cfg.board ?? 'lanka'), faces) });
+      },
       setCash: (seat, cash) => must({ k: 'debugSetCash', seat, cash }),
       pickTile: (i) => {
         const p = uiStore.get().picker;

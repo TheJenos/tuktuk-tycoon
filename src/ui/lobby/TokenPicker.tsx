@@ -1,10 +1,13 @@
+import { useId } from 'react';
+import { getBoard } from '../../rules';
 import { SEAT_COLORS, boardTokens, tokenOn, type TokenId } from '../../shared/tokens';
 import { safeColor } from '../colors';
 import { TokenIcon, tokenLabel } from '../game/tokenIcons';
 
 /**
- * The board's eight tokens as a radio group; ones another seat holds can't be picked. A token from another board's set
- * counts as the same slot of this board's (tokenOn), as the game shows it.
+ * The board's tokens as a radio group; ones another seat holds can't be picked. A token from another board's set
+ * counts as the same slot of this board's (tokenOn), as the game shows it. On Hero League each token is a hero: the
+ * picked one's superpower is described under the group.
  */
 export function TokenPicker({ board, value, taken, onPick, label, color, disabled }: {
   /** Whose set to offer */
@@ -19,14 +22,19 @@ export function TokenPicker({ board, value, taken, onPick, label, color, disable
   color?: string;
   disabled?: boolean;
 }) {
+  const describe = useId();
   const current = tokenOn(board, value);
   const held = taken.map((t) => tokenOn(board, t));
-  return (
-    <div className="token-picker" role="radiogroup" aria-label={label}>
+  const heroes = getBoard(board).heroes?.list ?? [];
+  const hero = heroes.find((h) => h.id === current);
+  const group = (
+    <div className="token-picker" role="radiogroup" aria-label={label} aria-describedby={hero ? describe : undefined}>
       {boardTokens(board).map((id) => {
         const name = tokenLabel(id);
+        const power = heroes.find((h) => h.id === id)?.powerName;
         const mine = id === current;
         const gone = !mine && held.includes(id);
+        const tip = power ? `${name} · ${power}` : name;
         return (
           <button
             key={id}
@@ -34,7 +42,7 @@ export function TokenPicker({ board, value, taken, onPick, label, color, disable
             role="radio"
             aria-checked={mine}
             aria-label={gone ? `${name} (taken)` : name}
-            title={gone ? `${name}: someone has it` : name}
+            title={gone ? `${tip}: someone has it` : tip}
             className={mine ? 'token-opt selected' : 'token-opt'}
             style={mine ? { color: safeColor(color) } : undefined}
             disabled={disabled || gone}
@@ -44,6 +52,17 @@ export function TokenPicker({ board, value, taken, onPick, label, color, disable
           </button>
         );
       })}
+    </div>
+  );
+  if (!heroes.length) return group;
+  return (
+    <div className="hero-picker">
+      {group}
+      {hero && (
+        <p className="hero-power" id={describe}>
+          <strong>{hero.name}</strong> · {hero.powerName}: {hero.powerText}
+        </p>
+      )}
     </div>
   );
 }

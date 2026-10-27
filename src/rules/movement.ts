@@ -1,9 +1,13 @@
 import { isProperty, pathBack, pathForward } from './board';
 import { type Ctx, collectsRent, emit, isActive, player, prop, setPhase } from './ctx';
+import { recharge } from './heroes';
 import { transfer } from './money';
-import type { JailReason, MoveVia, SeatId } from './types';
+import type { JailReason, MoveVia, SeatId, Step } from './types';
 
-/** GO salary (`mul` 2: landing exactly on GO with cfg.doubleGoLanding). Counts a lap; the first unlocks the Speed Die. */
+/**
+ * GO salary (`mul` 2: landing exactly on GO with cfg.doubleGoLanding). Counts a lap; the first unlocks the Speed Die.
+ * Hero League: it also makes a used superpower ready again (not one used during this turn).
+ */
 export function paySalary(c: Ctx, seat: SeatId, mul = 1): void {
   const amount = c.s.cfg.goSalary * mul;
   emit(c, { t: 'salary', seat, amount });
@@ -14,6 +18,7 @@ export function paySalary(c: Ctx, seat: SeatId, mul = 1): void {
     p.speed = true;
     emit(c, { t: 'speedOn', seat });
   }
+  if (c.b.heroes) recharge(c, seat, true);
 }
 
 /** Walk forward to `to`, collecting salary when passing or landing on GO */
@@ -45,10 +50,34 @@ export function sendToJail(c: Ctx, seat: SeatId, reason: JailReason): void {
   p.jail = { tries: 0 };
   emit(c, { t: 'move', seat, from, to, path: [to], via: 'jail' });
   emit(c, { t: 'jail', seat, reason });
-  if (c.s.turn.seat === seat) {
-    c.s.pending = [];
-    c.s.turn.again = false;
-    setPhase(c, { k: 'postRoll' });
+  if (c.s.turn.seat !== seat) return;
+  c.s.turn.again = false;
+  if (c.b.heroes) {
+    // Hero League: other heroes' queued work (Hero-die hits, their landings) goes on; only the turn seat's own
+    // continuation is dropped, and the turn ends once the queue runs dry.
+    c.s.pending = c.s.pending.filter((st) => !ownContinuation(st, seat));
+    if (c.s.pending.length > 0) {
+      if (c.s.phase.k !== 'busy') setPhase(c, { k: 'busy' });
+      return;
+    }
+  } else c.s.pending = [];
+  setPhase(c, { k: 'postRoll' });
+}
+
+/** The turn seat's own moves and landings and the end of its roll (what jail drops on a heroes board) */
+function ownContinuation(st: Step, seat: SeatId): boolean {
+  switch (st.k) {
+    case 'move':
+    case 'back':
+    case 'land':
+    case 'uncle':
+    case 'throwDone':
+      return st.seat === seat;
+    case 'afterRoll':
+    case 'beforeRoll':
+      return true;
+    default:
+      return false;
   }
 }
 

@@ -1,4 +1,4 @@
-import type { GameEvent, GameState, PlayerState, PropState, SeatId } from '../rules';
+import { getBoard, score, type GameEvent, type GameState, type OverPhase, type PlayerState, type PropState, type SeatId } from '../rules';
 
 /*
  * The displayed state after one event: the event's post-change values (cash after, position, owner, level, ...)
@@ -20,6 +20,18 @@ function withoutJail(p: PlayerState): PlayerState {
   if (!p.jail) return p;
   const { jail: _jail, ...rest } = p;
   return rest;
+}
+
+function withoutPowerUsed(p: PlayerState): PlayerState {
+  if (p.powerUsed === undefined) return p;
+  const { powerUsed: _used, ...rest } = p;
+  return rest;
+}
+
+/** Hero League: every seat's score at the end (the engine's OverPhase.scores, from what the view already shows) */
+function scoresOf(game: GameState): Pick<OverPhase, 'scores'> {
+  if (!getBoard(game.cfg.board).heroes) return {};
+  return { scores: Object.fromEntries(game.order.map((seat) => [seat, score(game, seat)])) };
 }
 
 const dropCard = (p: PlayerState, id: string): PlayerState =>
@@ -92,7 +104,11 @@ export function reduceView(game: GameState, ev: GameEvent): GameState {
     case 'order':
       return { ...game, order: [...ev.order] };
     case 'over':
-      return { ...game, phase: { k: 'over', winner: ev.winner, ranking: [...ev.ranking], why: ev.why } };
+      return { ...game, phase: { k: 'over', winner: ev.winner, ranking: [...ev.ranking], why: ev.why, ...scoresOf(game) } };
+    case 'power':
+      return patchPlayer(game, ev.seat, (p) => ({ ...p, powerUsed: game.turn.no }));
+    case 'powerReady':
+      return patchPlayer(game, ev.seat, withoutPowerUsed);
     default:
       return game;
   }

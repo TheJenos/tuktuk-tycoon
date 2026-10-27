@@ -7,7 +7,9 @@ import type { BoardDef } from '../rules';
  * The Speed Die is ignored: it mostly speeds tokens up without changing where they come to rest much.
  *
  * Two jail strategies give two chains (leave at once by paying, or stay and roll for doubles); the table is their
- * average, since bots leave early in the opening and stay later. Computed once per board, on first use (~5 ms).
+ * average, since bots leave early in the opening and stay later. On Hero League a jailed hero always leaves at the
+ * start of its next turn (the fine is automatic), so only the leaving chain applies there. Computed once per board, on
+ * first use (~5 ms).
  */
 
 export interface LandingTable {
@@ -167,6 +169,10 @@ export function landingTable(b: BoardDef): LandingTable {
   const hit = cache.get(b.id);
   if (hit) return hit;
   const leave = solve(b, false);
+  if (b.heroes) {
+    cache.set(b.id, leave);
+    return leave;
+  }
   const stay = solve(b, true);
   const avg = (x: number[], y: number[]): number[] => x.map((v, i) => (v + (y[i] as number)) / 2);
   const table: LandingTable = {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { GameEvent, SeatId } from '../../rules';
-import { hopMs } from '../../shared/timing';
-import { cuesFor, pickInstant, type CueCtx } from '../events';
+import { createGame, type GameEvent, type GameState, type SeatId } from '../../rules';
+import { ANIM, hopMs } from '../../shared/timing';
+import { cuesFor, pickInstant, reactionCue, type CueCtx } from '../events';
 
 const ctx: CueCtx = { mine: ['s0'], tokens: true, dice: true, ownerOf: (space) => (space === 1 ? 's0' : 's1') };
 const names = (ev: GameEvent, phase: 'start' | 'done' | 'instant', c = ctx, speed = 1) => cuesFor(ev, phase, speed, c).map((q) => q.name);
@@ -79,6 +79,58 @@ describe('cuesFor', () => {
     expect(names(over('s0'), 'done')).toEqual(['win']);
     expect(names(over('s1'), 'done')).toEqual(['lose']);
     expect(names(over('s1'), 'done', { ...ctx, mine: [] })).toEqual(['win']);
+  });
+});
+
+describe('Hero League cues', () => {
+  const heroDie = (seat: SeatId): GameEvent => ({ t: 'heroDie', seat, face: 4, hero: 'stormLord', purpose: 'card', card: 'ch-swarm' });
+
+  it('throws and lands the Hero die like the dice', () => {
+    expect(names(heroDie('s0'), 'start')).toEqual(['dice-roll']);
+    expect(names(heroDie('s0'), 'done')).toEqual(['dice-land']);
+    expect(names(heroDie('s0'), 'start', { ...ctx, dice: false })).toEqual([]);
+    expect(cuesFor(heroDie('s1'), 'done', 1, ctx)[0]!.gain).toBeLessThan(1);
+  });
+
+  it('plays a superpower as a jingle, and a ready one only for my seat', () => {
+    expect(names({ t: 'power', seat: 's1', power: 'thunder', target: 's0' }, 'done')).toEqual(['jackpot']);
+    expect(names({ t: 'power', seat: 's0', power: 'smash' }, 'start')).toEqual([]);
+    expect(names({ t: 'powerReady', seat: 's0' }, 'done')).toEqual(['jail-free']);
+    expect(names({ t: 'powerReady', seat: 's1' }, 'done')).toEqual([]);
+  });
+
+  it('taps once as a swapped hero lands, not per space', () => {
+    const swap: GameEvent = { t: 'move', seat: 's0', from: 3, to: 17, path: [17], via: 'swap' };
+    const cues = cuesFor(swap, 'start', 1, ctx);
+    expect(cues.map((q) => q.name)).toEqual(['token-hop']);
+    expect(cues[0]!.delay).toBeCloseTo((0.95 * ANIM.jump) / 1000);
+    expect(cuesFor(swap, 'start', 2, ctx)[0]!.delay).toBeCloseTo((0.95 * ANIM.jump) / 2000);
+    expect(names(swap, 'start', { ...ctx, tokens: false })).toEqual([]);
+    expect(names(swap, 'done')).toEqual([]);
+  });
+
+  it('sounds every save as a purchase and a location lost to a villain as a sale', () => {
+    for (const via of ['backup', 'free'] as const) expect(names({ t: 'owner', space: 4, to: 's1', via }, 'done')).toEqual(['buy']);
+    expect(names({ t: 'owner', space: 4, from: 's0', via: 'villain' }, 'done')).toEqual(['sell']);
+    expect(cuesFor({ t: 'owner', space: 4, from: 's1', via: 'villain' }, 'done', 1, ctx)[0]!.gain).toBeLessThan(1);
+    expect(names({ t: 'owner', space: 4, from: 's0', via: 'bankrupt' }, 'done')).toEqual([]);
+  });
+
+  it('rings the bell when a reaction window opens (or opens again) for one of my seats', () => {
+    const base = createGame({ board: 'heroes' }, [{ id: 's0', name: 'A' }, { id: 's1', name: 'B' }, { id: 's2', name: 'C' }], 1).state;
+    const at = (since: number, open: SeatId[]): GameState => ({
+      ...base,
+      since,
+      phase: { k: 'react', kind: 'thunder', seat: 's1', open, about: { k: 'move' }, then: { k: 'throwDone', seat: 's1' }, resume: { k: 'busy' } },
+    });
+    expect(reactionCue(base, at(5, ['s0', 's2']), ['s0'])).toMatchObject({ name: 'auction-start' });
+    // Not mine, the same window still open (someone passed), or no window
+    expect(reactionCue(base, at(5, ['s2']), ['s0'])).toBeNull();
+    expect(reactionCue(at(5, ['s0', 's2']), at(5, ['s0']), ['s0'])).toBeNull();
+    expect(reactionCue(at(5, ['s0']), base, ['s0'])).toBeNull();
+    expect(reactionCue(null, null, ['s0'])).toBeNull();
+    // A re-roll re-enters the window: asked again
+    expect(reactionCue(at(5, ['s0']), at(9, ['s0']), ['s0'])).not.toBeNull();
   });
 });
 

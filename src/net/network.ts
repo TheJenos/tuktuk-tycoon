@@ -1,7 +1,7 @@
-import { BOARD_IDS, DEFAULT_RULES, RULES_VERSION, SEAT_IDS, getBoard, type EndMode, type IncomeTaxMode, type RulesConfig, type SeatId, type TradingMode } from '../rules';
+import { BOARD_IDS, DEFAULT_RULES, RULES_VERSION, SEAT_IDS, getBoard, normalizeConfig, type EndMode, type IncomeTaxMode, type RulesConfig, type SeatId, type TradingMode } from '../rules';
 import { freeBotName } from '../shared/boardThemes';
 import { ONLINE_TIMERS, type TimerRules } from '../shared/timing';
-import { SEAT_COLORS, boardTokens, isTokenId, tokenOn, type TokenId } from '../shared/tokens';
+import { SEAT_COLORS, boardTokens, freeTokens, isTokenId, pickFreeToken, tokenOn, tokensOn, type TokenId } from '../shared/tokens';
 import type { Db } from './db';
 import { AFK_STRIKES, BOT_PACES, BOT_SKILLS, cleanSeat, createDoc, drivenSeat, encodeDoc, othersPlaying, seatsOf } from './doc';
 import { envelopeId, gameId, isPlayerId, randomSeed, roomCode } from './ids';
@@ -60,7 +60,7 @@ export interface LobbyRecord {
  * a validate block in database.rules.json (anything else is refused).
  */
 export interface RoomRules extends RoomOptions {
-  /** The board id (getBoard): the theme only, every board has the same numbers */
+  /** The board id (getBoard): its spaces, tokens, seat cap and standard rules (Hero League pins some: HEROES_FIXED) */
   board: string;
   speedDie: boolean;
   startCash: number;
@@ -235,6 +235,9 @@ export function roomOptions(raw?: Partial<Record<keyof RoomOptions, unknown>> | 
   };
 }
 
+/** Whether a room on `board` asking for the Speed Die plays with it (a board may pin it off: Hero League) */
+const playsSpeedDie = (board: string, speedDie: boolean): boolean => normalizeConfig({ board, speedDie }).speedDie;
+
 /** Room rules from engine rules, timers and room options (what the create wizard picked) */
 export function toRoomRules(rules: Partial<RulesConfig> = {}, timers: TimerRules = ONLINE_TIMERS, options: Partial<RoomOptions> = {}): RoomRules {
   const engine = {} as Record<RoomEngineKey, unknown>;
@@ -252,8 +255,8 @@ export function toRoomRules(rules: Partial<RulesConfig> = {}, timers: TimerRules
 
 /**
  * Engine rules, timers and room options from stored room rules (missing fields take defaults). A room seeded with
- * only `turnTimer: 0` has every human timer off; the auction always keeps one. createGame clamps the engine values
- * (normalizeConfig).
+ * only `turnTimer: 0` has every human timer off; the auction and Hero League's reaction windows always keep one (the
+ * reaction window's is not a room option). createGame clamps the engine values (normalizeConfig).
  */
 export function roomConfig(raw?: Partial<RoomRules> | null): { rules: Partial<RulesConfig>; timers: TimerRules; options: RoomOptions } {
   const r = (raw ?? {}) as Partial<Record<keyof RoomRules, unknown>>;
@@ -273,6 +276,7 @@ export function roomConfig(raw?: Partial<RoomRules> | null): { rules: Partial<Ru
     decision: num(r.decisionTimer, off ? 0 : DEFAULT_ROOM_RULES.decisionTimer),
     auction: num(r.auctionTimer, DEFAULT_ROOM_RULES.auctionTimer),
     debt: num(r.debtTimer, off ? 0 : DEFAULT_ROOM_RULES.debtTimer),
+    reaction: ONLINE_TIMERS.reaction,
   };
   return { rules, timers, options: roomOptions(r) };
 }
@@ -306,14 +310,15 @@ export function rematchSeats(doc: Doc, here: ReadonlySet<PlayerId>): SetupRecord
 }
 
 /**
- * The token for a new seat on `board`: `want` (as the board shows it) if nobody has it, else the board's first free
- * one. Seats count by slot (tokenOn), so a token kept from another board still holds its slot.
+ * The token for a new seat on `board`: `want` (as the board shows it) if nobody has it, else one of the board's free
+ * ones (pickFreeToken: on Hero League a random hero). Seats count by slot (tokensOn), so a token kept from another
+ * board still holds its slot.
  */
 function freeToken(seats: SeatInfo[], board: string, want?: TokenId): TokenId | null {
-  const used = new Set(seats.map((s) => tokenOn(board, s.token)));
+  const held = seats.map((s) => s.token);
   const w = want ? tokenOn(board, want) : null;
-  if (w && !used.has(w)) return w;
-  return boardTokens(board).find((t) => !used.has(t)) ?? null;
+  if (w && freeTokens(board, held).includes(w)) return w;
+  return pickFreeToken(board, held) ?? null;
 }
 
 /** Whether two seats' tokens are the same piece on `board` */
@@ -431,7 +436,7 @@ export function watchRooms(db: Db, cb: (rooms: RoomSummary[]) => void, onError?:
         status: rec.status ?? 'waiting',
         speedDie: rec.speedDie === true,
         board: typeof rec.board === 'string' && BOARD_IDS.includes(rec.board) ? rec.board : DEFAULT_RULES.board,
-        maxSeats: num(rec.maxSeats, 8),
+        maxSeats: Math.min(num(rec.maxSeats, 8), boardSeats(typeof rec.board === 'string' ? rec.board : DEFAULT_RULES.board)),
         seatsTaken: num(rec.seatsTaken, 0),
         players,
         public: true,
@@ -548,7 +553,7 @@ export class RoomConnection {
       createdAt: clock(),
       status: 'waiting',
       v: RULES_VERSION,
-      speedDie: roomRules.speedDie,
+      speedDie: playsSpeedDie(roomRules.board, roomRules.speedDie),
       board: roomRules.board,
       maxSeats,
       seatsTaken: 1 + bots.length,
@@ -762,7 +767,7 @@ export class RoomConnection {
       const others = seats.filter((x) => x !== mine);
       if (token && others.some((x) => sameToken(board, x.token, token))) return { error: new RoomError('token', 'Someone already has that token.') };
       if (mine) {
-        const want = token ?? mine.token;
+        const want = tokenOn(board, token ?? mine.token);
         if (want === mine.token && mine.name === this.name) return { result: mine.seat };
         return { result: mine.seat, seats: { ...s.seats, [mine.seat]: { ...mine, token: want, name: this.name } } };
       }
@@ -801,11 +806,16 @@ export class RoomConnection {
       if ((Object.values(s.seats) as SeatInfo[]).some((x) => x.seat !== target.seat && sameToken(board, x.token, token))) {
         return { error: new RoomError('token', 'Someone already has that token.') };
       }
-      return { seats: { ...s.seats, [target.seat]: { ...target, token } } };
+      // Stored as the board shows it: another board's token is the same slot of this board's set
+      return { seats: { ...s.seats, [target.seat]: { ...target, token: tokenOn(board, token) } } };
     });
   }
 
-  /** Owner: change the rules while waiting */
+  /**
+   * Owner: change the rules while waiting. A new board must seat everyone at the table: it is set with the seats in
+   * one transaction that gives them that board's tokens (tokensOn: none twice), and the room's seat count shrinks to
+   * the board's cap.
+   */
   async setRules(patch: Partial<RoomRules>): Promise<void> {
     this.requireOwner();
     if (this.setupRec?.locked) throw new RoomError('started', 'The game has already started.');
@@ -819,16 +829,35 @@ export class RoomConnection {
       clean[key] = v;
     }
     if (!Object.keys(clean).length) return;
-    // A smaller board must still seat everyone already at the table
-    const seated = Object.keys(this.setupRec?.seats ?? {}).length;
-    if (typeof clean.board === 'string' && boardSeats(clean.board) < seated) {
-      throw new RoomError('full', `${getBoard(clean.board).display.name} seats at most ${boardSeats(clean.board)}: ${seated} are at the table.`);
+    const board = typeof clean.board === 'string' ? clean.board : null;
+    if (board === null) {
+      await this.db.update(`${roomPath(this.code)}/setup/rules`, clean);
+    } else {
+      await this.editSetup<void>((s) => {
+        if (s.locked) return { error: new RoomError('started', 'The game has already started.') };
+        // A smaller board must still seat everyone already at the table
+        const at = Object.values(s.seats) as SeatInfo[];
+        if (boardSeats(board) < at.length) {
+          return { error: new RoomError('full', `${getBoard(board).display.name} seats at most ${boardSeats(board)}: ${at.length} are at the table.`) };
+        }
+        const tokens = tokensOn(board, at.map((x) => x.token));
+        const seats: SetupRecord['seats'] = {};
+        at.forEach((x, i) => (seats[x.seat] = { ...x, token: tokens[i] ?? x.token }));
+        return { rules: clean as Partial<RoomRules>, seats };
+      });
     }
-    await this.db.update(`${roomPath(this.code)}/setup/rules`, clean);
     // What the Rooms list shows
     const mirror: Partial<LobbyRecord> = {};
     for (const k of ['speedDie', 'spectators', 'lateJoin'] as const) if (typeof clean[k] === 'boolean') mirror[k] = clean[k] as boolean;
-    if (typeof clean.board === 'string') mirror.board = clean.board;
+    // The Speed Die as the room plays it: never on a board that pins it off (Hero League)
+    if (mirror.speedDie !== undefined || board !== null) {
+      const rules = this.setupRec?.rules;
+      mirror.speedDie = playsSpeedDie(board ?? rules?.board ?? DEFAULT_ROOM_RULES.board, (mirror.speedDie ?? rules?.speedDie) === true);
+    }
+    if (board !== null) {
+      mirror.board = board;
+      if ((this.lobbyRec?.maxSeats ?? 8) > boardSeats(board)) mirror.maxSeats = boardSeats(board);
+    }
     if (Object.keys(mirror).length) await this.db.update(lobbyPath(this.code), mirror);
   }
 
@@ -901,9 +930,13 @@ export class RoomConnection {
     const fresh = gameId();
     const gid = await this.editSetup<string>((s) => {
       if (s.locked) return { result: s.locked };
-      if (Object.keys(s.seats).length < MIN_START_SEATS) {
+      const n = Object.keys(s.seats).length;
+      if (n < MIN_START_SEATS) {
         return { error: new RoomError('seats', `At least ${MIN_START_SEATS} seats are needed to start.`) };
       }
+      // Never locked to a table the engine would refuse
+      const max = boardSeats(s.rules.board);
+      if (n > max) return { error: new RoomError('seats', `${getBoard(s.rules.board).display.name} seats at most ${max}: remove ${n - max} to start.`) };
       return { result: fresh, locked: fresh };
     });
     await this.finishStart(gid);
@@ -1309,11 +1342,11 @@ export class RoomConnection {
   }
 
   /**
-   * Edit the setup by transaction. `edit` sees the setup with its containers filled in and returns new seats and/or
-   * lock (the stored rules are written back untouched), a result, or an error.
+   * Edit the setup by transaction. `edit` sees the setup with its containers filled in and returns new seats, lock
+   * and/or rules to merge into the stored ones (written back otherwise untouched), a result, or an error.
    */
   private async editSetup<R>(
-    edit: (s: SetupRecord) => { seats?: SetupRecord['seats']; locked?: string; result?: R; error?: RoomError },
+    edit: (s: SetupRecord) => { seats?: SetupRecord['seats']; locked?: string; rules?: Partial<RoomRules>; result?: R; error?: RoomError },
   ): Promise<R> {
     const out = { result: undefined as R | undefined, error: null as RoomError | null };
     const op = envelopeId();
@@ -1328,10 +1361,10 @@ export class RoomConnection {
       const e = edit(s);
       out.result = e.result;
       out.error = e.error ?? null;
-      if (e.error || (e.seats === undefined && e.locked === undefined)) return undefined;
+      if (e.error || (e.seats === undefined && e.locked === undefined && e.rules === undefined)) return undefined;
       const seats: SetupRecord['seats'] = {};
       for (const x of Object.values(e.seats ?? s.seats) as SeatInfo[]) seats[x.seat] = cleanSeat(x);
-      return { ...cur, seats, locked: e.locked ?? s.locked, op };
+      return { ...cur, ...(e.rules ? { rules: { ...cur.rules, ...e.rules } as RoomRules } : {}), seats, locked: e.locked ?? s.locked, op };
     });
     if (out.error) throw out.error;
     if (r.committed && r.value === null) throw new RoomError('closed', 'That room has closed.');

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { COLOMBO_ICONS } from '../../boards/colombo/icons';
+import { HEROES_ICONS } from '../../boards/heroes/icons';
 import { HILL_ICONS } from '../../boards/hill/icons';
 import { LANKA_ICONS } from '../../boards/lanka/icons';
 import { SOUTH_ICONS } from '../../boards/south/icons';
@@ -12,7 +13,7 @@ import { safeColor } from '../colors';
  * is given, else in currentColor. Each board's are in its folder (src/boards/<board>/icons.tsx).
  */
 
-const SHAPES: Record<string, ReactNode> = { ...LANKA_ICONS, ...COLOMBO_ICONS, ...HILL_ICONS, ...SOUTH_ICONS };
+const SHAPES: Record<string, ReactNode> = { ...LANKA_ICONS, ...COLOMBO_ICONS, ...HILL_ICONS, ...SOUTH_ICONS, ...HEROES_ICONS };
 
 export const tokenLabel = (token: string): string => TOKENS.find((t) => t.id === token)?.label ?? 'Token';
 

@@ -3,6 +3,7 @@ import { type Handler, isInt, seatAction } from './handler';
 import { faceValue } from './rent';
 import { d6 } from './rng';
 import { sendToJail } from './movement';
+import { openThunder } from './react';
 import type { Roll, SeatId, Step } from './types';
 
 /** The Speed Die is rolled for this seat: rules on, unlocked, and not a roll to get out of jail */
@@ -59,6 +60,13 @@ export const roll: Handler<'roll'> = seatAction(
     if (jailed) s.turn.jailRoll = true;
     else delete s.turn.jailRoll;
     emitDice(c, seat, jailed ? 'jail' : 'move', r);
+    // Hero League: a Thunder window first; doubles, jail, Viper Strike and the move follow from the final throw
+    if (c.b.heroes && !jailed) {
+      s.pending = [];
+      setPhase(c, { k: 'busy' });
+      openThunder(c, seat, { k: 'move' }, { k: 'throwDone', seat });
+      return;
+    }
     const white = r.w[0] + r.w[1];
     const to = (p.pos + white) % n;
 

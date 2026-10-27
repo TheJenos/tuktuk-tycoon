@@ -1,7 +1,7 @@
 import { getBoard, isProperty } from './board';
 import { RULES_VERSION, normalizeConfig } from './config';
 import { d6, seedState, shuffle } from './rng';
-import type { GameEvent, GameState, PlayerState, RulesConfig, SeatId } from './types';
+import type { BoardDef, GameEvent, GameState, PlayerState, RulesConfig, SeatId } from './types';
 
 export const SEAT_IDS: readonly SeatId[] = ['s0', 's1', 's2', 's3', 's4', 's5', 's6', 's7'];
 export const MIN_SEATS = 2;
@@ -12,6 +12,31 @@ export const NAME_MAX = 24;
 export interface SeatSetup {
   id: SeatId;
   name: string;
+  /** Heroes boards: the hero (HeroDef id) this seat asks for; ignored elsewhere */
+  hero?: string;
+}
+
+/**
+ * Heroes for the seats, in two passes and without the RNG: first every valid, still-free request in seat order, then
+ * the rest in the board's list order. A bad or taken request is simply not met (never an error).
+ */
+function assignHeroes(b: BoardDef, seats: SeatSetup[]): Map<SeatId, string> {
+  const list = b.heroes?.list ?? [];
+  const out = new Map<SeatId, string>();
+  const taken = new Set<string>();
+  for (const x of seats) {
+    if (typeof x.hero === 'string' && list.some((h) => h.id === x.hero) && !taken.has(x.hero)) {
+      out.set(x.id, x.hero);
+      taken.add(x.hero);
+    }
+  }
+  const free = list.map((h) => h.id).filter((id) => !taken.has(id));
+  for (const x of seats) {
+    if (out.has(x.id)) continue;
+    const id = free.shift();
+    if (id !== undefined) out.set(x.id, id);
+  }
+  return out;
 }
 
 /**
@@ -51,10 +76,12 @@ export function createGame(
   const order = [...ids.slice(at), ...ids.slice(0, at)];
 
   const cash = rules.startCash + (rules.speedDie ? rules.speedBonus : 0);
+  const heroes = assignHeroes(b, seats);
   const players: Partial<Record<SeatId, PlayerState>> = {};
   for (const x of seats) {
     const name = String(x.name).trim().slice(0, NAME_MAX);
-    players[x.id] = { seat: x.id, name, cash, pos: 0, goojf: [], speed: false, laps: 0 };
+    const hero = heroes.get(x.id);
+    players[x.id] = { seat: x.id, name, cash, pos: 0, goojf: [], speed: false, laps: 0, ...(hero ? { hero } : {}) };
   }
   events.push({ t: 'order', order: [...order] });
 

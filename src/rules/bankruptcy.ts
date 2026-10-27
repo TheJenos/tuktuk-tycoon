@@ -127,6 +127,17 @@ function purge(p: Phase, seat: SeatId, turnOut: boolean): Phase {
       p.resume = purge(p.resume, seat, turnOut);
       return p;
     }
+    case 'react':
+      // The thrower or the target leaving drops the window and what it held back. Anyone else leaving may also take
+      // away what the rest could answer with (the hero a Steel Ace copies): drain() re-checks it (react.ts liveOpen),
+      // and a boost or aim whose copied superpower left goes on as a pass.
+      p.open = p.open.filter((x) => x !== seat);
+      if (p.seat === seat) return purge(p.resume, seat, turnOut);
+      return turnOut ? { k: 'busy' } : p;
+    case 'aim':
+    case 'boost':
+      if (p.seat === seat) return purge(p.resume, seat, turnOut);
+      return turnOut ? { k: 'busy' } : p;
     case 'over':
       return p;
     default:

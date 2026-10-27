@@ -17,7 +17,8 @@ import type { Profile } from './profile';
  * The bots' picture of the game: a small mutable copy of ownership, levels and cash (so what-ifs such as "after
  * this trade" cost an array copy, not a state clone) and one valuation, value(), that every policy shares. Value is
  * in rupees: cash + property at its printed price + expected rent over a horizon + what a set is still worth
- * developing + the option of completing a set later. Only public information is used.
+ * developing + the option of completing a set later. On Hero League the value is score-aware instead (heroesValue):
+ * cash + the points per location + power-ups until every location is saved. Only public information is used.
  */
 
 export interface GroupInfo {
@@ -57,6 +58,15 @@ const DEV_W = 0.8;
 const OPTION_W = 0.5;
 /** Development is valued up to this many houses per street (the best return per rupee) */
 const DEV_LEVEL = 3;
+/** Hero League: power-ups count at this share (the end is near and fairly well known, so less is discounted) */
+const HEROES_INCOME_W = 0.8;
+/** Hero League: share of a pair's doubling counted while its other half is villain-held (saved later, or never) */
+const PAIR_W = 0.5;
+/**
+ * Hero League: locations are saved this much faster than landings alone would (Hero HQ's walks to the next villain-held
+ * location, Viper Strike's extra spaces): bot games end after about 0.8 of the turns the landing rates give
+ */
+const SAVE_PACE = 1.25;
 
 const infos = new Map<string, BoardInfo>();
 
@@ -104,6 +114,9 @@ export interface Model {
   bankHotels: number;
   /** Opponent turns of rent the valuation counts (shorter near a turn limit) */
   oppTurns: number;
+  /** Turns (every seat's) the game is expected to last: to the turn limit, and on Hero League until every location is
+   *  saved (Infinity without either) */
+  turnsLeft: number;
   mortgagePct: number;
   /** Owners who collect no rent right now (jailed with the jailRent rule off) */
   noRent: SeatId[];
@@ -127,6 +140,9 @@ export function modelOf(s: GameState): Model {
   const opponents = Math.max(1, active.length - 1);
   // Of the turns left before a turn limit, all but the bot's own are opponents' turns
   const left = s.cfg.turnLimit > 0 ? ((s.cfg.turnLimit - s.turn.no) * opponents) / (opponents + 1) : Infinity;
+  const limit = s.cfg.turnLimit > 0 ? s.cfg.turnLimit - s.turn.no : Infinity;
+  const free = info.props.filter((x) => owner[x] === undefined);
+  const turnsLeft = info.b.heroes ? Math.min(limit, turnsToSaveAll(info, free)) : limit;
   return {
     info,
     owner,
@@ -136,7 +152,9 @@ export function modelOf(s: GameState): Model {
     active,
     bankHouses: s.bank.houses,
     bankHotels: s.bank.hotels,
-    oppTurns: Math.max(1, Math.min(horizon(opponents), left)),
+    // Hero League: the game runs until the last location is saved
+    oppTurns: info.b.heroes ? (turnsLeft * opponents) / (opponents + 1) : Math.max(1, Math.min(horizon(opponents), left)),
+    turnsLeft,
     mortgagePct: s.cfg.mortgagePct,
     noRent: s.cfg.jailRent ? [] : active.filter((seat) => !!s.players[seat]?.jail),
   };
@@ -195,7 +213,35 @@ export function rentAt(m: Model, space: number, level = m.level[space] ?? 0): nu
 }
 
 /** Rupees per unit of (rent x landings per turn): the opponent turns counted, discounted */
-const flow = (m: Model): number => m.oppTurns * INCOME_W;
+const flow = (m: Model): number => m.oppTurns * (m.info.b.heroes ? HEROES_INCOME_W : INCOME_W);
+
+const saveWaits = new Map<string, number>();
+
+/**
+ * Hero League: the turns (every seat's) until every one of `free` (villain-held locations) is saved. Each is saved
+ * about the first time anyone lands on it, so this is the expected wait for the last of them: the integral of
+ * P(some still free) = 1 - prod(1 - e^(-rate t)) over t, with the landing rates per turn (sped up by SAVE_PACE).
+ * Memoized per board and set.
+ */
+function turnsToSaveAll(info: BoardInfo, free: number[]): number {
+  if (free.length === 0) return 0;
+  const key = `${info.b.id}:${free.join(',')}`;
+  const hit = saveWaits.get(key);
+  if (hit !== undefined) return hit;
+  const rates = free.map((x) => info.weighted[x] ?? 0).filter((r) => r > 0);
+  let wait = 0;
+  const dt = 0.5;
+  for (let t = dt / 2; rates.length > 0 && t < 5000; t += dt) {
+    let allSaved = 1;
+    for (const r of rates) allSaved *= 1 - Math.exp(-r * t);
+    const tail = 1 - allSaved;
+    wait += tail * dt;
+    if (tail < 1e-5) break;
+  }
+  wait /= SAVE_PACE;
+  saveWaits.set(key, wait);
+  return wait;
+}
 
 function buildingCost(sp: StreetDef, level: number): number {
   let total = 0;
@@ -257,8 +303,9 @@ function optionValue(m: Model, seat: SeatId, g: GroupInfo, weighted: boolean): n
   return p * fullSetValue(m, g, weighted) * OPTION_W;
 }
 
-/** The bot's worth of a seat's position, in rupees */
+/** The bot's worth of a seat's position, in rupees (Hero League: in Power, score-aware) */
 export function value(m: Model, seat: SeatId, prof: Profile): number {
+  if (m.info.b.heroes) return heroesValue(m, seat, prof);
   const info = m.info;
   const b = info.b;
   const land = landOf(m, prof);
@@ -294,6 +341,37 @@ export function value(m: Model, seat: SeatId, prof: Profile): number {
     // Mortgaged: worth its lifted value, and half its rent (it can be lifted later)
     if (m.mort[x]) v += sp.price - liftCost(m, x) + 0.5 * rent * (land[x] ?? 0) * f;
     else v += sp.price + rent * (land[x] ?? 0) * f;
+  }
+  return v;
+}
+
+/**
+ * Hero League: what the seat would score now (cash + locationPoints per location) plus the power-ups its locations
+ * should bring in until every location is saved (doubled for a pair), plus a share of a pair's doubling while its
+ * other half is still villain-held (whoever lands there first saves it, so about one chance in the table's size).
+ * Nothing can be built, mortgaged or sold, so a location is worth its points, not its cost. Once every location is
+ * saved this is the final score.
+ */
+function heroesValue(m: Model, seat: SeatId, prof: Profile): number {
+  const land = landOf(m, prof);
+  const f = flow(m);
+  const points = m.info.b.heroes?.locationPoints ?? 0;
+  const base = (x: number): number => (streetAt(m, x)?.rent[0] ?? 0) * (land[x] ?? 0);
+  let v = cashOf(m, seat);
+  for (const g of m.info.groups) {
+    let mine = 0;
+    let free = 0;
+    for (const x of g.spaces) {
+      if (m.owner[x] === seat) mine++;
+      else if (m.owner[x] === undefined) free++;
+    }
+    if (mine === 0) continue;
+    const pair = mine === g.spaces.length;
+    for (const x of g.spaces) if (m.owner[x] === seat) v += points + base(x) * (pair ? 2 : 1) * f;
+    if (!pair && mine + free === g.spaces.length) {
+      const doubling = g.spaces.reduce((a, x) => a + base(x), 0);
+      v += (PAIR_W * doubling * f) / Math.max(1, m.active.length);
+    }
   }
   return v;
 }

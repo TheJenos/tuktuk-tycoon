@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { RoomError, setupSeats } from '../../net/network';
 import type { BotSkill, SeatInfo } from '../../net/types';
-import type { SeatId } from '../../rules';
+import { getBoard, type SeatId } from '../../rules';
 import type { TokenId } from '../../shared/tokens';
 import { leaveRoom, type Room } from '../../state/app';
 import { useStore } from '../../state/store';
@@ -51,12 +51,15 @@ export function WaitingRoom({ room, name }: { room: Room; name: string }) {
   useMenuBoard(rulesBoard);
   // The room's seats, but never more than its board seats
   const max = Math.min(lobby?.maxSeats ?? 8, maxSeatsFor(rulesBoard));
+  // More at the table than the board seats (a room from before the cap was kept): nobody can start until some go
+  const over = Math.max(0, seats.length - maxSeatsFor(rulesBoard));
+  const piece = getBoard(rulesBoard).heroes ? 'hero' : 'token';
   const here = (pid: string) => !!pid && (!!v.presence[pid] || lobby?.members?.[pid] !== undefined);
   const watchers = Object.entries(v.presence).filter(([pid, p]) => !p.seat && !seats.some((s) => s.ctrl === pid)).map(([, p]) => p.name);
   const rules = v.setup ? roomDraft(v.setup.rules) : DEFAULT_DRAFT;
   // The level picker follows the room's default bot level until the owner picks another
   const nextBot = newBot ?? rules.botSkill;
-  const canStart = seats.length >= MIN_START;
+  const canStart = seats.length >= MIN_START && over === 0;
   // Inside Discord the App has no name of its own: the one this room knows us by
   const myName = v.presence[me]?.name || mine?.name || name;
 
@@ -125,6 +128,11 @@ export function WaitingRoom({ room, name }: { room: Room; name: string }) {
             <div className="warning" role="alert"><span className="spinner" aria-hidden="true" />Connection lost: reconnecting…</div>
           )}
           {error && <div className="warning" role="alert">{error}</div>}
+          {over > 0 && (
+            <div className="warning" role="alert">
+              {getBoard(rulesBoard).display.name} seats at most {maxSeatsFor(rulesBoard)}: {owner ? `remove ${over} to start.` : `the host has to remove ${over} before the game can start.`}
+            </div>
+          )}
         </div>
         <MenuRail
           label="Waiting room"
@@ -134,7 +142,7 @@ export function WaitingRoom({ room, name }: { room: Room; name: string }) {
             <div className="menu-play-wrap">
               <MenuPlay
                 label="Start game"
-                sub={canStart ? `${seats.length} at the table` : 'Add a bot, or wait for someone to join'}
+                sub={over > 0 ? `Remove ${over} to start` : canStart ? `${seats.length} at the table` : 'Add a bot, or wait for someone to join'}
                 disabled={!canStart || (!!busy && busy !== 'start')}
                 busy={busy === 'start'}
                 onClick={() => void act('start', () => conn.start())}
@@ -215,7 +223,7 @@ export function WaitingRoom({ room, name }: { room: Room; name: string }) {
                                 {SKILLS.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}
                               </select>
                             </label>
-                            <button type="button" className="icon-button" aria-expanded={editing === s.seat} aria-label={`Change ${s.name}'s token`} title="Token" onClick={() => setEditing(editing === s.seat ? null : s.seat)}>
+                            <button type="button" className="icon-button" aria-expanded={editing === s.seat} aria-label={`Change ${s.name}'s ${piece}`} title={piece === 'hero' ? 'Hero' : 'Token'} onClick={() => setEditing(editing === s.seat ? null : s.seat)}>
                               ◐
                             </button>
                             <button type="button" className="icon-button" aria-label={`Remove ${s.name}`} title="Remove" disabled={!!busy} onClick={() => void act('remove', () => conn.removeBot(s.seat))}>
@@ -231,7 +239,7 @@ export function WaitingRoom({ room, name }: { room: Room; name: string }) {
                       </div>
                     )}
                     {owner && s.kind === 'bot' && editing === s.seat && (
-                      <TokenPicker board={rules.board} label={`${s.name}'s token`} value={s.token} color={s.color} taken={taken(s)} disabled={!!busy} onPick={(t: TokenId) => void act('token', () => conn.setSeatToken(t, s.seat))} />
+                      <TokenPicker board={rules.board} label={`${s.name}'s ${piece}`} value={s.token} color={s.color} taken={taken(s)} disabled={!!busy} onPick={(t: TokenId) => void act('token', () => conn.setSeatToken(t, s.seat))} />
                     )}
                   </li>
                 );
@@ -247,8 +255,8 @@ export function WaitingRoom({ room, name }: { room: Room; name: string }) {
             </ul>
             {mine ? (
               <div className="my-token">
-                <h3>Your token</h3>
-                <TokenPicker board={rules.board} label="Your token" value={mine.token} color={mine.color} taken={taken(mine)} disabled={!!busy} onPick={(t) => void act('token', () => conn.setSeatToken(t))} />
+                <h3>{piece === 'hero' ? 'Your hero' : 'Your token'}</h3>
+                <TokenPicker board={rules.board} label={piece === 'hero' ? 'Your hero' : 'Your token'} value={mine.token} color={mine.color} taken={taken(mine)} disabled={!!busy} onPick={(t) => void act('token', () => conn.setSeatToken(t))} />
               </div>
             ) : (
               <div className="spectating" role="status">

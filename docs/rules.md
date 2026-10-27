@@ -4,6 +4,10 @@ This is a paraphrased checklist of the rulebook the game implements. Every rule 
 (`src/rules`) and by a test. Where the rulebook is silent or ambiguous, the decision is listed under
 [Rules decisions](#rules-decisions).
 
+**Scope:** these are the rules of the classic boards (All Island, Colombo, Hill Country, Down South). Hero League (board
+`heroes`) plays the superhero edition's rules instead (Power, compulsory saving, a Hero die, superpowers, no
+bankruptcy): see [`docs/heroes.md`](heroes.md).
+
 Amounts are the rupees the game shows, 100 times the rulebook's (Rs. 150,000 here is the rulebook's 1,500); the
 engine itself counts the rulebook's units.
 

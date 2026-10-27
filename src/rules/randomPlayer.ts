@@ -1,9 +1,12 @@
+import { apply } from './apply';
 import { minBid } from './auction';
 import { awaiting, defaultAction, timeoutCommand } from './autoplay';
 import { getBoard, siblings } from './board';
+import { createGame, SEAT_IDS } from './create';
 import { activeSeats, levelOf, ownedBy, player } from './ctx';
 import { legalActions } from './legal';
-import type { Action, Bundle, Command, GameState, RulesConfig, SeatId } from './types';
+import { isWindow } from './react';
+import type { Action, Bundle, Command, GameEvent, GameState, RulesConfig, SeatId } from './types';
 
 /*
  * A seeded random player for the fuzz test and `npm run sim` (not part of the game). It mostly answers what the
@@ -50,8 +53,11 @@ export function variedRules(seed: number): Partial<RulesConfig> {
 
 const MANAGE = new Set(['build', 'sell', 'mortgage', 'unmortgage']);
 
-/** Leans towards buying and building so games reach complete colour groups, shortages and bankruptcies */
-const WEIGHT: Partial<Record<Action['k'], number>> = { buy: 4, build: 6, mortgage: 0.5, unmortgage: 0.3 };
+/**
+ * Leans towards buying and building so games reach complete colour groups, shortages and bankruptcies. Titan Smash is
+ * listed once per pair of heroes (up to 15), so each pair weighs little.
+ */
+const WEIGHT: Partial<Record<Action['k'], number>> = { buy: 4, build: 6, mortgage: 0.5, unmortgage: 0.3, smash: 0.03 };
 
 function weighted(r: Rand, items: readonly Action[]): Action | undefined {
   const total = items.reduce((a, x) => a + (WEIGHT[x.k] ?? 1), 0);
@@ -86,6 +92,8 @@ export interface RandomOpts {
   trade?: number;
   /** Chance an action from legalActions may be a resignation */
   resign?: number;
+  /** The same inside a Hero League window (react, aim, boost): a corner case to try more often; default `resign` */
+  windowResign?: number;
 }
 
 /** The next random command, or null when the game is over */
@@ -109,7 +117,8 @@ export function randomCommand(s: GameState, r: Rand, opts: RandomOpts = {}): Com
     const d = defaultAction(s, seat);
     if (d) return withBasis(d);
   }
-  const legal = legalActions(s, seat).filter((a) => a.k !== 'resign' || r() < (opts.resign ?? 0.002));
+  const resign = isWindow(s.phase) ? (opts.windowResign ?? opts.resign ?? 0.002) : (opts.resign ?? 0.002);
+  const legal = legalActions(s, seat).filter((a) => a.k !== 'resign' || r() < resign);
   if (legal.length === 0) {
     const first = waiting[0];
     const d = first === undefined ? null : defaultAction(s, first);
@@ -123,4 +132,63 @@ export function randomCommand(s: GameState, r: Rand, opts: RandomOpts = {}): Com
     a = { k: 'bid', amount: min + Math.floor(r() * Math.min(150, room + 1)) };
   }
   return withBasis(a);
+}
+
+/** Hero League's bar (the plan's): at least 95% of games end `allSaved` within this many rounds */
+export const ALL_SAVED_ROUNDS = 60;
+
+/** Commands after which a game counts as stuck */
+const MAX_COMMANDS = 50_000;
+
+export interface PlayOpts extends RandomOpts {
+  /** apply()'s invariant check after every command (default on) */
+  check?: boolean;
+  /** Sees every command that applied, with its events and the state after it */
+  onApply?: (events: GameEvent[], state: GameState) => void;
+}
+
+export interface PlayedGame {
+  /** Where it stopped: over, out of commands, or after 50,000 */
+  state: GameState;
+  /** Commands tried, refused ones included */
+  commands: number;
+  /** Rounds played: every player's turn once (turns / players, rounded up) */
+  rounds: number;
+  /** Random trade offers refused (an offer is built blind, so that is expected) */
+  refused: number;
+  /** Any other refused command, which is a bug: "game <seed> #<n>: <command> -> <code> <message>" */
+  failures: string[];
+}
+
+/**
+ * One random game from the start, as `npm run sim` plays it: `players` seats ("Bot 1", ...) on `cfg` dealt by `seed`,
+ * random commands from a player seeded by `seed` (a resignation now and then: `resign` 0.0005 unless `opts` say
+ * otherwise) until it is over, nothing is left to send, or 50,000 commands
+ */
+export function playRandomGame(
+  cfg: Partial<RulesConfig>,
+  players: number,
+  seed: number,
+  opts: PlayOpts = {},
+): PlayedGame {
+  const { check = true, onApply, ...random } = opts;
+  const seats = SEAT_IDS.slice(0, players).map((id, i) => ({ id, name: `Bot ${i + 1}` }));
+  let s = createGame(cfg, seats, seed).state;
+  const r = randFrom(seed * 2654435761);
+  const failures: string[] = [];
+  let refused = 0;
+  let n = 0;
+  for (; n < MAX_COMMANDS && s.phase.k !== 'over'; n++) {
+    const cmd = randomCommand(s, r, { resign: 0.0005, ...random });
+    if (!cmd) break;
+    const res = apply(s, cmd, { check });
+    if (!res.ok) {
+      if (cmd.a.k === 'propose') refused++;
+      else failures.push(`game ${seed} #${n}: ${JSON.stringify(cmd)} -> ${res.error.code} ${res.error.message}`);
+      continue;
+    }
+    s = res.state;
+    onApply?.(res.events, s);
+  }
+  return { state: s, commands: n, rounds: Math.ceil(s.turn.no / players), refused, failures };
 }

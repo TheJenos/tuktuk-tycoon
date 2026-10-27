@@ -166,6 +166,7 @@ export function Tokens({ tier }: { tier: Tier }) {
             const dest = path[path.length - 1];
             if (!g || !game || dest === undefined || signal.aborted) return resolve();
             tracks.current.get(seat)?.done();
+            // Only the jump to jail lands in the cell (a Titan Smash leap onto the jail corner is a visit)
             const cell = mode === 'jump' && dest === JAIL;
             const end = restingSlots(game, jumped.current, { seat, pos: dest, cell }).get(seat);
             const points = movePoints([g.position.x, g.position.z], path, end ? [end.x, end.z] : slotPos(dest, 1, 0, cell), mode);

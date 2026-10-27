@@ -1,10 +1,11 @@
 import type { BoardDef, Deck } from '../../rules';
-import { drawIcon } from '../board/icons';
+import { artIcon, drawIcon } from '../board/icons';
 import { drawLines, fitText, makeCanvas, roundRect } from '../textures/canvas';
 
 /*
  * Card faces and backs on canvases (1.6 : 1, like the cards). Deck names come from the board data's
- * `display.decks`; the text is the drawn card's own.
+ * `display.decks`, a back's art from its `display.art` (the classic ? and chest otherwise); the text is the drawn
+ * card's own.
  */
 
 export const CARD_PX = { w: 640, h: 400 } as const;
@@ -38,8 +39,9 @@ export function drawCardBack(b: BoardDef, deck: Deck, canvas?: HTMLCanvasElement
     ctx.lineWidth = 0.025;
     roundRect(ctx, 0.05, 0.05, 1.5, 0.9, 0.05);
     ctx.stroke();
-    if (deck === 'chance') fitText(ctx, '?', 0.8, 0.44, 0.6, 1, { weight: 900, color: '#fff' });
-    else drawIcon(ctx, 'chest', 0.8, 0.42, 0.48, '#fff', st.back);
+    const art = artIcon(b.display.art?.[deck]) ?? (deck === 'chest' ? 'chest' : null);
+    if (art) drawIcon(ctx, art, 0.8, 0.42, art === 'chest' ? 0.48 : 0.56, '#fff', st.back);
+    else fitText(ctx, '?', 0.8, 0.44, 0.6, 1, { weight: 900, color: '#fff' });
     fitText(ctx, deckName(b, deck).toUpperCase(), 0.8, 0.84, 0.13, 1.4, { weight: 800, color: '#fff' });
   }, canvas);
 }

@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useDoc, useServerNow } from '../context';
-import { money } from '../format';
+import { useDoc, useNames, useServerNow } from '../context';
 import { parkingOf } from '../selectors';
 import '../options.css';
 
@@ -30,6 +29,7 @@ function useTick(on: boolean): void {
  */
 export function TableStatus() {
   const doc = useDoc();
+  const names = useNames();
   const now = useServerNow();
   const s = doc?.game;
   const over = s?.phase.k === 'over';
@@ -42,13 +42,13 @@ export function TableStatus() {
   return (
     <div className="table-status" data-testid="table-status">
       {endsAt !== undefined && (
-        <span className={left <= 60_000 ? 'status-chip clock low' : 'status-chip clock'} role="timer" aria-label={`Time left: ${clockText(left)}`} title="Time left: then the richest by net worth wins">
+        <span className={left <= 60_000 ? 'status-chip clock low' : 'status-chip clock'} role="timer" aria-label={`Time left: ${clockText(left)}`} title={names.board.heroes ? `Time left: then the highest ${names.terms.worth} wins` : 'Time left: then the richest by net worth wins'}>
           <span aria-hidden="true">⏱</span> {clockText(left)}
         </span>
       )}
       {jackpot && (
         <span className="status-chip jackpot" title={`Won by the next player to land on ${parkingOf(s)}`}>
-          <span className="muted">{parkingOf(s)} jackpot</span> <strong>{money(s.pot)}</strong>
+          <span className="muted">{parkingOf(s)} jackpot</span> <strong>{names.money(s.pot)}</strong>
         </span>
       )}
     </div>

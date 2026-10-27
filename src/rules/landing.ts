@@ -4,8 +4,10 @@ import { startAuction } from './auction';
 import { type Ctx, collectsRent, emit, err, mayBuy, player, prop, propBidders, setPhase } from './ctx';
 import { emitDice, speedActive, throwDice } from './dice';
 import { type Handler, seatAction, turnCheck } from './handler';
+import { powerSource } from './heroes';
 import { pay, transfer, worth } from './money';
 import { sendToJail } from './movement';
+import { saveLanded } from './react';
 import { rentFor, rollTotal } from './rent';
 import type { SeatId } from './types';
 
@@ -14,6 +16,8 @@ export interface LandOpts {
   rentMul?: number;
   /** Nearest Utility card: rent is a fresh throw x10 */
   utilFresh?: true;
+  /** Heroes: a Strike team card, the location (if villain-held) is saved for nothing */
+  free?: true;
 }
 
 /** Resolve the space a seat stands on */
@@ -43,7 +47,9 @@ export function land(c: Ctx, seat: SeatId, opts: LandOpts = {}): void {
       return;
     case 'chance':
     case 'chest':
-      drawCard(c, seat, sp.k);
+      // Dead Aim (Sharpshot, or Steel Ace copying it): choose to take aim before drawing
+      if (sp.k === 'chance' && canAim(c, seat)) setPhase(c, { k: 'aim', seat, deck: 'chance', resume: { k: 'busy' } });
+      else drawCard(c, seat, sp.k);
       return;
     case 'goToJail':
       sendToJail(c, seat, 'space');
@@ -53,8 +59,17 @@ export function land(c: Ctx, seat: SeatId, opts: LandOpts = {}): void {
   }
 }
 
+/** The lander could use Dead Aim on the Villain Strike deck now */
+const canAim = (c: Ctx, seat: SeatId): boolean =>
+  !!c.b.heroes && !!powerSource(c.b, c.s, seat, 'aim') && c.s.decks.chance.length >= c.b.heroes.aimCards;
+
 function landOnProperty(c: Ctx, seat: SeatId, space: number, opts: LandOpts): void {
   const ps = prop(c.s, space);
+  // Hero League: no choice, the lander saves it if it can, else a back-up hero may (react.ts)
+  if (!ps && c.b.heroes) {
+    saveLanded(c, seat, space, !!opts.free);
+    return;
+  }
   if (!ps) {
     // First-lap rule: a player who has not collected a salary yet cannot buy; the property stays with the bank
     if (!mayBuy(c.s, seat)) return;

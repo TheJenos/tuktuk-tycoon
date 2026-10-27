@@ -1,6 +1,8 @@
 import { getBoard, groupOf, isProperty, isStreet, siblings } from './board';
 import { activeSeats, phaseChain, prop } from './ctx';
+import { powerSource } from './heroes';
 import { cleanOwed, owedTotal } from './money';
+import { isWindow, liveOpen } from './react';
 import type { GameState, SeatId } from './types';
 
 /** Things that must hold between commands. Returns what is broken (empty = all good). */
@@ -28,8 +30,15 @@ export function checkInvariants(s: GameState): string[] {
     if (p.out && (p.cash !== 0 || p.goojf.length > 0 || p.jail)) bad(`${seat} is out but still holds assets`);
     if (p.speed && !s.cfg.speedDie) bad(`${seat} has the speed die with the rule off`);
     if (!Number.isInteger(p.laps) || p.laps < 0) bad(`${seat} laps ${p.laps}`);
+    // Hero League: a hero exactly on a heroes board; a used superpower only with a hero
+    if (b.heroes ? !b.heroes.list.some((h) => h.id === p.hero) : p.hero !== undefined) bad(`${seat} hero ${p.hero}`);
+    if (p.powerUsed !== undefined && (p.hero === undefined || !Number.isInteger(p.powerUsed) || p.powerUsed < 1)) {
+      bad(`${seat} powerUsed ${p.powerUsed}`);
+    }
   }
   if (Object.keys(s.players).length !== s.order.length) bad('players and order differ');
+  const heroes = s.order.map((seat) => s.players[seat]?.hero).filter((h) => h !== undefined);
+  if (new Set(heroes).size !== heroes.length) bad('two seats play the same hero');
 
   // Property
   let houses = 0;
@@ -109,6 +118,20 @@ export function checkInvariants(s: GameState): string[] {
   }
   if ((ph.k === 'place' || ph.k === 'mortgageXfer') && !isIn(ph.seat)) bad(`${ph.k} for an out seat`);
   if (ph.k === 'buy' && prop(s, ph.space)) bad('buy phase for an owned property');
+  // Hero League's windows: only there, always over busy, never resting without someone to answer
+  for (const p of chain) {
+    if (!b.heroes && isWindow(p)) bad(`${p.k} off a heroes board`);
+    if (b.heroes && p.k === 'debt') bad('a debt on a heroes board');
+    if (isWindow(p) && p.resume.k !== 'busy') bad(`${p.k} not over busy`);
+  }
+  if (ph.k === 'react' && !ph.open.some(isIn)) bad('a reaction window with nobody to answer');
+  if (ph.k === 'react' && b.heroes && liveOpen(b, s, ph).length !== ph.open.length) {
+    bad('a reaction window open to a seat that can no longer answer it');
+  }
+  if ((ph.k === 'aim' || ph.k === 'boost') && !isIn(ph.seat)) bad(`${ph.k} for an out seat`);
+  if (b.heroes && ph.k === 'boost' && !powerSource(b, s, ph.seat, 'sting')) bad('a boost without Viper Strike');
+  if (b.heroes && ph.k === 'aim' && !ph.cards && !powerSource(b, s, ph.seat, 'aim')) bad('an aim without Dead Aim');
+  if (b.heroes && ph.k === 'preRoll' && s.players[s.turn.seat]?.jail) bad('a jailed seat about to roll on a heroes board');
 
   // Trades
   const proposers = new Set<string>();
@@ -120,6 +143,10 @@ export function checkInvariants(s: GameState): string[] {
   if (!Number.isInteger(s.pot) || s.pot < 0) bad(`pot ${s.pot}`);
   if (s.pot > 0 && !s.cfg.jackpot) bad('a jackpot pot with the rule off');
   if (s.rig.length && !s.cfg.debug) bad('rigged dice without debug');
+  if (s.rigHero !== undefined) {
+    if (!s.cfg.debug) bad('a rigged Hero die without debug');
+    if (s.rigHero.length === 0 || !s.rigHero.every((f) => Number.isInteger(f) && f >= 1 && f <= 6)) bad('bad rigHero');
+  }
   if (!Number.isInteger(s.rng) || s.rng < 0 || s.rng > 0xffffffff) bad(`rng ${s.rng}`);
   return out;
 }

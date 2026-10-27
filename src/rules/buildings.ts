@@ -54,6 +54,9 @@ export const groupLevels = (s: GameState, g: GroupDef): Level[] => g.spaces.map(
 
 const even = (levels: number[]): boolean => Math.max(...levels) - Math.min(...levels) <= 1;
 
+/** Hero League: no houses or hotels */
+export const NO_BUILDINGS = err('heroes', 'There are no buildings on this board');
+
 function checkTargets(
   s: GameState,
   b: BoardDef,
@@ -61,6 +64,7 @@ function checkTargets(
   groupId: unknown,
   levels: unknown,
 ): { g: GroupDef; target: Level[] } | RuleError {
+  if (b.heroes) return NO_BUILDINGS;
   const g = typeof groupId === 'string' ? groupById(b, groupId) : undefined;
   if (!g) return err('badGroup', 'No such colour group');
   if (streetsOf(b, g).length !== g.spaces.length) return err('badGroup', 'Only streets take buildings');
@@ -200,6 +204,7 @@ export function clearBuildings(c: Ctx, spaces: number[]): number {
  * streets whose whole group already has 4 houses; limited by cash (cheapest groups first), not by the bank.
  */
 export function capacity(s: GameState, b: BoardDef, seat: SeatId, kind: BuildKind): number {
+  if (b.heroes) return 0;
   let cash = player(s, seat).cash;
   let units = 0;
   const groups = buildableGroups(s, b, seat)

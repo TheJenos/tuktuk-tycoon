@@ -51,6 +51,8 @@ export function netWorth(s: GameState, b: BoardDef, seat: SeatId): number {
  */
 export function maxRaise(s: GameState, b: BoardDef, seat: SeatId): number {
   let total = player(s, seat).cash;
+  // Hero League: nothing can be sold or mortgaged
+  if (b.heroes) return total;
   for (const space of ownedBy(s, seat)) {
     const sp = propertyAt(b, space);
     const ps = prop(s, space);
@@ -116,7 +118,8 @@ export function payAll(c: Ctx, from: SeatId, owed: Owed, why: CashWhy, space?: n
 /**
  * Pays now when the cash is there; otherwise the debtor enters `debt` (the current phase, and the pending steps,
  * wait until it is settled or the debtor is out). The debt keeps `space`, so the payment that settles it names the
- * same space as one made on the spot.
+ * same space as one made on the spot. Hero League has no debt: a payer short of cash pays what it has (in creditor
+ * order), the rest is forgiven, and one `short` event says so.
  */
 export function pay(c: Ctx, from: SeatId, owed: Owed, why: CashWhy, space?: number): void {
   if (!isActive(c.s, from)) return;
@@ -127,8 +130,23 @@ export function pay(c: Ctx, from: SeatId, owed: Owed, why: CashWhy, space?: numb
     payAll(c, from, clean, why, space);
     return;
   }
+  if (c.b.heroes) {
+    payShort(c, from, clean, why, space);
+    return;
+  }
   setPhase(c, { k: 'debt', debtor: from, owed: clean, why, ...(space === undefined ? {} : { space }), resume: c.s.phase });
   emit(c, { t: 'debt', debtor: from, owed: clean, total, why });
+}
+
+/** Hero League: pays each creditor in order as far as the cash goes; the rest is forgiven (`short`) */
+function payShort(c: Ctx, from: SeatId, owed: Owed, why: CashWhy, space?: number): void {
+  const paid: Owed = {};
+  for (const to of creditors(c.s, from, owed)) {
+    const amount = Math.min(owed[to] ?? 0, player(c.s, from).cash);
+    transfer(c, from, to, amount, why, space);
+    paid[to] = amount;
+  }
+  emit(c, { t: 'short', seat: from, why, ...(space === undefined ? {} : { space }), owed: { ...owed }, paid });
 }
 
 /** Settles the current debt phase if the debtor can now pay. Returns whether it did. */

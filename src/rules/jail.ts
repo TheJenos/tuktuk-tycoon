@@ -1,5 +1,6 @@
 import { deckOf } from './board';
-import { emit, err, player, rs } from './ctx';
+import { emit, err, player } from './ctx';
+import { boardMoney } from './currency';
 import { type Handler, seatAction, turnCheck } from './handler';
 import { transfer } from './money';
 
@@ -13,13 +14,13 @@ import { transfer } from './money';
 const FINE_TRIES = 2;
 
 export const payFine: Handler<'payFine'> = seatAction(
-  (s, _b, seat) => {
+  (s, b, seat) => {
     const e = turnCheck(s, seat, 'preRoll');
     if (e) return e;
     const p = player(s, seat);
     if (!p.jail) return err('notJailed', 'You are not in jail');
     if (p.jail.tries >= FINE_TRIES) return err('mustRoll', 'On your third turn you must roll');
-    if (p.cash < s.cfg.jailFine) return err('cash', `The fine is ${rs(s.cfg.jailFine)}`);
+    if (p.cash < s.cfg.jailFine) return err('cash', `The fine is ${boardMoney(b, s.cfg.jailFine)}`);
     return null;
   },
   (c, seat) => {

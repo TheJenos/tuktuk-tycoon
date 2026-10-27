@@ -40,6 +40,8 @@ export interface GameHooks {
   test: {
     /** The next throws (debug games only) */
     rig(dice: Throw[]): Promise<void>;
+    /** Hero League: the next Hero-die throws, by face (1-6) or by hero ('stormLord', 'Storm Lord') */
+    rigHero(faces: (number | string)[]): Promise<void>;
     setCash(seat: SeatId, cash: number): Promise<void>;
     /** Click a tile, as the 3D board would (a test can't aim at it) */
     pickTile(index: number): void;
@@ -189,6 +191,11 @@ export class Player {
   /** The next rolls come up `throws`, in order, whoever rolls them (debug games only). */
   async rig(...throws: Throw[]): Promise<void> {
     await this.page.evaluate((dice) => window.game!.test.rig(dice), throws);
+  }
+
+  /** Hero League: the next Hero-die throws come up these heroes (or faces), in order (debug games only). */
+  async rigHero(...faces: (number | string)[]): Promise<void> {
+    await this.page.evaluate((f) => window.game!.test.rigHero(f), faces);
   }
 
   async setCash(seat: SeatId, cash: number): Promise<void> {

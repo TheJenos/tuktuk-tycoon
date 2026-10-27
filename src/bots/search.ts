@@ -2,6 +2,7 @@ import { apply, type Action, type Command, type DebtPhase, type GameState, type 
 import { manageChoice, postRollChoice } from './build';
 import { type BotCtx, makeCtx } from './ctx';
 import { type RaiseOpts, debtChoice, hopeless } from './debt';
+import { heroesBoard } from './heroes';
 import { type Profile } from './profile';
 import { type Option, ask, play, room, stateKey } from './rollout';
 import { offerGain, pricedOffers, proposal, proposalRound, respond } from './trade';
@@ -18,7 +19,8 @@ import { jailChoice } from './turn';
  * - debt: other orders of raising the cash (biggest mortgage first, buildings first);
  * - trades: offers priced against the bots' own acceptance rules (trade.ts), made only when a rollout says the deal
  *   beats no deal; offers received, accepted only when a rollout says so.
- * Where the budget cannot compare even two (a big table), Expert plays Hard's choice.
+ * Where the budget cannot compare even two (a big table), Expert plays Hard's choice. Hero League has none of these
+ * questions (nothing to build or mortgage, no trades, no jail choice, no debt): Expert plays Hard's choices there.
  */
 
 /**
@@ -92,6 +94,7 @@ function pick(scores: (number | null)[] | null, margin: number): number {
 // Building and mortgages at the end of the turn
 
 export function searchPostRoll(c: BotCtx): Action {
+  if (heroesBoard(c)) return postRollChoice(c);
   const fit = room(c, 3, PLAN_SHARE);
   if (fit < 2) return postRollChoice(c);
   const p = c.prof;
@@ -122,7 +125,7 @@ export function searchPostRoll(c: BotCtx): Action {
 export function searchJail(c: BotCtx): Action {
   const h = jailChoice(c);
   const jail = c.me.jail;
-  if (!jail || room(c, 3, PLAN_SHARE) < 2) return h;
+  if (!jail || heroesBoard(c) || room(c, 3, PLAN_SHARE) < 2) return h;
   const card = c.me.goojf[0];
   const leave: Action | null = card
     ? { k: 'useCard', card }

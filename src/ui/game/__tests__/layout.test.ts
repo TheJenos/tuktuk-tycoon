@@ -19,6 +19,18 @@ describe('cellOf', () => {
     expect(cells.size).toBe(40);
     expect([0, 9, 10, 19, 20, 29, 30, 39].map((i) => sideOf(i))).toEqual([0, 0, 1, 1, 2, 2, 3, 3]);
   });
+
+  it("puts Hero League's 28 spaces round an 8x8 grid", () => {
+    expect([0, 7, 14, 21].map((i) => cellOf(i, 28))).toEqual([{ row: 8, col: 8 }, { row: 8, col: 1 }, { row: 1, col: 1 }, { row: 1, col: 8 }]);
+    const cells = new Set<string>();
+    for (let i = 0; i < 28; i++) {
+      const { row, col } = cellOf(i, 28);
+      expect(row === 1 || row === 8 || col === 1 || col === 8).toBe(true);
+      cells.add(`${row},${col}`);
+    }
+    expect(cells.size).toBe(28);
+    expect([0, 6, 7, 13, 14, 20, 21, 27].map((i) => sideOf(i, 28))).toEqual([0, 0, 1, 1, 2, 2, 3, 3]);
+  });
 });
 
 describe('insetsFrom', () => {

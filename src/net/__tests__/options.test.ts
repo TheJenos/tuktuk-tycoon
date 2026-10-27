@@ -177,7 +177,7 @@ describe('rooms: rules round trip', () => {
       doubleGoLanding: true, jackpot: true, incomeTaxMode: 'flat', auctions: false, buyAfterFirstLap: true, jailRent: false,
       threeDoublesJail: false, dealProperties: 2, endMode: 'firstBankrupt', trading: 'afterLap', tradeAfterLap: 3,
     });
-    expect(d.timers).toEqual({ turn: ONLINE_TIMERS.turn, decision: 30, auction: 12, debt: 60 });
+    expect(d.timers).toEqual({ turn: ONLINE_TIMERS.turn, decision: 30, auction: 12, debt: 60, reaction: ONLINE_TIMERS.reaction });
     expect(d).toMatchObject({ afkStrikes: 3, botPace: 2, botSkill: 'hard', timeLimit: 90 });
     expect(d.endsAt).toBeGreaterThanOrEqual(T0 + 90 * 60_000);
     expect(d.endsAt).toBeLessThanOrEqual(Date.now() + 90 * 60_000);

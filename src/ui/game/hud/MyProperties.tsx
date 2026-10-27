@@ -1,68 +1,64 @@
 import { useState } from 'react';
-import { rentFor, type GameState, type SeatId } from '../../../rules';
+import { rentFor, type GameState } from '../../../rules';
 import { useSelector } from '../../../state/store';
 import { uiStore } from '../../../state/ui';
 import { useView } from '../../../view';
 import { safeColor } from '../../colors';
-import { useGame, useMySeats, useNames } from '../context';
+import { useGame, useNames } from '../context';
 import { jailCard, JAIL_CARD_NAME } from '../deeds/jailCard';
 import { previewHandlers, useClearPreviewOnUnmount } from '../deeds/PropertyChip';
-import { levelText, money, type Names } from '../format';
+import { levelText, myPropsTitle, type Names } from '../format';
 import { clusters } from './PlayersPanel';
+import { SeatSwitcher, useShownSeat } from './SeatSwitcher';
 
 /*
  * "My properties" in the context column: my seat's property by colour set (in board order, with how many of the
  * set I own), then stations and boards. Each row shows its buildings, a Mortgaged badge and the rent it charges
  * now; pointing at it previews it on the board, a click opens it in the tile inspector (where it can be built on).
  * Reads the DISPLAYED state, so it changes as the board does. Hot-seat: the local seat whose turn it is (or the
- * first), with a switcher. Hidden for spectators; on phones it opens from the action bar (uiStore.panel 'props').
+ * first), with a switcher shared with the hero card (SeatSwitcher). Hidden for spectators; on phones it opens from
+ * the action bar (uiStore.panel 'props').
+ * Hero League says "My locations", and each row its power-up.
  */
 
 export function MyProperties({ onClose }: { onClose(): void }) {
   const shown = useView((v) => v.game);
   const logical = useGame();
   const s = shown ?? logical;
-  const mine = useMySeats();
   const names = useNames();
   const [open, setOpen] = useState(true);
-  // A seat picked in the switcher holds until the turn passes; then the list follows the turn again
-  const [picked, setPicked] = useState<{ seat: SeatId; turn: SeatId } | null>(null);
+  // A seat picked in a switcher (here or the hero card's) holds until the turn passes; then the list follows the turn
+  const shownSeat = useShownSeat(s);
   const phoneOpen = useSelector(uiStore, (u) => u.panel === 'props');
-  if (!s || mine.length === 0) return null;
-  const live = mine.filter((x) => s.players[x] && !s.players[x]?.out);
-  if (live.length === 0) return null;
-  const turn = s.turn.seat;
-  const fallback = live.includes(turn) ? turn : (live[0] as SeatId);
-  const seat = picked && picked.turn === turn && live.includes(picked.seat) ? picked.seat : fallback;
+  if (!s || !shownSeat) return null;
+  const { seat, live } = shownSeat;
   const groups = clusters(names.board)
     .map((c) => ({ ...c, owned: c.spaces.filter((i) => s.props[`p${i}`]?.owner === seat) }))
     .filter((c) => c.owned.length > 0);
   const cards = (s.players[seat]?.goojf ?? []).map((id) => jailCard(names.board, id));
   const count = groups.reduce((n, c) => n + c.owned.length, 0) + cards.length;
   const expanded = open || phoneOpen;
+  const title = myPropsTitle(names.board);
+  const { property, bought } = names.terms;
+  const who = live.length > 1 ? names.seat(seat) : null;
+  const empty = names.board.heroes
+    ? `${who ? `${who} hasn't` : "You haven't"} ${bought} any ${property} yet.`
+    : `${who ? `${who} doesn't` : "You don't"} own any property yet.`;
 
   return (
-    <section className={expanded ? 'my-props panel' : 'my-props panel collapsed'} aria-label="My properties">
+    <section className={expanded ? 'my-props panel' : 'my-props panel collapsed'} aria-label={title}>
       <header className="panel-head">
         <button type="button" className="log-toggle my-props-toggle" onClick={() => setOpen((o) => !o)} aria-expanded={expanded}>
-          My properties{count > 0 && <span className="my-props-count">{count}</span>}
+          {title}{count > 0 && <span className="my-props-count">{count}</span>}
         </button>
-        {live.length > 1 && (
-          <span className="choices my-props-seats" role="radiogroup" aria-label="Player">
-            {live.map((x) => (
-              <button key={x} type="button" role="radio" aria-checked={x === seat} className={x === seat ? 'chip selected' : 'chip'} onClick={() => setPicked({ seat: x, turn })}>
-                {names.seat(x)}
-              </button>
-            ))}
-          </span>
-        )}
-        <button type="button" className="icon-button dialog-close my-props-close" aria-label="Close my properties" onClick={onClose}>
+        <SeatSwitcher shown={shownSeat} names={names} className="choices my-props-seats" />
+        <button type="button" className="icon-button dialog-close my-props-close" aria-label={`Close ${title.toLowerCase()}`} onClick={onClose}>
           ×
         </button>
       </header>
       {expanded &&
         (count === 0 ? (
-          <p className="muted small my-props-empty">{live.length > 1 ? `${names.seat(seat)} doesn't own any property yet.` : "You don't own any property yet."}</p>
+          <p className="muted small my-props-empty">{empty}</p>
         ) : (
           <div className="my-props-list">
             {groups.map((c) => (
@@ -114,14 +110,14 @@ function PropRow({ space, s, names, colour }: { space: number; s: GameState; nam
   if (!ps || !sp) return null;
   const name = names.space(space);
   const rent = rentText(s, names, space);
-  const label = [name, ps.level > 0 && levelText(ps.level), ps.mortgaged && 'mortgaged', !ps.mortgaged && `rent ${rent}`].filter(Boolean).join(', ');
+  const label = [name, ps.level > 0 && levelText(ps.level), ps.mortgaged && 'mortgaged', !ps.mortgaged && `${names.terms.rent} ${rent}`].filter(Boolean).join(', ');
   return (
     <li>
       <button
         type="button"
         className={['my-prop', previewing && 'on', ps.mortgaged && 'mortgaged'].filter(Boolean).join(' ')}
         aria-label={label}
-        title={`${name}: open to build, sell or mortgage`}
+        title={names.board.heroes ? `${name}: open its card` : `${name}: open to build, sell or mortgage`}
         {...previewHandlers(space)}
         onClick={() => uiStore.update({ selected: space, preview: null })}
       >
@@ -144,7 +140,7 @@ function PropRow({ space, s, names, colour }: { space: number; s: GameState; nam
 function rentText(s: GameState, names: Names, space: number): string {
   const sp = names.board.spaces[space];
   const owner = s.props[`p${space}`]?.owner;
-  if (sp?.k !== 'utility') return money(rentFor(s, space));
+  if (sp?.k !== 'utility') return names.money(rentFor(s, space));
   const n = names.board.spaces.filter((x, i) => x.k === 'utility' && s.props[`p${i}`]?.owner === owner).length;
   return `×${names.board.utilityMul[n - 1] ?? 0} dice`;
 }

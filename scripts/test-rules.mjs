@@ -51,6 +51,15 @@ const roomRules = {
 };
 const human = { seat: 's0', name: 'Tester', token: 'tuktuk', color: '#e8a33d', kind: 'human', ctrl: pid };
 const bot = { seat: 's1', name: 'Ava', token: 'elephant', color: '#3d8fe8', kind: 'bot', ctrl: '', skill: 'expert' };
+// A Hero League table: its rules (the lobby keeps the pinned ones as the engine pins them) and six heroes
+const heroesRules = {
+  ...roomRules, board: 'heroes', houses: 0, hotels: 0, auctions: false, auctionAll: false, jailRent: false, endMode: 'lastStanding',
+  jackpot: false, trading: 'off',
+};
+const HEROES = ['jadeTitan', 'starCaptain', 'steelAce', 'stormLord', 'velvetViper', 'sharpshot'];
+const heroSeats = Object.fromEntries(HEROES.map((token, i) => [`s${i}`, i === 0
+  ? { ...human, token }
+  : { seat: `s${i}`, name: `Bot ${i}`, token, color: '#3d8fe8', kind: 'bot', ctrl: '', skill: 'normal' }]));
 const state = (over = {}) => ({ gid: 'g_GAME000001', seq: 0, v: 1, at: now, data: '{"game":{}}', ...over });
 const presence = { name: 'Tester', seat: 's0', vis: true, at: now };
 
@@ -81,6 +90,9 @@ const cases = [
   ['lobby: late join not a boolean', 'lobby/ROOM1/lateJoin', 1, false],
   ['lobby: the Colombo board', 'lobby/ROOM1/board', 'colombo', true],
   ['lobby: the Down South board', 'lobby/ROOM1/board', 'south', true],
+  ['lobby: the Hero League board', 'lobby/ROOM1/board', 'heroes', true],
+  ['lobby: Hero League capped at 6 seats', 'lobby/ROOM1/maxSeats', 6, true],
+  ['lobby: a board id in the wrong case', 'lobby/ROOM1/board', 'Heroes', false],
   ['lobby: an unknown board', 'lobby/ROOM1/board', 'mars', false],
   ['lobby: a board id that is not a string', 'lobby/ROOM1/board', 1, false],
 
@@ -93,6 +105,8 @@ const cases = [
   ['setup: the Hill Country board', 'rooms/ROOM1/setup/rules/board', 'hill', true],
   ['setup: the Colombo board', 'rooms/ROOM1/setup/rules/board', 'colombo', true],
   ['setup: the Down South board', 'rooms/ROOM1/setup/rules/board', 'south', true],
+  ['setup: the Hero League board', 'rooms/ROOM1/setup/rules/board', 'heroes', true],
+  ['setup: a Hero League board id in the wrong case', 'rooms/ROOM1/setup/rules/board', 'HEROES', false],
   ['setup: back to the All Island board', 'rooms/ROOM1/setup/rules/board', 'lanka', true],
   ['setup: an unknown board', 'rooms/ROOM1/setup/rules/board', 'atlantis', false],
   ['setup: a board id that is not a string', 'rooms/ROOM1/setup/rules/board', true, false],
@@ -149,6 +163,9 @@ const cases = [
   ['setup: seat key and seat id differ', 'rooms/ROOM1/setup/seats/s2', human, false],
   ['setup: unknown token', 'rooms/ROOM1/setup/seats/s1/token', 'dragon', false],
   ['setup: another board\'s token', 'rooms/ROOM1/setup/seats/s1/token', 'cityBus', true],
+  ['setup: a hero token', 'rooms/ROOM1/setup/seats/s1/token', 'stormLord', true],
+  ['setup: a hero token in the wrong case', 'rooms/ROOM1/setup/seats/s1/token', 'stormlord', false],
+  ['setup: a hero that is not on the board', 'rooms/ROOM1/setup/seats/s1/token', 'nightOwl', false],
   ['setup: unknown bot skill', 'rooms/ROOM1/setup/seats/s1/skill', 'godlike', false],
   ['setup: a 17-character seat name', 'rooms/ROOM1/setup/seats/s1/name', 'B'.repeat(17), false],
   ['setup: a bad controller id', 'rooms/ROOM1/setup/seats/s0/ctrl', 'someone', false],
@@ -157,6 +174,8 @@ const cases = [
   ['setup: locked to junk', 'rooms/ROOM1/setup/locked', 'start!', false],
   ['setup: an edit id', 'rooms/ROOM1/setup/op', 'ABCDEFGH', true],
   ['setup: an edit id that is not one', 'rooms/ROOM1/setup/op', 'x/y', false],
+  ['setup: a Hero League table of six heroes', 'rooms/ROOM2/setup', { rules: heroesRules, seats: heroSeats, locked: '' }, true],
+  ['setup: Hero League back to All Island', 'rooms/ROOM2/setup/rules', roomRules, true],
   ['setup: a seeded debug flag written back unchanged', 'rooms/SEED1/setup', { rules: { speedDie: false, turnTimer: 0, debug: true }, seats: { s0: human }, locked: '' }, true],
   ['setup: a seeded debug flag turned off', 'rooms/SEED1/setup/rules/debug', false, false],
 
@@ -203,6 +222,7 @@ const cases = [
   ['rooms: a child it does not have', 'rooms/ROOM1/events/x', { t: 1 }, false],
   ['rooms: lowercase room code', 'rooms/lower/kicked/p_TESTER000002', true, false],
   ['rooms: delete a room', 'rooms/ROOM1', null, true],
+  ['rooms: delete the Hero League room', 'rooms/ROOM2', null, true],
   ['lobby: delete a room', 'lobby/ROOM1', null, true],
   ['unknown top-level path', 'admin/flag', true, false],
 ];

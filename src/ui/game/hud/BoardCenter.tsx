@@ -5,7 +5,8 @@ import { uiStore } from '../../../state/ui';
 import { useBusy, useSend } from '../actions';
 import { useGame } from '../context';
 import { JailPanel } from '../decisions/JailPanel';
-import { speedActive } from '../selectors';
+import { PowerButton, SmashPicker } from '../decisions/SmashPicker';
+import { heroesOn, speedActive } from '../selectors';
 
 /** The phone layout (style.css): decisions stay in the bottom sheet there, clear of the board */
 const PHONE_QUERY = '(max-width: 640px)';
@@ -63,15 +64,20 @@ interface Props {
 
 /**
  * Over the middle of the board: the turn's Roll / End turn (or the jail choices) and my turn's decisions (buy or
- * auction, Income Tax, Bus, a triple's space, placing a building, received mortgages, a debt). Centred in the area
+ * auction, Income Tax, Bus, a triple's space, placing a building, received mortgages, a debt). On Hero League a
+ * superpower used on its own (Titan Smash) sits beside Roll and opens its picker here. Centred in the area
  * the side panels, the top bar and the dock leave free (uiStore.insets), which is where the camera frames the
  * board, so it sits on the board's middle; not an inset itself, so the board never moves away from it.
  */
 export function BoardCenter({ turnSeat, turnDocked = false, children }: Props) {
   const s = useGame();
   const insets = useSelector(uiStore, (u) => u.insets, shallowEqual);
+  // The Titan Smash picker is open for this very moment of the turn (a new phase closes it)
+  const moment = turnSeat && s ? `${turnSeat}:${s.since}` : null;
+  const [smashAt, setSmashAt] = useState<string | null>(null);
   const phase = s?.phase.k;
-  const jailed = !!(turnSeat && s?.players[turnSeat]?.jail);
+  // A Hero League turn starts out of the Holding Cell (its fine is paid automatically): no jail choices there
+  const jailed = !!(turnSeat && s?.players[turnSeat]?.jail) && !heroesOn(s);
   let turn: ReactNode = null;
   if (turnSeat && phase === 'preRoll' && jailed) {
     turn = (
@@ -79,10 +85,13 @@ export function BoardCenter({ turnSeat, turnDocked = false, children }: Props) {
         <JailPanel seat={turnSeat} />
       </div>
     );
+  } else if (turnSeat && phase === 'preRoll' && moment && smashAt === moment) {
+    turn = <SmashPicker seat={turnSeat} onClose={() => setSmashAt(null)} />;
   } else if (turnSeat && !turnDocked && (phase === 'preRoll' || phase === 'postRoll')) {
     turn = (
       <div className="turn-center">
         <TurnButton seat={turnSeat} />
+        {phase === 'preRoll' && <PowerButton seat={turnSeat} onUse={() => setSmashAt(moment)} />}
       </div>
     );
   }

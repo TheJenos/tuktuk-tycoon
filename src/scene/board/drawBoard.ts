@@ -1,15 +1,18 @@
-import { formatMoney, type BoardDef, type RulesConfig, type SpaceDef } from '../../rules';
+import { currencyOf, formatMoney, type BoardDef, type RulesConfig, type SpaceDef } from '../../rules';
+import { capital, termsOf } from '../../ui/game/format';
 import { drawLines, fitText, roundRect } from '../textures/canvas';
 import { CARD_H, CARD_W, deckSpot } from './centre';
 import { diamondWidth } from './diamond';
-import { drawIcon } from './icons';
+import { artIcon, drawIcon, type IconName } from './icons';
 import { BAND, CENTRE, CORNER, HALF, INNER, JAIL_CELL, SIDE, TILE_D, TILE_W, isCorner, localCenter, sideOf, toWorld } from './layout';
 
 /*
  * Paints the whole board top into one canvas, in board units: the context is scaled so 1 unit = one tile's width
  * and the origin is the board's centre, matching the world's XZ plane (canvas y = world z). Each tile is drawn in its
  * side's frame (rotated about its centre) so text reads from the outer edge. Every name, price and colour comes from
- * the data file; amounts printed on tax and GO spaces come from the room's rules.
+ * the data file; amounts printed on tax and GO spaces come from the room's rules, in the board's money. A board can
+ * name its own art for the special spaces (display.art); Hero League's locations also print their villain and
+ * power-up.
  */
 
 export type PaintRules = Pick<RulesConfig, 'goSalary' | 'incomeFlat' | 'incomePct' | 'luxuryTax' | 'jailFine'>;
@@ -17,9 +20,14 @@ export type PaintRules = Pick<RulesConfig, 'goSalary' | 'incomeFlat' | 'incomePc
 const PAPER = '#d9ead3';
 const INK = '#141414';
 const LINE = 0.018;
+/** Hero League's villains, printed under a location's name */
+const VILLAIN = '#8f1d2c';
 
-/** Shown rupees (engine units x 100): "Rs. 6,000"; fitText shrinks a long amount to its tile */
-const money = (n: number) => formatMoney(n);
+/** Colours of a board's own art (display.art); the classic art keeps its own */
+const ART_COLOUR: Partial<Record<IconName, string>> = { shield: '#1c5ba8', lookout: '#2b4a6f', ambush: '#5f3dc4' };
+
+/** Shown money in the board's currency ("Rs. 6,000", "70 Power"); fitText shrinks a long amount to its tile */
+const money = (b: BoardDef, n: number) => formatMoney(n, {}, currencyOf(b));
 
 function frameFor(ctx: CanvasRenderingContext2D, i: number): void {
   const [lx, lz] = localCenter(i);
@@ -28,6 +36,20 @@ function frameFor(ctx: CanvasRenderingContext2D, i: number): void {
   ctx.translate(x, z);
   // Canvas rotation by +90 degrees per side is the world's rotation of the bottom row onto that side.
   ctx.rotate((side * Math.PI) / 2);
+}
+
+/** Hero League's location under its band: name, the villain holding it, what saving it costs and its power-up */
+function drawLocation(ctx: CanvasRenderingContext2D, b: BoardDef, sp: Extract<SpaceDef, { k: 'street' }>, textW: number): void {
+  const top = -TILE_D / 2;
+  const bottom = TILE_D / 2;
+  const terms = termsOf(b);
+  drawLines(ctx, sp.name.toUpperCase(), 0, top + BAND + 0.22, 0.12, textW, 2, { weight: 700 });
+  if (sp.villain) {
+    drawIcon(ctx, 'mask', 0, 0, 0.2, VILLAIN);
+    drawLines(ctx, sp.villain, 0, 0.17, 0.085, textW, 2, { weight: 700, color: VILLAIN });
+  }
+  fitText(ctx, `${capital(terms.buy)} ${money(b, sp.price)}`, 0, bottom - 0.32, 0.11, textW, { weight: 700 });
+  fitText(ctx, `${capital(terms.rent)} ${money(b, sp.rent[0] ?? 0)}`, 0, bottom - 0.13, 0.095, textW, { weight: 600 });
 }
 
 /** A street, railroad, utility, tax, Chance or Community Chest space, in its local frame (inner edge at -0.8) */
@@ -39,7 +61,7 @@ function drawSpace(ctx: CanvasRenderingContext2D, b: BoardDef, sp: SpaceDef, i: 
   ctx.strokeStyle = INK;
   ctx.lineWidth = LINE;
   ctx.strokeRect(-w / 2, top, w, TILE_D);
-  const price = (p: number) => fitText(ctx, money(p), 0, bottom - 0.14, 0.13, textW, { weight: 700 });
+  const price = (p: number) => fitText(ctx, money(b, p), 0, bottom - 0.14, 0.13, textW, { weight: 700 });
   switch (sp.k) {
     case 'street': {
       ctx.fillStyle = b.display.groupColours[sp.group] ?? '#888';
@@ -48,6 +70,10 @@ function drawSpace(ctx: CanvasRenderingContext2D, b: BoardDef, sp: SpaceDef, i: 
       ctx.moveTo(-w / 2, top + BAND);
       ctx.lineTo(w / 2, top + BAND);
       ctx.stroke();
+      if (b.heroes) {
+        drawLocation(ctx, b, sp, textW);
+        break;
+      }
       drawLines(ctx, sp.name.toUpperCase(), 0, top + BAND + 0.3, 0.13, textW, 3, { weight: 700 });
       price(sp.price);
       break;
@@ -68,7 +94,7 @@ function drawSpace(ctx: CanvasRenderingContext2D, b: BoardDef, sp: SpaceDef, i: 
       const income = sp.tax === 'income';
       drawLines(ctx, sp.name.toUpperCase(), 0, top + 0.2, 0.13, textW, 2);
       drawIcon(ctx, income ? 'coins' : 'ring', 0, 0.08, 0.5, income ? '#8a6d1d' : '#5a6b7d');
-      const amount = income ? `PAY ${rules.incomePct}% OR ${money(rules.incomeFlat)}` : `PAY ${money(rules.luxuryTax)}`;
+      const amount = income ? `PAY ${rules.incomePct}% OR ${money(b, rules.incomeFlat)}` : `PAY ${money(b, rules.luxuryTax)}`;
       drawLines(ctx, amount, 0, bottom - 0.2, 0.1, textW, 2);
       break;
     }
@@ -76,20 +102,25 @@ function drawSpace(ctx: CanvasRenderingContext2D, b: BoardDef, sp: SpaceDef, i: 
       drawLines(ctx, sp.name.toUpperCase(), 0, top + 0.18, 0.14, textW, 2);
       const colours = ['#d6336c', '#1c5ba8', '#e8590c'];
       const n = b.spaces.slice(0, i).filter((s) => s.k === 'chance').length;
-      fitText(ctx, '?', 0, 0.2, 0.95, textW, { weight: 900, color: colours[n % colours.length] });
+      const colour = colours[n % colours.length] as string;
+      const art = artIcon(b.display.art?.chance);
+      if (art) drawIcon(ctx, art, 0, 0.22, 0.8, colour, PAPER);
+      else fitText(ctx, '?', 0, 0.2, 0.95, textW, { weight: 900, color: colour });
       break;
     }
-    case 'chest':
+    case 'chest': {
+      const art = artIcon(b.display.art?.chest) ?? 'chest';
       drawLines(ctx, sp.name.toUpperCase(), 0, top + 0.22, 0.12, textW, 2);
-      drawIcon(ctx, 'chest', 0, 0.22, 0.62, '#6b3e1d', PAPER);
+      drawIcon(ctx, art, 0, 0.22, 0.62, ART_COLOUR[art] ?? '#6b3e1d', PAPER);
       break;
+    }
     default:
       drawLines(ctx, sp.name.toUpperCase(), 0, 0, 0.14, textW, 3);
   }
 }
 
 /** A corner in its local frame: outer edges at +x and +y, the inner corner at (-0.8, -0.8) */
-function drawCorner(ctx: CanvasRenderingContext2D, sp: SpaceDef, rules: PaintRules): void {
+function drawCorner(ctx: CanvasRenderingContext2D, b: BoardDef, sp: SpaceDef, rules: PaintRules): void {
   const h = CORNER / 2;
   ctx.strokeStyle = INK;
   ctx.lineWidth = LINE;
@@ -125,8 +156,8 @@ function drawCorner(ctx: CanvasRenderingContext2D, sp: SpaceDef, rules: PaintRul
         const [line1 = 0, line2 = 0, nameBase = 0] = base;
         const opts = { weight: 700, baseline: 'alphabetic' as const };
         const w = (b: number, h: number) => diamondWidth(b - h / 2, h);
-        fitText(ctx, `COLLECT ${money(rules.goSalary)}`, 0, line1, salary, w(line1, lines[0]!), opts);
-        fitText(ctx, 'SALARY AS YOU PASS', 0, line2, salary, w(line2, lines[1]!), opts);
+        fitText(ctx, `COLLECT ${money(b, rules.goSalary)}`, 0, line1, salary, w(line1, lines[0]!), opts);
+        fitText(ctx, b.display.art?.goLine ?? 'SALARY AS YOU PASS', 0, line2, salary, w(line2, lines[1]!), opts);
         fitText(ctx, sp.name.toUpperCase(), 0, nameBase, name, w(nameBase, lines[2]!), { ...opts, weight: 900, color: '#c92a2a' });
         drawIcon(ctx, 'arrow', 0, t + arrowH / 2, arrow, '#c92a2a');
       });
@@ -169,8 +200,9 @@ function drawCorner(ctx: CanvasRenderingContext2D, sp: SpaceDef, rules: PaintRul
     case 'parking':
       diagonal(() => {
         const [first = '', ...rest] = sp.name.toUpperCase().split(' ');
+        const art = artIcon(b.display.art?.parking) ?? 'car';
         fitText(ctx, first, 0, -0.46, 0.22, diamondWidth(-0.46, 0.22), { weight: 800 });
-        drawIcon(ctx, 'car', 0, 0.02, 0.78, '#c92a2a');
+        drawIcon(ctx, art, 0, 0.02, 0.78, ART_COLOUR[art] ?? '#c92a2a', PAPER);
         fitText(ctx, rest.join(' '), 0, 0.46, 0.22, diamondWidth(0.46, 0.22), { weight: 800 });
       });
       break;
@@ -178,8 +210,9 @@ function drawCorner(ctx: CanvasRenderingContext2D, sp: SpaceDef, rules: PaintRul
       diagonal(() => {
         const words = sp.name.toUpperCase().split(' ');
         const last = words.pop() ?? '';
+        const art = artIcon(b.display.art?.goToJail) ?? 'lock';
         fitText(ctx, words.join(' '), 0, -0.46, 0.22, diamondWidth(-0.46, 0.22), { weight: 800 });
-        drawIcon(ctx, 'lock', 0, 0.02, 0.6, '#1c5ba8');
+        drawIcon(ctx, art, 0, 0.02, art === 'lock' ? 0.6 : 0.68, ART_COLOUR[art] ?? '#1c5ba8');
         fitText(ctx, last, 0, 0.46, 0.22, diamondWidth(0.46, 0.22), { weight: 800 });
       });
       break;
@@ -246,7 +279,7 @@ export function drawBoard(canvas: HTMLCanvasElement, b: BoardDef, rules: PaintRu
   b.spaces.forEach((sp, i) => {
     ctx.save();
     frameFor(ctx, i);
-    if (isCorner(i)) drawCorner(ctx, sp, rules);
+    if (isCorner(i)) drawCorner(ctx, b, sp, rules);
     else drawSpace(ctx, b, sp, i, rules);
     ctx.restore();
   });

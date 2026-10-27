@@ -1,6 +1,7 @@
 import {
   apply,
   awaiting,
+  boardOf,
   defaultAction,
   DEFAULT_RULES,
   type Action,
@@ -199,6 +200,8 @@ export function room(c: BotCtx, rounds: number, share = 1): number {
  * small for a fair comparison.
  */
 export function ask(c: BotCtx, q: Question): (number | null)[] | null {
+  // Hero League is never searched: a playout would draw the cards in the decks' real order (heroes.ts judges it instead)
+  if (boardOf(c.s).heroes) return null;
   const allot = Math.floor(c.budget.left * (q.share ?? 1));
   c.budget.left -= allot;
   const turns = horizon(q.rounds, Math.max(1, c.m.active.length));

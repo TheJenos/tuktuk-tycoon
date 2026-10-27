@@ -12,12 +12,40 @@ import { build, mortgage, sell, sellProperty, unmortgage } from './manage';
 import { transfer } from './money';
 import { settleMortgages } from './mortgage';
 import { endGame, timeUp } from './over';
+import { aim, checkPassAim, passAim, passBoost, pickCard, smash, sting } from './powers';
+import { closeReact, passReact, reroll, shield, windowProblem } from './react';
 import { accept, cancel, propose, reject } from './trade';
 import type { Action, RigRoll, SeatId } from './types';
 
+/** Leave an auction or a contest window; on a heroes board also let a throw or an effect be, or skip a superpower */
 const pass: Handler<'pass'> = seatAction(
-  (s, _b, seat) => (s.phase.k === 'buildClaim' ? checkPassClaim(s, seat) : checkPassAuction(s, seat)),
-  (c, seat) => (c.s.phase.k === 'buildClaim' ? passClaim(c, seat) : passAuction(c, seat)),
+  (s, _b, seat, a) => {
+    switch (s.phase.k) {
+      case 'buildClaim':
+        return checkPassClaim(s, seat);
+      case 'react':
+      case 'boost':
+        return windowProblem(s, seat, a.at);
+      case 'aim':
+        return checkPassAim(s, seat, a.at);
+      default:
+        return checkPassAuction(s, seat);
+    }
+  },
+  (c, seat) => {
+    switch (c.s.phase.k) {
+      case 'buildClaim':
+        return passClaim(c, seat);
+      case 'react':
+        return passReact(c, seat);
+      case 'aim':
+        return passAim(c, seat);
+      case 'boost':
+        return passBoost(c);
+      default:
+        return passAuction(c, seat);
+    }
+  },
 );
 
 const SPEED_FACES = new Set<unknown>([1, 2, 3, 'bus', 'uncle']);
@@ -33,14 +61,22 @@ const isRig = (r: unknown): r is RigRoll =>
 
 const debugRig: Handler<'debugRig'> = {
   who: 'any',
-  check: (s, _b, _by, a) => {
+  check: (s, b, _by, a) => {
     if (!s.cfg.debug) return err('debugOff', 'Debug actions are off');
     if (!Array.isArray(a.dice) || !a.dice.every(isRig)) return err('badRig', 'Malformed dice');
-    if (s.rig.length + a.dice.length > MAX_RIG) return err('badRig', `At most ${MAX_RIG} rigged throws queued`);
+    const hero = a.hero ?? [];
+    if (a.hero !== undefined && (!b.heroes || !Array.isArray(hero) || !hero.every(isDie))) {
+      return err('badRig', 'Malformed Hero-die faces');
+    }
+    // Both queues count towards the cap
+    if (s.rig.length + (s.rigHero?.length ?? 0) + a.dice.length + hero.length > MAX_RIG) {
+      return err('badRig', `At most ${MAX_RIG} rigged throws queued`);
+    }
     return null;
   },
   run: (c, _by, a) => {
     c.s.rig.push(...a.dice.map((r): RigRoll => [...r]));
+    if (a.hero?.length) c.s.rigHero = [...(c.s.rigHero ?? []), ...a.hero];
   },
 };
 
@@ -109,8 +145,15 @@ export const HANDLERS: HandlerTable = {
   autoRaise,
   bankrupt,
   resign,
+  sting,
+  smash,
+  aim,
+  pickCard,
+  reroll,
+  shield,
   closeAuction: closeAuctionAction,
   closeClaim,
+  closeReact,
   endGame,
   timeUp,
   forced,

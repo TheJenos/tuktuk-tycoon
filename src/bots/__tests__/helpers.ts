@@ -16,6 +16,22 @@ export function scenario(n = 2, cfg: Partial<RulesConfig> = {}, seed = 1): GameS
   return state;
 }
 
+/**
+ * A Hero League game where s0 starts and play goes s0, s1, ...; seat i plays heroes[i]. Debug is on so the dice and the
+ * Hero die can be rigged. Hero-die faces = the heroes' list order: 1 jadeTitan, 2 starCaptain, 3 steelAce, 4 stormLord,
+ * 5 velvetViper, 6 sharpshot.
+ */
+export function heroGame(heroes: string[], cfg: Partial<RulesConfig> = {}, seed = 1): GameState {
+  const seats = heroes.map((hero, i) => ({ id: SEATS[i] as SeatId, name: `P${i}`, hero }));
+  const { state } = createGame({ debug: true, ...cfg, board: 'heroes' }, seats, seed);
+  state.order = SEATS.slice(0, heroes.length);
+  state.turn = { seat: 's0', no: 1, doubles: 0, again: false };
+  return state;
+}
+
+/** Queues rigged Hero-die faces */
+export const rigHero = (s: GameState, ...faces: number[]): void => void (s.rigHero = [...(s.rigHero ?? []), ...faces]);
+
 /** Owns spaces outright (mutates; for setting up scenarios) */
 export function own(s: GameState, seat: SeatId, spaces: number[], opts: { level?: Level; mortgaged?: boolean } = {}): void {
   for (const space of spaces) {

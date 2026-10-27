@@ -6,6 +6,9 @@ import { land } from './landing';
 import { pay, settleDebt } from './money';
 import { moveBack, moveForward, nextBankOwned, nextRentOwed } from './movement';
 import { finish } from './over';
+import { powerSource } from './heroes';
+import { passAim, passBoost, throwDone } from './powers';
+import { backupPick, heroFace, hit, liveOpen, swap, throwHero } from './react';
 import type { SeatId, Step } from './types';
 
 /*
@@ -40,6 +43,24 @@ export function drain(c: Ctx): void {
         if (isActive(c.s, ph.seat) && ph.spaces.length > 0) return;
         setPhase(c, ph.resume);
         break;
+      case 'react':
+        // A reaction window rests while someone can still answer it (a seat leaving may take that away: liveOpen);
+        // then what it held back runs first
+        ph.open = liveOpen(c.b, c.s, ph);
+        if (ph.open.length) return;
+        setPhase(c, ph.resume);
+        c.s.pending.unshift(ph.then);
+        break;
+      case 'boost':
+        // Viper Strike no longer usable (the hero a Steel Ace copies left): the dice move as thrown
+        if (powerSource(c.b, c.s, ph.seat, 'sting')) return;
+        passBoost(c);
+        break;
+      case 'aim':
+        // Dead Aim no longer usable before the reveal (the hero a Steel Ace copies left): draw as usual
+        if (ph.cards || powerSource(c.b, c.s, ph.seat, 'aim')) return;
+        passAim(c, ph.seat);
+        break;
       case 'busy': {
         const step = c.s.pending.shift();
         if (step) runStep(c, step);
@@ -67,6 +88,7 @@ function runStep(c: Ctx, st: Step): void {
         land(c, st.seat, {
           ...(st.rentMul ? { rentMul: st.rentMul } : {}),
           ...(st.utilFresh ? { utilFresh: true as const } : {}),
+          ...(st.free ? { free: true as const } : {}),
         });
       }
       return;
@@ -91,6 +113,28 @@ function runStep(c: Ctx, st: Step): void {
     case 'nextTurn':
       nextTurn(c);
       return;
+    // Hero League (react.ts, powers.ts)
+    case 'throwDone':
+      throwDone(c, st.seat);
+      return;
+    case 'throwHero':
+      throwHero(c, st);
+      return;
+    case 'heroFace':
+      heroFace(c, st);
+      return;
+    case 'hit':
+      hit(c, st);
+      return;
+    case 'backupPick':
+      backupPick(c, st);
+      return;
+    case 'swap':
+      swap(c, st);
+      return;
+    case 'beforeRoll':
+      setPhase(c, { k: 'preRoll' });
+      return;
   }
 }
 
@@ -113,7 +157,10 @@ function uncle(c: Ctx, seat: SeatId): void {
   c.s.pending.unshift({ k: 'move', seat, to, via: 'uncle' }, { k: 'land', seat });
 }
 
-/** Passes the turn to the next seat still in (and ends the game at the turn limit) */
+/**
+ * Passes the turn to the next seat still in (and ends the game at the turn limit). Hero League: a jailed seat pays
+ * the fine at once (what it has, if short) and leaves the Holding Cell, then rolls as usual.
+ */
 export function nextTurn(c: Ctx): void {
   const s = c.s;
   if (s.cfg.turnLimit > 0 && s.turn.no >= s.cfg.turnLimit) {
@@ -125,6 +172,11 @@ export function nextTurn(c: Ctx): void {
   s.pending = [];
   setPhase(c, { k: 'preRoll' });
   emit(c, { t: 'turn', seat: next, no: s.turn.no });
+  if (c.b.heroes && player(s, next).jail) {
+    pay(c, next, { bank: s.cfg.jailFine }, 'fine');
+    delete player(s, next).jail;
+    emit(c, { t: 'jailExit', seat: next, how: 'fine' });
+  }
 }
 
 export const endTurn: Handler<'endTurn'> = seatAction(

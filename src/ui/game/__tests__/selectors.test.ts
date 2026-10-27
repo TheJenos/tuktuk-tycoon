@@ -15,6 +15,7 @@ import {
   myBidders,
   phaseLabel,
   resignQuestion,
+  shownSeat,
 } from '../selectors';
 import { act, game, own } from './helpers';
 
@@ -65,6 +66,24 @@ describe('decisions', () => {
     s.players.s2!.out = 'bankrupt';
     expect(actingSeat(s, ['s2', 's1'])).toBe('s1');
     expect(actingSeat(s, [])).toBeNull();
+  });
+
+  it('shows one local seat in My properties and the hero card: the one picked until the turn passes', () => {
+    const s = game(3);
+    // The turn seat when it's mine, else my first seat still in
+    expect(shownSeat(s, ['s1', 's0'], null)).toEqual({ seat: 's0', live: ['s1', 's0'] });
+    expect(shownSeat(s, ['s2', 's1'], null)).toEqual({ seat: 's2', live: ['s2', 's1'] });
+    // A pick (from either panel's switcher) holds while the turn is the one it was made in
+    expect(shownSeat(s, ['s0', 's1'], { seat: 's1', turn: 's0' })?.seat).toBe('s1');
+    s.turn.seat = 's1';
+    expect(shownSeat(s, ['s0', 's2'], { seat: 's2', turn: 's0' })?.seat).toBe('s0');
+    // Not a seat that is out
+    s.turn.seat = 's0';
+    s.players.s1!.out = 'bankrupt';
+    expect(shownSeat(s, ['s0', 's1'], { seat: 's1', turn: 's0' })).toEqual({ seat: 's0', live: ['s0'] });
+    s.players.s0!.out = 'resigned';
+    expect(shownSeat(s, ['s0', 's1'], null)).toBeNull();
+    expect(shownSeat(s, [], null)).toBeNull();
   });
 
   it('lands the bus options', () => {

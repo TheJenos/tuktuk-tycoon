@@ -57,6 +57,11 @@ export interface Doc {
   /** Consecutive timeouts per seat (two make it afk) */
   strikes: Partial<Record<SeatId, number>>;
   /**
+   * Hero League: reaction windows each human seat let run out in a row, up to REACT_IDLE_AFTER (never AFK strikes);
+   * at that many it is no longer waited for in them until its player acts (absent = none)
+   */
+  reactIdle?: Partial<Record<SeatId, number>>;
+  /**
    * Bumped whenever `seats` changes (a seat handed over, AFK on or off). A client replaying a gap checks who sent
    * each move against the seats only when this is unchanged: in between, the seats were others it never saw.
    */

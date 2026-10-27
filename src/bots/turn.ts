@@ -1,12 +1,14 @@
 import { incomeTaxAmounts, maxRaise, mayBuy, type Action } from '../rules';
 import { type BotCtx, pickOne } from './ctx';
 import { raiseStep } from './debt';
+import { heroesBoard } from './heroes';
 import { twoDice } from './landingProb';
 import { blocksSet, completesSet, danger, propAt, rentOwed, worthToMe } from './model';
 import { rolloutWorth } from './rollout';
 
 /*
- * The turn seat's own choices: jail, Bus, a triple's free move, buying, Income Tax.
+ * The turn seat's own choices: jail, Bus, a triple's free move, buying, Income Tax. Hero League has none of the jail
+ * and buying choices (the fine is paid at the start of the turn, saving is compulsory): heroes.ts holds its own.
  */
 
 const bankLeft = (c: BotCtx): number => c.m.info.props.filter((x) => c.m.owner[x] === undefined).length;
@@ -34,7 +36,8 @@ export function prefersJail(c: BotCtx): boolean {
 
 export function jailChoice(c: BotCtx): Action {
   const jail = c.me.jail;
-  if (!jail) return { k: 'roll' };
+  // Hero League: a jailed hero has already paid and left when its turn starts
+  if (!jail || heroesBoard(c)) return { k: 'roll' };
   const leave = c.prof.skill === 'easy' ? c.me.cash > 300 : !prefersJail(c);
   if (!leave) return { k: 'roll' };
   if (c.me.goojf.length > 0) return { k: 'useCard', card: c.me.goojf[0] as string };
@@ -131,6 +134,8 @@ export function propertyWorth(c: BotCtx, space: number): number {
 }
 
 export function buyChoice(c: BotCtx, space: number): Action {
+  // Hero League saves without asking (a safeguard: the phase does not come up there)
+  if (heroesBoard(c)) return { k: 'buy' };
   const p = propAt(c.m, space);
   if (!p) return { k: 'decline' };
   const cash = c.me.cash;

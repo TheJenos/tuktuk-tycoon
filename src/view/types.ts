@@ -28,6 +28,8 @@ export interface ViewState {
   card: { seat: SeatId; deck: 'chance' | 'chest'; text: string } | null;
   /** The last throw shown, for the dice readout (set once the dice have landed) */
   dice: Extract<GameEvent, { t: 'dice' }> | null;
+  /** Hero League: the last Hero-die throw shown, for its readout (set once the die has landed, like `dice`) */
+  heroDie?: Extract<GameEvent, { t: 'heroDie' }> | null;
 }
 
 export interface Director {
@@ -48,15 +50,27 @@ export interface Director {
 export type BoardEvent = Extract<GameEvent, { t: 'owner' | 'level' | 'mortgage' }>;
 
 /**
+ * How a token moves: 'walk' hops forward tile by tile, 'back' walks backwards, 'jump' is one arc (to jail only: it
+ * lands in the cell), 'leap' the same arc to any space and never into the cell (a Titan Smash swap; in place, a hop
+ * on the spot)
+ */
+export type MoveMode = 'walk' | 'back' | 'jump' | 'leap';
+
+/**
  * Imperative APIs the R3F scene registers with the director. Every method resolves when its animation is done
  * (immediately when aborted). `speed` multiplies playback (1 = normal; the director raises it for 'fast' and a
  * backlog).
  */
 export interface SceneApis {
-  /** 'walk' hops forward tile by tile, 'back' walks backwards, 'jump' is one arc (to jail only) */
-  tokens: { move(seat: SeatId, path: number[], mode: 'walk' | 'back' | 'jump', signal: AbortSignal, speed: number): Promise<void> };
-  /** Lands on the event's values. `seed` (the same on every client) picks the throw. */
-  dice: { roll(ev: Extract<GameEvent, { t: 'dice' }>, signal: AbortSignal, speed: number, seed?: number): Promise<void> };
+  tokens: { move(seat: SeatId, path: number[], mode: MoveMode, signal: AbortSignal, speed: number): Promise<void> };
+  /**
+   * Lands on the event's values. `seed` (the same on every client) picks the throw. `hero` throws the Hero die alone
+   * (Hero League; a re-roll is another throw).
+   */
+  dice: {
+    roll(ev: Extract<GameEvent, { t: 'dice' }>, signal: AbortSignal, speed: number, seed?: number): Promise<void>;
+    hero?(ev: Extract<GameEvent, { t: 'heroDie' }>, signal: AbortSignal, speed: number, seed?: number): Promise<void>;
+  };
   /**
    * focus(null) frames the whole board, focus(space) a tile; follow(path) frames a move's path. Automatic framing
    * is skipped while the player has moved the camera by hand.
@@ -66,7 +80,8 @@ export interface SceneApis {
     follow?(path: number[], signal: AbortSignal): Promise<void>;
   };
   cards: { show(ev: Extract<GameEvent, { t: 'card' }>, signal: AbortSignal, speed: number): Promise<void> };
-  fx: { money(seat: SeatId, delta: number): void };
+  /** Labels rising over a token: a cash change, or a few words ("Re-roll!", "Thunder Call ready") */
+  fx: { money(seat: SeatId, delta: number): void; say?(seat: SeatId, text: string): void };
   /** Plays a board change after it shows in view.game: an owner chip pops, a house drops in, a stamp lands */
   board: { animate(ev: BoardEvent, signal: AbortSignal, speed: number): Promise<void> };
 }

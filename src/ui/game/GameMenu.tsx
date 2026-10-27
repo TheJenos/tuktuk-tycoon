@@ -1,7 +1,8 @@
-import { useRef, useState, type MouseEvent } from 'react';
+import { useRef, useState, type CSSProperties, type MouseEvent } from 'react';
 import { AFK_STRIKES, othersPlaying } from '../../net/doc';
 import type { PlayerId } from '../../net/types';
-import { getBoard, type SeatId } from '../../rules';
+import { getBoard, heroesOf, type SeatId } from '../../rules';
+import { phaseSecs } from '../../shared/timing';
 import { ConfirmButton } from '../ConfirmButton';
 import { safeColor } from '../colors';
 import { MenuPanel, MenuRail, type MenuTab } from '../MenuShell';
@@ -9,12 +10,12 @@ import { useDialogFocus, useEscape } from '../useDialogFocus';
 import { useBusy, useSend } from './actions';
 import { useDoc, useGameSession, useMySeats, useNames, useSessionSel } from './context';
 import { skillLabel } from '../lobby/seats';
-import { afkText, BOT_PACE_LABELS, incomeTaxText, jailName, minutes, parkingName, supplyOf, tradingText } from '../lobby/rulesText';
-import { money, startName, taxName } from './format';
+import { afkText, BOT_PACE_LABELS, hiddenOptions, incomeTaxText, jailName, minutes, parkingName, supplyOf, tradingText, type RulesDraft } from '../lobby/rulesText';
+import { capital, pluralWord, startName, taxName, tokenOf } from './format';
 import { GameSettings } from './GameSettings';
 import { resignQuestion } from './selectors';
 import { TokenIcon } from './tokenIcons';
-import { DEFAULT_TOKEN } from '../../shared/tokens';
+import './heroes.css';
 
 /** What the room's owner may do from the Players view; the App wires these to the room (none offline) */
 export interface OwnerActions {
@@ -70,7 +71,7 @@ export function GameMenu({ onResume, onLeave, isOwner, ownerActions, onTakeBack 
   const tabs: MenuTab[] = [
     { id: 'game', label: 'Game', short: 'Game', icon: '◎', sub: 'Resume, resign or leave' },
     { id: 'players', label: 'Players', short: 'Players', icon: '◈', sub: owner ? 'Seats and bots' : 'Who is at the table' },
-    { id: 'rules', label: 'Rules', short: 'Rules', icon: '▤', sub: s?.cfg.speedDie ? 'Classic + Speed Die' : 'Classic' },
+    { id: 'rules', label: 'Rules', short: 'Rules', icon: '▤', sub: names.board.heroes ? names.board.display.name : s?.cfg.speedDie ? 'Classic + Speed Die' : 'Classic' },
     { id: 'settings', label: 'Settings', short: 'Settings', icon: '⚙', sub: 'Graphics, motion, sound' },
   ];
   const titles: Record<View, string> = { game: 'This game', players: 'Players', rules: 'Rules', settings: 'Settings' };
@@ -142,7 +143,7 @@ export function GameMenu({ onResume, onLeave, isOwner, ownerActions, onTakeBack 
                 {canFinish && othersIn.length === 0 && (
                   <ConfirmButton
                     className="danger"
-                    question="End the game now, ranked by net worth?"
+                    question={`End the game now, ranked by ${names.terms.worth}?`}
                     yes="Finish now"
                     no="Keep going"
                     onConfirm={() => {
@@ -189,12 +190,12 @@ function PlayersView({ owner, actions }: { owner: boolean; actions: OwnerActions
         return (
           <li key={seat}>
             <span style={{ color: safeColor(info?.color) }}>
-              <TokenIcon token={info?.token ?? DEFAULT_TOKEN} color={info?.color} size={22} />
+              <TokenIcon token={tokenOf(s, seat, info?.token)} color={info?.color} size={22} />
             </span>
             <span className="who">
               <strong>{names.seat(seat)}</strong>
               {mine.includes(seat) && <span className="badge accent">You</span>}
-              <span className="muted small">{status}{p && !out ? ` · ${money(p.cash)}` : ''}</span>
+              <span className="muted small">{status}{p?.hero ? ` · ${names.hero(p.hero)}` : ''}{p && !out ? ` · ${names.money(p.cash)}` : ''}</span>
             </span>
             {owner && human && !out && !mine.includes(seat) && (
               <span className="owner-actions">
@@ -228,58 +229,93 @@ function PlayersView({ owner, actions }: { owner: boolean; actions: OwnerActions
 
 const secs = (n: number) => (n > 0 ? `${n} s` : 'off');
 
+/** One line of the rules list, with the room option it shows (left out where the board pins it or has no use for it) */
+type RuleRow = [label: string, value: string, option?: keyof RulesDraft];
+
 function RulesView() {
   const doc = useDoc();
   const session = useGameSession();
+  const names = useNames();
   if (!doc) return null;
   const c = doc.game.cfg;
   const t = doc.timers;
   const b = getBoard(c.board);
   const online = session.online;
-  const rows: [string, string][] = [
+  const money = names.money;
+  const { worth, property, bought, rent } = names.terms;
+  const heroes = !!b.heroes;
+  const hidden = hiddenOptions(c.board);
+  const rows: RuleRow[] = [
     ['Board', b.display.name],
-    ['Rules', c.speedDie ? 'Classic with the Speed Die' : 'Classic'],
-    ['Starting cash', `${money(c.startCash)}${c.speedDie ? ` + ${money(c.speedBonus)} (Speed Die)` : ''}`],
-    [`${startName(b)} salary`, c.doubleGoLanding ? `${money(c.goSalary)}, ${money(c.goSalary * 2)} for landing on it` : money(c.goSalary)],
-    [taxName(b, 'income'), incomeTaxText(c)],
-    [taxName(b, 'luxury'), money(c.luxuryTax)],
-    [`${parkingName(b)} jackpot`, c.jackpot ? `On: ${money(doc.game.pot)} waiting` : 'Off'],
-    ['Jail fine', money(c.jailFine)],
-    ['Bank stock', supplyOf(c) === 'unlimited' ? 'Unlimited houses and hotels' : `${c.houses} houses, ${c.hotels} hotels`],
-    ['Mortgage interest', `${c.mortgagePct}%`],
-    ...(c.speedDie ? [['Triples', c.triplesRollAgain ? 'Move anywhere, then roll again' : 'Move anywhere'] as [string, string]] : []),
-    ['Three doubles', c.threeDoublesJail ? `Go to the ${jailName(b)}` : 'Just roll again'],
-    ['Auctions', c.auctionAll ? 'Every property: nobody buys at the printed price' : c.auctions ? 'Property nobody buys is auctioned' : 'Off: property nobody buys stays with the bank'],
-    ['First lap', c.buyAfterFirstLap ? `No buying until you have passed ${startName(b)} once` : 'Buy from the start'],
-    ['Rent while in jail', c.jailRent ? 'Collected' : 'Not collected'],
-    ['Quick-start deal', c.dealProperties > 0 ? `${c.dealProperties} free propert${c.dealProperties === 1 ? 'y' : 'ies'} each` : 'None'],
-    ['Trading', tradingText(c)],
-    ['Game ends', c.endMode === 'firstBankrupt' ? 'At the first bankruptcy, ranked by net worth' : 'When one player is left'],
-    ['Turn limit', c.turnLimit > 0 ? `${c.turnLimit} turns, then ranked by net worth` : 'None'],
-    ['Time limit', doc.timeLimit ? `${minutes(doc.timeLimit)}, then ranked by net worth` : 'None'],
-    ['Turn timer', secs(t.turn)],
-    ['Decision timer', secs(t.decision)],
-    ['Auction countdown', `${secs(t.auction)} from the start (bids don't add time)`],
-    ['Debt timer', secs(t.debt)],
+    ['Rules', heroes ? (b.display.rulesBlurb ?? b.display.name) : c.speedDie ? 'Classic with the Speed Die' : 'Classic'],
+    [heroes ? 'Starting Power' : 'Starting cash', `${money(c.startCash)}${c.speedDie ? ` + ${money(c.speedBonus)} (Speed Die)` : ''}`, 'startCash'],
+    [`${startName(b)} salary`, c.doubleGoLanding ? `${money(c.goSalary)}, ${money(c.goSalary * 2)} for landing on it` : money(c.goSalary), 'goSalary'],
+    [taxName(b, 'income'), incomeTaxText(c), 'incomeTaxMode'],
+    [taxName(b, 'luxury'), money(c.luxuryTax), 'luxuryTax'],
+    [`${parkingName(b)} jackpot`, c.jackpot ? `On: ${money(doc.game.pot)} waiting` : 'Off', 'jackpot'],
+    [heroes ? `${jailName(b)} fine` : 'Jail fine', heroes ? `${money(c.jailFine)}, paid at the start of the next turn` : money(c.jailFine), 'jailFine'],
+    ['Bank stock', supplyOf(c) === 'unlimited' ? 'Unlimited houses and hotels' : `${c.houses} houses, ${c.hotels} hotels`, 'houses'],
+    ['Mortgage interest', `${c.mortgagePct}%`, 'mortgagePct'],
+    ...(c.speedDie ? [['Triples', c.triplesRollAgain ? 'Move anywhere, then roll again' : 'Move anywhere', 'triplesRollAgain'] as RuleRow] : []),
+    ['Three doubles', c.threeDoublesJail ? `Go to the ${jailName(b)}` : 'Just roll again', 'threeDoublesJail'],
+    ['Auctions', c.auctionAll ? 'Every property: nobody buys at the printed price' : c.auctions ? 'Property nobody buys is auctioned' : 'Off: property nobody buys stays with the bank', 'auctions'],
+    ['First lap', c.buyAfterFirstLap ? `No buying until you have passed ${startName(b)} once` : 'Buy from the start', 'buyAfterFirstLap'],
+    ['Rent while in jail', c.jailRent ? 'Collected' : 'Not collected', 'jailRent'],
+    ['Quick-start deal', c.dealProperties > 0 ? `${c.dealProperties} free propert${c.dealProperties === 1 ? 'y' : 'ies'} each` : 'None', 'dealProperties'],
+    ['Trading', tradingText(c), 'trading'],
+    heroes
+      ? ['Game ends', `When every ${property} is ${bought}, ranked by ${worth}: your Power plus ${b.heroes?.locationPoints ?? 0} for each ${property}`]
+      : ['Game ends', c.endMode === 'firstBankrupt' ? 'At the first bankruptcy, ranked by net worth' : 'When one player is left', 'endMode'],
+    ['Turn limit', c.turnLimit > 0 ? `${c.turnLimit} turns, then ranked by ${worth}` : 'None', 'turnLimit'],
+    ['Time limit', doc.timeLimit ? `${minutes(doc.timeLimit)}, then ranked by ${worth}` : 'None'],
+    ['Turn timer', secs(t.turn), 'turnTimer'],
+    ['Decision timer', secs(t.decision), 'decisionTimer'],
+    ...(heroes ? [['Reaction window', `${secs(phaseSecs('reaction', t))} after the throw lands`] as RuleRow] : []),
+    ['Auction countdown', `${secs(t.auction)} from the start (bids don't add time)`, 'auctionTimer'],
+    ['Debt timer', secs(t.debt), 'debtTimer'],
     ['Bot speed', BOT_PACE_LABELS[doc.botPace ?? 1] ?? 'Normal'],
     ...(online ? [
-      ['A bot plays for an absent player', afkText(doc.afkStrikes ?? AFK_STRIKES)] as [string, string],
-      ['Bots for absent players play at', skillLabel(doc.botSkill)] as [string, string],
+      ['A bot plays for an absent player', afkText(doc.afkStrikes ?? AFK_STRIKES)] as RuleRow,
+      ['Bots for absent players play at', skillLabel(doc.botSkill)] as RuleRow,
     ] : []),
   ];
+  const shown = rows.filter(([, , option]) => !option || !hidden.has(option));
   return (
     <>
       <dl className="rules-list">
-        {rows.map(([k, v]) => (
+        {shown.map(([k, v]) => (
           <div key={k}>
             <dt>{k}</dt>
             <dd>{v}</dd>
           </div>
         ))}
       </dl>
-      <p className="muted small">
-        Rent is collected automatically.{doc.game.cfg.auctions ? ' Auctions are open bidding: anyone still in may raise at any time.' : ''}
-      </p>
+      {heroes ? (
+        <>
+          <p className="muted small">
+            Saving is compulsory: land on a {property} a villain holds with the Power for it and you {names.terms.buy} it; if you can't, another
+            hero may (the back-up hero). {capital(pluralWord(rent))} are paid automatically, doubled for a colour pair. Short of Power, you pay what you
+            have and the rest is forgiven: nobody goes bankrupt.
+          </p>
+          <ul className="rules-heroes" aria-label="Heroes">
+            {heroesOf(b).map((h) => {
+              const seat = names.heroSeat(h.id);
+              return (
+                <li key={h.id} style={{ '--hero': safeColor(h.colour) } as CSSProperties}>
+                  <strong>{h.name}</strong>{seat ? ` (${names.seat(seat)})` : ''}: <strong>{h.powerName}</strong>. {h.powerText}
+                </li>
+              );
+            })}
+          </ul>
+          <p className="muted small">
+            Each superpower is used once, then ready again with the next {startName(b)} salary (not in the turn it was used) or a Recharge card.
+          </p>
+        </>
+      ) : (
+        <p className="muted small">
+          Rent is collected automatically.{doc.game.cfg.auctions ? ' Auctions are open bidding: anyone still in may raise at any time.' : ''}
+        </p>
+      )}
     </>
   );
 }

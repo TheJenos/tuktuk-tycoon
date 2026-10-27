@@ -1,5 +1,6 @@
 import { propertyAt, siblings } from './board';
-import { type Ctx, emit, err, interest, isActive, isSeat, levelOf, player, prop, rs, setPhase, tradingClosed } from './ctx';
+import { type Ctx, emit, err, interest, isActive, isSeat, levelOf, player, prop, setPhase, tradingClosed } from './ctx';
+import { boardMoney } from './currency';
 import { ACCEPT_PHASES, type Handler, isInt, seatAction } from './handler';
 import { transfer } from './money';
 import type { BoardDef, Bundle, GameState, Phase, RuleError, SeatId, Trade } from './types';
@@ -35,7 +36,7 @@ export function isBundle(x: unknown): x is Bundle {
 function bundleProblems(s: GameState, b: BoardDef, seat: SeatId, bd: Bundle): RuleError[] {
   const out: RuleError[] = [];
   const p = player(s, seat);
-  if (bd.cash > p.cash) out.push(err('cash', `${p.name} does not have ${rs(bd.cash)}`));
+  if (bd.cash > p.cash) out.push(err('cash', `${p.name} does not have ${boardMoney(b, bd.cash)}`));
   for (const space of bd.props) {
     const sp = propertyAt(b, space);
     if (!sp) out.push(err('badSpace', `Space ${space} is not a property`));

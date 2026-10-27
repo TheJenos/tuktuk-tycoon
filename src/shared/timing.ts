@@ -23,6 +23,8 @@ export const ANIM = {
   auctionStart: 400,
   jail: 600,
   bankrupt: 900,
+  /** A superpower's floating label (Hero League) */
+  power: 400,
   /** Upper bound for one batch, however many events it has */
   batchMax: 8000,
 } as const;
@@ -36,7 +38,9 @@ export function animBudget(events: readonly GameEvent[]): number {
   for (const ev of events) {
     switch (ev.t) {
       case 'dice': ms += ev.purpose === 'order' ? 0 : ANIM.dice; break;
-      case 'move': ms += ev.via === 'jail' ? ANIM.jump : hopMs(ev.path.length) * ev.path.length; break;
+      case 'heroDie': ms += ANIM.dice; break;
+      case 'move': ms += ev.via === 'jail' || ev.via === 'swap' ? ANIM.jump : hopMs(ev.path.length) * ev.path.length; break;
+      case 'power': ms += ANIM.power; break;
       case 'card': ms += ANIM.card; break;
       case 'owner': ms += ANIM.owner; break;
       case 'level': ms += ANIM.level; break;
@@ -50,17 +54,22 @@ export function animBudget(events: readonly GameEvent[]): number {
   return Math.min(ms, ANIM.batchMax);
 }
 
-/** Seconds allowed per decision kind. 0 = no timer (the auction always has one, or it could never close). */
+/**
+ * Seconds allowed per decision kind. 0 = no timer (the auction and a Hero League reaction window always have one, or
+ * they could never close).
+ */
 export interface TimerRules {
   turn: number;
   decision: number;
   auction: number;
   debt: number;
+  /** A Hero League reaction window (re-roll / shield); absent in older rooms: 6 s */
+  reaction?: number;
 }
 
-export const ONLINE_TIMERS: TimerRules = { turn: 60, decision: 45, auction: 8, debt: 120 };
-/** Offline: nobody waits on a human except the auction countdown */
-export const OFFLINE_TIMERS: TimerRules = { turn: 0, decision: 0, auction: 8, debt: 0 };
+export const ONLINE_TIMERS: TimerRules = { turn: 60, decision: 45, auction: 8, debt: 120, reaction: 8 };
+/** Offline: nobody waits on a human except the auction countdown and reaction windows */
+export const OFFLINE_TIMERS: TimerRules = { turn: 0, decision: 0, auction: 8, debt: 0, reaction: 6 };
 
 export function phaseSecs(kind: TimerInfo['kind'], t: TimerRules): number {
   switch (kind) {
@@ -69,5 +78,6 @@ export function phaseSecs(kind: TimerInfo['kind'], t: TimerRules): number {
     case 'auction': return Math.max(3, t.auction);
     case 'debt': return t.debt;
     case 'trade': return 0;
+    case 'reaction': return Math.max(3, t.reaction ?? 6);
   }
 }

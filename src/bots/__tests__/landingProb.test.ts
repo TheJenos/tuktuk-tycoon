@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LANKA } from '../../rules';
+import { HEROES, LANKA } from '../../rules';
 import { landingTable, twoDice } from '../landingProb';
 
 describe('landing table', () => {
@@ -27,6 +27,20 @@ describe('landing table', () => {
 
   it('is computed once per board', () => {
     expect(landingTable(LANKA)).toBe(t);
+  });
+
+  it('Hero League: a jailed hero always pays and leaves at the start of its turn (no stay-in-jail chain)', () => {
+    const h = landingTable(HEROES);
+    const total = h.perRoll.reduce((a, x) => a + x, 0);
+    expect(total).toBeGreaterThan(0.9);
+    expect(total).toBeLessThan(0.97);
+    expect(h.perRoll[HEROES.goToJailIndex]).toBe(0);
+    expect(h.rollsPerTurn).toBeGreaterThan(1.15);
+    expect(h.rollsPerTurn).toBeLessThan(1.2);
+    // Leaving at once spreads the landings past the Holding Cell like any other space: nothing piles up behind it
+    expect(h.perRoll[HEROES.jailIndex]).toBeGreaterThan(0.03);
+    expect(Math.max(...h.perRoll) / Math.min(...h.perRoll.filter((x) => x > 0))).toBeLessThan(2);
+    expect(landingTable(HEROES)).toBe(h);
   });
 
   it('two dice sum to 1', () => {

@@ -7,12 +7,11 @@ import { ConfirmButton } from '../../ConfirmButton';
 import { useBusy, useSend } from '../actions';
 import { useDoc, useGame, useMySeats, useNames } from '../context';
 import { Dialog } from '../Dialog';
-import { levelText, listText, money } from '../format';
+import { levelText, listText, money, ownedBy, tokenOf, villainOf } from '../format';
 import { spaceActions, type StepAction } from '../manage/spaceActions';
 import { TokenIcon } from '../tokenIcons';
 import { spaceBlurb } from './deed';
 import { TitleDeed } from './TitleDeed';
-import { DEFAULT_TOKEN } from '../../../shared/tokens';
 
 const close = () => uiStore.update({ selected: null });
 
@@ -38,7 +37,7 @@ export function TileInspector({ covered }: { covered: boolean }) {
           <span className="here-tokens" aria-hidden="true">
             {here.map((seat) => (
               <span key={seat} style={{ color: safeColor(doc?.seats[seat]?.color) }}>
-                <TokenIcon token={doc?.seats[seat]?.token ?? DEFAULT_TOKEN} color={doc?.seats[seat]?.color} size={18} />
+                <TokenIcon token={tokenOf(s, seat, doc?.seats[seat]?.token)} color={doc?.seats[seat]?.color} size={18} />
               </span>
             ))}
           </span>
@@ -53,7 +52,7 @@ export function TileInspector({ covered }: { covered: boolean }) {
 /**
  * My property's one-click actions, from the LOGICAL state: build (or sell) one level on exactly this street,
  * mortgage or lift it, or sell it back to the bank (asked once more first: it can't be undone). A disabled action
- * says why under it. The dialog stays open, so Build can be pressed again.
+ * says why under it. The dialog stays open, so Build can be pressed again. None on Hero League (spaceActions).
  */
 function SpaceActionRow({ space }: { space: number }) {
   const s = useGame();
@@ -107,22 +106,26 @@ function SpaceActionRow({ space }: { space: number }) {
   );
 }
 
-/** Who owns a property, its buildings and whether it is mortgaged (or that the bank still sells it) */
+/**
+ * Who owns a property, its buildings and whether it is mortgaged (or that the bank still sells it); on Hero League
+ * who saved the location, or the villain still holding it
+ */
 export function OwnerLine({ space, s }: { space: number; s: GameState }) {
   const doc = useDoc();
   const names = useNames();
   const sp = names.board.spaces[space];
   const ps = s.props[`p${space}`];
+  const villain = villainOf(names.board, space);
   return (
     <p className="owner-line">
       {ps ? (
         <>
-          Owned by <strong style={{ color: safeColor(doc?.seats[ps.owner]?.color) }}>{names.seat(ps.owner)}</strong>
+          {ownedBy(names.board)} <strong style={{ color: safeColor(doc?.seats[ps.owner]?.color) }}>{names.seat(ps.owner)}</strong>
           {sp?.k === 'street' && ps.level > 0 && <> · {levelText(ps.level)}</>}
           {ps.mortgaged && <> · <span className="badge danger">Mortgaged</span></>}
         </>
       ) : (
-        <span className="muted">For sale from the bank</span>
+        <span className="muted">{villain ? `Held by ${villain}` : 'For sale from the bank'}</span>
       )}
     </p>
   );

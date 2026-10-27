@@ -1,5 +1,4 @@
 import { getBoard } from './board';
-import { formatMoney } from './currency';
 import type {
   Actor,
   BoardDef,
@@ -38,9 +37,6 @@ export function setPhase(c: Ctx, p: Phase): void {
 }
 
 export const err = (code: string, message: string): RuleError => ({ code, message });
-
-/** Money in a player-facing message, as shown: 1500 units read "Rs. 150,000" (see currency.ts) */
-export const rs = (n: number): string => formatMoney(n);
 
 export function player(s: GameState, seat: SeatId): PlayerState {
   const p = s.players[seat];

@@ -1,8 +1,11 @@
 import {
   apply,
+  awaiting,
   createGame,
   decode,
   deepEqual,
+  getBoard,
+  normalizeConfig,
   RULES_VERSION,
   timer,
   UPGRADABLE_VERSIONS,
@@ -12,19 +15,24 @@ import {
   type SeatId,
 } from '../rules';
 import { animBudget, OFFLINE_TIMERS, phaseSecs, type TimerRules } from '../shared/timing';
-import { tokenOn } from '../shared/tokens';
+import { seatToken, tokenOn, tokensOn } from '../shared/tokens';
 import type { Batch, BotSkill, Doc, Envelope, PlayerId, SeatInfo } from './types';
 
 /*
  * The transacted game document around the engine: who controls each seat, the envelope id ring, the last few
- * envelopes (replayed by every client for events and tamper checks), the running deadline and AFK strikes. Pure:
- * the dispatch transaction and every client's replay run the same code.
+ * envelopes (replayed by every client for events and tamper checks), the running deadline, AFK strikes and the
+ * reaction windows each seat let run out. Pure: the dispatch transaction and every client's replay run the same code.
  */
 
 export const IDS_RING = 16;
 export const RECENT_MAX = 8;
 /** Timeouts in a row that hand a seat to the driver (the default; a room may pick another, or 0 = never) */
 export const AFK_STRIKES = 2;
+/**
+ * Hero League reaction windows run out in a row (never AFK strikes) after which a seat is no longer waited for in
+ * them: a window open only to such seats closes at once, until the seat's player acts again
+ */
+export const REACT_IDLE_AFTER = 3;
 export const BOT_SKILLS: readonly BotSkill[] = ['easy', 'normal', 'hard', 'expert'];
 export const BOT_PACES: readonly number[] = [0.5, 1, 2];
 
@@ -38,7 +46,7 @@ export type ApplyOutcome = { ok: true; doc: Doc; events: GameEvent[] } | ({ ok: 
 const fail = (code: string, message: string): { ok: false } & NetError => ({ ok: false, code, message });
 
 /** System commands that only make sense once the deadline has passed */
-const TIMEOUT_ACTIONS = new Set(['forced', 'closeAuction', 'closeClaim']);
+const TIMEOUT_ACTIONS = new Set(['forced', 'closeAuction', 'closeClaim', 'closeReact']);
 /**
  * Test rigging (debug rooms only). Not a decision in the game, so it never counts as the player being back: an e2e
  * test rigging the dice from an absent player's page must not wipe the timeouts that player has run up.
@@ -89,12 +97,23 @@ const carried = (doc: Doc): Partial<Doc> => {
   return out;
 };
 
-/** A new game document at seq 0. Throws on a bad seat list (2-8 unique seat ids), like createGame. */
+/** A new game document at seq 0. Throws on a bad seat list (2-8 unique seat ids, the board's cap), like createGame. */
 export function createDoc(o: CreateDocOptions): Doc {
-  const { state, events } = createGame(o.rules, o.seats.map((s) => ({ id: s.seat, name: s.name })), o.seed);
+  const board = normalizeConfig(o.rules).board;
+  const heroes = getBoard(board).heroes?.list ?? [];
+  // Every seat plays the board's own token, none twice (one kept from another board's set is the same slot of this one's)
+  const tokens = tokensOn(board, o.seats.map((s) => s.token));
+  // On Hero League the token is the hero the seat asks for
+  const setup = o.seats.map((s, i) => {
+    const hero = tokens[i];
+    return { id: s.seat, name: s.name, ...(hero && heroes.some((h) => h.id === hero) ? { hero } : {}) };
+  });
+  const { state, events } = createGame(o.rules, setup, o.seed);
   const seats: Partial<Record<SeatId, SeatInfo>> = {};
-  // Every seat plays the board's own token (one kept from another board's set is the same slot of this one's)
-  for (const s of o.seats) seats[s.seat] = cleanSeat({ ...s, token: tokenOn(state.cfg.board, s.token) });
+  // ...and from here on it shows the hero the seat plays
+  o.seats.forEach((s, i) => {
+    seats[s.seat] = cleanSeat({ ...s, token: tokenOn(board, seatToken(state, s.seat, tokens[i]) ?? s.token) });
+  });
   const timers = { ...(o.timers ?? OFFLINE_TIMERS) };
   const at = o.at ?? Date.now();
   const doc: Doc = { gid: o.gid, seq: state.seq, game: state, seats, ids: [], recent: [], timers, strikes: {}, ...docExtras(o, at) };
@@ -146,9 +165,24 @@ export function controlProblem(seats: Doc['seats'], env: Envelope): NetError | n
   return { code: 'notYourSeat', message: 'That is not your seat' };
 }
 
+/** How long the events take to play at normal speed, however many there are (animBudget caps one batch) */
+export const fullAnimBudget = (events: readonly GameEvent[]): number => events.reduce((ms, ev) => ms + animBudget([ev]), 0);
+
+/**
+ * Seats whose reaction windows ran out REACT_IDLE_AFTER times in a row (and who have not acted since) are the only
+ * ones a Hero League reaction window still waits for: nobody need wait, so it may close before its deadline
+ */
+export function reactIdleOnly(doc: Doc): boolean {
+  if (doc.game.phase.k !== 'react') return false;
+  const open = awaiting(doc.game);
+  return open.length > 0 && open.every((seat) => (doc.reactIdle?.[seat] ?? 0) >= REACT_IDLE_AFTER);
+}
+
 /**
  * The deadline after a command: kept while timer(game).key is unchanged, restarted when it changes. An auction's key
- * changes only when a lot is put up, so its countdown is fixed: bids never add time.
+ * changes only when a lot is put up, so its countdown is fixed: bids never add time. A reaction window's countdown
+ * starts once the whole batch that opened it has played (a card, its Hero-die throws and their walks may take longer
+ * than animBudget's cap), so nobody loses reaction time watching the throw land.
  */
 export function nextDeadline(
   prev: Doc['deadline'],
@@ -162,7 +196,8 @@ export function nextDeadline(
   if (prev && prev.key === t.key) return prev;
   const secs = phaseSecs(t.kind, timers);
   if (secs <= 0 && t.kind !== 'auction') return undefined;
-  return { key: t.key, at: at + animBudget(events) + secs * 1000 };
+  const anim = t.kind === 'reaction' ? fullAnimBudget(events) : animBudget(events);
+  return { key: t.key, at: at + anim + secs * 1000 };
 }
 
 /** Applies one envelope to the document. Never throws. */
@@ -175,7 +210,9 @@ export function applyEnvelope(doc: Doc, env: Envelope): ApplyOutcome {
   if (env.cmd.basis !== undefined && env.cmd.basis !== doc.game.seq) return fail('stale', 'The game moved on; decide again');
   const a = env.cmd.a as { k?: unknown } | undefined;
   if (env.cmd.by === 'system' && typeof a?.k === 'string' && TIMEOUT_ACTIONS.has(a.k)) {
-    if (!doc.deadline || env.at < doc.deadline.at) return fail('early', 'Time is not up yet');
+    // A reaction window waiting only on seats that let their last ones run out need not wait for its deadline
+    const early = a.k === 'closeReact' && reactIdleOnly(doc);
+    if (!early && (!doc.deadline || env.at < doc.deadline.at)) return fail('early', 'Time is not up yet');
   }
   // The room's time limit: only once it has run out (a room without one never ends this way)
   if (env.cmd.by === 'system' && a?.k === 'timeUp' && (doc.endsAt === undefined || env.at < doc.endsAt)) {
@@ -187,16 +224,27 @@ export function applyEnvelope(doc: Doc, env: Envelope): ApplyOutcome {
 
   const seats = { ...doc.seats };
   const strikes = { ...doc.strikes };
+  const idle = { ...doc.reactIdle };
   const by = env.cmd.by;
   const own = by !== 'system' ? seats[by] : undefined;
-  // The seat's own player acted (humans send no basis; the driver playing its own AFK seat does): they are back
+  // The seat's own player acted (humans send no basis; the driver playing its own AFK seat does): they are back. A
+  // pass in a Hero League reaction window only says they answered it: their screen may send it by itself (the
+  // reactions setting), even while they are away, so it neither clears their timeouts nor takes the seat back.
   const decision = !(typeof a?.k === 'string' && DEBUG_ACTIONS.has(a.k));
   if (by !== 'system' && own && own.kind === 'human' && own.ctrl !== '' && own.ctrl === env.pid && env.cmd.basis === undefined && decision) {
-    delete strikes[by];
-    if (own.afk) seats[by] = cleanSeat({ ...own, afk: false });
+    delete idle[by];
+    if (!(a?.k === 'pass' && doc.game.phase.k === 'react')) {
+      delete strikes[by];
+      if (own.afk) seats[by] = cleanSeat({ ...own, afk: false });
+    }
   }
   const limit = doc.afkStrikes ?? AFK_STRIKES;
   for (const ev of r.events) {
+    // A reaction window running out is never an AFK strike: it only counts towards not being waited for in them
+    if (ev.t === 'reactTimeout') {
+      for (const seat of ev.seats) if (seats[seat]?.kind === 'human') idle[seat] = Math.min(REACT_IDLE_AFTER, (idle[seat] ?? 0) + 1);
+      continue;
+    }
     if (ev.t !== 'timeout') continue;
     const n = (strikes[ev.seat] ?? 0) + 1;
     strikes[ev.seat] = n;
@@ -217,6 +265,7 @@ export function applyEnvelope(doc: Doc, env: Envelope): ApplyOutcome {
   };
   const sv = deepEqual(seats, doc.seats) ? doc.sv : (doc.sv ?? 0) + 1;
   if (sv) next.sv = sv;
+  if (Object.keys(idle).length) next.reactIdle = idle;
   const deadline = nextDeadline(doc.deadline, r.state, r.events, env.at, doc.timers);
   if (deadline) next.deadline = deadline;
   return { ok: true, doc: next, events: r.events };
@@ -271,6 +320,7 @@ export function decodeDoc(text: string, opts: { upgrade?: boolean } = {}): Doc {
     strikes: raw.strikes ?? {},
   };
   if (typeof raw.sv === 'number' && raw.sv > 0) doc.sv = raw.sv;
+  if (raw.reactIdle && typeof raw.reactIdle === 'object' && Object.keys(raw.reactIdle).length) doc.reactIdle = raw.reactIdle;
   // Room options (absent in older documents: the defaults)
   if (typeof raw.afkStrikes === 'number' && raw.afkStrikes >= 0) doc.afkStrikes = raw.afkStrikes;
   if (typeof raw.botPace === 'number' && BOT_PACES.includes(raw.botPace)) doc.botPace = raw.botPace;

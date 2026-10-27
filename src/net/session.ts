@@ -17,6 +17,8 @@ import {
   DocError,
   drivenSeat,
   encodeDoc,
+  fullAnimBudget,
+  reactIdleOnly,
   seatsOf,
   seqOfEnvelope,
   snapBatch,
@@ -71,6 +73,11 @@ export const FALLBACK_STEP_MS = 1_000;
 export const BOT_TRIES_PER_SEQ = 10;
 /** After this many moves in one turn a bot only plays the safe default (no endless build/sell loops) */
 export const BOT_MOVES_PER_TURN = 60;
+/**
+ * A bot in a Hero League reaction window answers this long after the throw has played (not after its thinking time),
+ * so the players see the throw land before a bot re-rolls it; never later than this before the window closes
+ */
+export const REACT_AFTER_MS = 300;
 
 export interface SessionOptions {
   db: Db;
@@ -271,12 +278,18 @@ export class Session implements GameSession {
         }
         // A seat taken back or handed to someone else starts with a clean record
         const strikes = { ...doc.strikes };
+        const reactIdle = { ...doc.reactIdle };
         for (const s of Object.values(seats) as SeatInfo[]) {
           const was = doc.seats[s.seat];
-          if ((was?.afk && !s.afk) || was?.ctrl !== s.ctrl || was?.kind !== s.kind) delete strikes[s.seat];
+          if ((was?.afk && !s.afk) || was?.ctrl !== s.ctrl || was?.kind !== s.kind) {
+            delete strikes[s.seat];
+            delete reactIdle[s.seat];
+          }
         }
         out.res = { ok: true, seq: doc.seq };
         const next: Doc = { ...doc, seats, strikes, sv: (doc.sv ?? 0) + 1 };
+        if (Object.keys(reactIdle).length) next.reactIdle = reactIdle;
+        else delete next.reactIdle;
         return { gid: cur.gid, seq: doc.seq, v: RULES_VERSION, at: Math.max(cur.at, this.serverNow()), data: encodeDoc(next) };
       });
       if (r.committed && r.value === null) return fail('closed', 'The game is not running');
@@ -468,14 +481,24 @@ export class Session implements GameSession {
       const wait = animBudget(this.lastEvents);
       // The room's bot speed when it has one (online rooms, newer local saves), else this session's
       const pace = doc.botPace ?? this.pace;
+      // A Hero League reaction window: bots answer once the throw has played, however long its batch was, and
+      // before the window closes
+      const react = doc.game.phase.k === 'react';
+      const reactDue = Math.min(lastAt + fullAnimBudget(this.lastEvents) * pace + REACT_AFTER_MS, (doc.deadline?.at ?? Infinity) - REACT_AFTER_MS);
       // Receivers of open trade offers first, then every seat the game waits for
       for (const seat of seatsToAsk(doc.game)) {
         const info = doc.seats[seat];
         if (!drivenSeat(info)) continue;
         const id = `${prefix}bot:${seat}`;
         wanted.add(id);
-        const due = lastAt + Math.max(thinkMs(info?.skill ?? doc.botSkill ?? 'normal'), wait) * pace;
+        const due = react ? reactDue : lastAt + Math.max(thinkMs(info?.skill ?? doc.botSkill ?? 'normal'), wait) * pace;
         this.arm(id, due, now, () => this.botMove(seat, doc, id));
+      }
+      // ...and one left only to seats that let their last windows run out closes once the throw has played
+      if (react && reactIdleOnly(doc)) {
+        const id = `${prefix}reactIdle`;
+        wanted.add(id);
+        this.arm(id, lastAt + fullAnimBudget(this.lastEvents) + REACT_AFTER_MS, now, () => this.closeIdleReact(doc, id));
       }
     }
     if (doc.deadline && (this.isDriver() || this.online)) {
@@ -595,6 +618,17 @@ export class Session implements GameSession {
       return;
     }
     this.arm(id, this.serverNow() + 500, this.serverNow(), () => this.fireTimeout(doc, id));
+  }
+
+  /** A reaction window waiting only on seats that let their last ones run out: close it without waiting (reactIdleOnly) */
+  private async closeIdleReact(doc: Doc, id: string): Promise<void> {
+    if (!this.stillAt(doc) || !this.isDriver()) return;
+    this.inFlight.add(id);
+    const r = await this.send({ by: 'system', a: { k: 'closeReact' }, basis: doc.seq });
+    this.inFlight.delete(id);
+    // Refused (a seat came back meanwhile): the deadline closes it as usual
+    this.done.add(id);
+    if (!r.ok && r.code !== 'stale' && r.code !== 'closed') console.warn(`Could not close the reaction window (${r.code}): ${r.message}`);
   }
 
   private async fireTimeUp(doc: Doc, id: string): Promise<void> {

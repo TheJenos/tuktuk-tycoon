@@ -1,9 +1,10 @@
 import { isProperty, ownsGroup, type BoardDef, type GameState, type SeatId, type SpaceDef } from '../../../rules';
-import { deckName, money } from '../format';
+import { capital, deckName, money as moneyIn, powerName, termsOf } from '../format';
 
 /*
  * What a Title Deed card says, as rows, with the row that applies right now marked. Pure, so the card component
- * only draws it.
+ * only draws it. A Hero League location's card has its power-up (doubled for the colour pair) and its villain: no
+ * buildings, no mortgage.
  */
 
 export interface DeedRow {
@@ -23,6 +24,8 @@ export interface Deed {
   /** House and hotel cost, mortgage and unmortgage values */
   costs: DeedRow[];
   note?: string;
+  /** Hero League: the villain holding the location until a hero saves it */
+  villain?: string;
   owner?: SeatId;
   mortgaged: boolean;
   /** 0-5 */
@@ -38,6 +41,7 @@ const ownedOfKind = (b: BoardDef, s: GameState, owner: SeatId, kind: 'rail' | 'u
 export function deedFor(b: BoardDef, space: number, s: GameState | null): Deed | null {
   const sp = b.spaces[space];
   if (!isProperty(sp)) return null;
+  const money = (n: number) => moneyIn(n, b);
   const ps = s?.props[`p${space}`];
   const mortgaged = !!ps?.mortgaged;
   const level = ps?.level ?? 0;
@@ -45,6 +49,26 @@ export function deedFor(b: BoardDef, space: number, s: GameState | null): Deed |
   const m = sp.mortgage;
   const costs: DeedRow[] = [];
   const base = { name: sp.name, price: sp.price, mortgaged, level, ...(ps ? { owner: ps.owner } : {}) };
+
+  if (sp.k === 'street' && b.heroes) {
+    const full = !!ps && !!s && ownsGroup(s, ps.owner, sp.group);
+    // Nothing is due while the owner is in the Holding Cell
+    const due = !!ps && !s?.players[ps.owner]?.jail;
+    const pr = sp.rent[0] ?? 0;
+    const rent: DeedRow[] = [
+      { label: capital(termsOf(b).rent), value: money(pr), active: due && !full },
+      { label: 'With the colour pair', value: money(pr * 2), active: due && full },
+    ];
+    return {
+      kind: 'street',
+      colour: b.display.groupColours[sp.group],
+      rent,
+      costs: [],
+      note: `No ${termsOf(b).rent} while the owner is in the ${b.spaces[b.jailIndex]?.name ?? 'jail'}.`,
+      ...(sp.villain ? { villain: sp.villain } : {}),
+      ...base,
+    };
+  }
 
   if (sp.k === 'street') {
     const full = !!ps && !mortgaged && !!s && ownsGroup(s, ps.owner, sp.group);
@@ -95,13 +119,40 @@ export function deedFor(b: BoardDef, space: number, s: GameState | null): Deed |
 
 function mortgageRows(s: GameState | null, m: number): DeedRow[] {
   return [
-    { label: 'Mortgage value', value: money(m) },
-    { label: 'To lift the mortgage', value: money(m + interestOf(s, m)) },
+    { label: 'Mortgage value', value: moneyIn(m) },
+    { label: 'To lift the mortgage', value: moneyIn(m + interestOf(s, m)) },
   ];
+}
+
+/** Hero League's corners and card spaces: the fine at the next turn's start, the superpower back with the salary */
+function heroesBlurb(b: BoardDef, sp: SpaceDef | undefined, s: GameState | null): string | null {
+  const cfg = s?.cfg;
+  const money = (n: number) => moneyIn(n, b);
+  const start = b.spaces[0]?.name ?? 'Start';
+  const jail = b.spaces[b.jailIndex]?.name ?? 'jail';
+  const salary = money(cfg?.goSalary ?? 200);
+  switch (sp?.k) {
+    case 'go':
+      return cfg?.doubleGoLanding
+        ? `Collect ${salary} every time you pass ${start}, and ${money(cfg.goSalary * 2)} for landing on it. Your superpower is ready again too.`
+        : `Collect ${salary} every time you land on or pass ${start}, and your superpower is ready again.`;
+    case 'jail':
+      return `Just visiting, unless you were captured. A captured hero pays the ${money(cfg?.jailFine ?? 50)} fine (what they have, if less) at the start of their next turn and rolls as usual.`;
+    case 'goToJail': return `Captured! Go directly to the ${jail}. Do not pass ${start}, do not collect ${salary}.`;
+    case 'chance':
+      return `Draw the top ${deckName(b, 'chance')} card and do what it says: they all work against heroes. With ${powerName(b, 'aim')}, take the top ${b.heroes?.aimCards ?? 2} and play one.`;
+    case 'chest': return `Draw the top ${deckName(b, 'chest')} card and do what it says: they all help.`;
+    default: return null;
+  }
 }
 
 /** A line about a space that is not a property (the inspector's text) */
 export function spaceBlurb(b: BoardDef, sp: SpaceDef | undefined, s: GameState | null): string {
+  if (b.heroes) {
+    const text = heroesBlurb(b, sp, s);
+    if (text !== null) return text;
+  }
+  const money = (n: number) => moneyIn(n, b);
   const cfg = s?.cfg;
   const start = b.spaces[0]?.name ?? 'Start';
   const jail = b.spaces[b.jailIndex]?.name ?? 'jail';

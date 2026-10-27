@@ -11,8 +11,12 @@ export function unmortgageCost(s: GameState, b: BoardDef, space: number): number
   return m + interest(s, m);
 }
 
+/** Hero League: locations are never mortgaged, lifted or sold back */
+export const NO_BANKING = err('heroes', 'Locations cannot be mortgaged or sold on this board');
+
 /** Why this seat cannot mortgage the space now (null = it can); phases are checked by the caller */
 export function mortgageProblem(s: GameState, b: BoardDef, seat: SeatId, space: unknown): RuleError | null {
+  if (b.heroes) return NO_BANKING;
   if (!isInt(space) || !propertyAt(b, space)) return err('badSpace', 'Not a property');
   const ps = prop(s, space);
   if (ps?.owner !== seat) return err('notOwner', 'You do not own it');
@@ -33,6 +37,7 @@ export function saleValue(s: GameState, b: BoardDef, space: number): number {
 
 /** Why this seat cannot sell the space back to the bank now (null = it can); phases are checked by the caller */
 export function saleProblem(s: GameState, b: BoardDef, seat: SeatId, space: unknown): RuleError | null {
+  if (b.heroes) return NO_BANKING;
   if (!isInt(space) || !propertyAt(b, space)) return err('badSpace', 'Not a property');
   if (prop(s, space)?.owner !== seat) return err('notOwner', 'You do not own it');
   if (siblings(b, space).some((sp) => levelOf(s, sp) > 0)) {
@@ -61,6 +66,7 @@ export function sellToBank(c: Ctx, seat: SeatId, space: number, via: OwnerVia): 
 }
 
 export function unmortgageProblem(s: GameState, b: BoardDef, seat: SeatId, space: unknown): RuleError | null {
+  if (b.heroes) return NO_BANKING;
   if (!isInt(space) || !propertyAt(b, space)) return err('badSpace', 'Not a property');
   const ps = prop(s, space);
   if (ps?.owner !== seat) return err('notOwner', 'You do not own it');

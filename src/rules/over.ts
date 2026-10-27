@@ -1,12 +1,16 @@
 import { type Ctx, activeSeats, emit, err, setPhase } from './ctx';
 import { type Handler, systemAction } from './handler';
+import { scoreOf } from './heroes';
 import { netWorth } from './money';
 import type { BoardDef, GameState, OverPhase, SeatId } from './types';
 
-/** Best first: seats still in by net worth (ties in turn order), then the others, last out first */
+/**
+ * Best first: seats still in by net worth (Hero League: by score, cash + locationPoints per location; ties in turn
+ * order), then the others, last out first
+ */
 export function ranking(s: GameState, b: BoardDef): SeatId[] {
   const active = activeSeats(s)
-    .map((seat, i) => ({ seat, i, w: netWorth(s, b, seat) }))
+    .map((seat, i) => ({ seat, i, w: b.heroes ? scoreOf(b, s, seat) : netWorth(s, b, seat) }))
     .sort((x, y) => y.w - x.w || x.i - y.i)
     .map((x) => x.seat);
   const out = s.order
@@ -25,7 +29,9 @@ export function finish(c: Ctx, why: OverPhase['why']): void {
     delete c.s.trades[id];
     emit(c, { t: 'tradeCancelled', id, why: 'over' });
   }
-  setPhase(c, { k: 'over', winner, ranking: order, why });
+  const scores: Partial<Record<SeatId, number>> = {};
+  if (c.b.heroes) for (const seat of c.s.order) scores[seat] = scoreOf(c.b, c.s, seat);
+  setPhase(c, { k: 'over', winner, ranking: order, why, ...(c.b.heroes ? { scores } : {}) });
   emit(c, { t: 'over', winner, ranking: order, why });
 }
 
@@ -41,7 +47,7 @@ export function checkOver(c: Ctx, bankrupt = false): boolean {
   return true;
 }
 
-/** The room owner's "Finish now": rank everyone by net worth */
+/** The room owner's "Finish now": rank everyone by net worth (Hero League: by score) */
 export const endGame: Handler<'endGame'> = systemAction(
   () => null,
   (c) => finish(c, 'endGame'),

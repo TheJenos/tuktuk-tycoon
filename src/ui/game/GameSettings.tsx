@@ -1,6 +1,6 @@
 import { useStore } from '../../state/store';
-import { ANIM_SPEEDS, QUALITIES, UI_SCALE_MAX, UI_SCALE_MIN, settings, useSettings, type Settings } from '../settings';
-import { useMySeats } from './context';
+import { ANIM_SPEEDS, QUALITIES, REACTIONS, UI_SCALE_MAX, UI_SCALE_MIN, settings, useSettings, type Settings } from '../settings';
+import { useMySeats, useNames } from './context';
 import { hotSeatCards, setHotSeatCards } from './hotSeat';
 
 type Flag = { [K in keyof Settings]: Settings[K] extends boolean ? K : never }[keyof Settings];
@@ -12,11 +12,17 @@ const FLAGS: { key: Flag; label: string }[] = [
   { key: 'reduceMotion', label: 'Reduce motion: no camera sweeps, bounces or pulsing' },
 ];
 
-/** The game menu's Settings view: the same settings as the lobby's, saved as you go (plus hot-seat's own) */
+/**
+ * The game menu's Settings view: the same settings as the lobby's, saved as you go (plus hot-seat's own, and on Hero
+ * League when its reaction windows ask this device's players)
+ */
 export function GameSettings() {
   const current = useSettings();
-  const hotSeat = useMySeats().length > 1;
+  const mine = useMySeats();
+  const hotSeat = mine.length > 1;
   const passCards = useStore(hotSeatCards);
+  const names = useNames();
+  const heroes = !!names.board.heroes;
   return (
     <div className="game-settings">
       <div className="setting">
@@ -55,10 +61,30 @@ export function GameSettings() {
           ))}
         </div>
       </div>
+      {heroes && mine.length > 0 && (
+        <div className="setting">
+          <span>Reactions</span>
+          <div className="choices" role="radiogroup" aria-label="Ask about superpower reactions">
+            {REACTIONS.map((r) => (
+              <button
+                key={r.value}
+                type="button"
+                role="radio"
+                aria-checked={current.reactions === r.value}
+                className={current.reactions === r.value ? 'choice selected' : 'choice'}
+                title={r.hint}
+                onClick={() => settings.update({ reactions: r.value })}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {FLAGS.map((f) => (
         <label key={f.key} className="setting check">
           <input type="checkbox" checked={current[f.key]} onChange={(e) => settings.update({ [f.key]: e.target.checked } as Partial<Settings>)} />
-          <span>{f.label}</span>
+          <span>{f.key === 'showNetWorth' && heroes ? `Show each player's ${names.terms.worth}` : f.label}</span>
         </label>
       ))}
       {hotSeat && (

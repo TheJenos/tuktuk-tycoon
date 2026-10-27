@@ -1,5 +1,6 @@
 import { BufferGeometry, TorusGeometry } from 'three';
 import { COLOMBO_TOKENS } from '../../boards/colombo/tokens';
+import { HEROES_TOKENS } from '../../boards/heroes/tokens';
 import { HILL_TOKENS } from '../../boards/hill/tokens';
 import { LANKA_TOKENS } from '../../boards/lanka/tokens';
 import { SOUTH_TOKENS } from '../../boards/south/tokens';
@@ -9,12 +10,12 @@ import { TOKEN_SCALE, merge, plinth, type TokenBuilder } from './kit';
 export { PLINTH_TOP, TOKEN_SCALE } from './kit';
 
 /*
- * The tokens' 3D shapes: each board's eight are in its folder (src/boards/<board>/tokens.ts, built with the kit in
- * kit.ts). They are drawn in their seat's colour (Tokens.tsx). The seat-colour ring around the plinth is a separate
- * mesh (ringGeometry).
+ * The tokens' 3D shapes: each board's set (eight; Hero League's six) is in its folder (src/boards/<board>/tokens.ts,
+ * built with the kit in kit.ts). They are drawn in their seat's colour (Tokens.tsx). The seat-colour ring around the
+ * plinth is a separate mesh (ringGeometry).
  */
 
-const BUILDERS: Record<string, TokenBuilder> = { ...LANKA_TOKENS, ...COLOMBO_TOKENS, ...HILL_TOKENS, ...SOUTH_TOKENS };
+const BUILDERS: Record<string, TokenBuilder> = { ...LANKA_TOKENS, ...COLOMBO_TOKENS, ...HILL_TOKENS, ...SOUTH_TOKENS, ...HEROES_TOKENS };
 
 let ring: BufferGeometry | null = null;
 /** The seat-colour ring around a token's plinth */

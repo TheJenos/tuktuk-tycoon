@@ -4,6 +4,11 @@ import { createStore, useStore, type Store } from '../state/store';
 
 export type Quality = 'low' | 'medium' | 'high';
 export type AnimSpeed = 'normal' | 'fast' | 'instant';
+/**
+ * Hero League's reaction windows, for this device's players: asked every time ('all'), only when the window is about
+ * their own throw or a hit aimed at them ('mine'), or never (the game passes for them at once)
+ */
+export type Reactions = 'all' | 'mine' | 'never';
 
 export interface Settings {
   /** Rendering tier: resolution, shadows, board texture size (see the scene's quality table) */
@@ -28,6 +33,8 @@ export interface Settings {
   musicVolume: number;
   /** Size multiplier for the game's panels */
   uiScale: number;
+  /** When a reaction window (Hero League's re-rolls and shields) asks this device's players */
+  reactions: Reactions;
 }
 
 export const UI_SCALE_MIN = 0.8;
@@ -43,6 +50,12 @@ export const ANIM_SPEEDS: { value: AnimSpeed; label: string; hint: string }[] = 
   { value: 'normal', label: 'Normal', hint: 'Every hop and roll' },
   { value: 'fast', label: 'Fast', hint: 'The same moves, quicker' },
   { value: 'instant', label: 'Instant', hint: 'Straight to the result' },
+];
+
+export const REACTIONS: { value: Reactions; label: string; hint: string }[] = [
+  { value: 'all', label: 'Always', hint: 'Ask every time a superpower could answer a throw or a card' },
+  { value: 'mine', label: 'My throws', hint: 'Ask only about your own throws and the cards aimed at you' },
+  { value: 'never', label: 'Never', hint: 'Never ask: pass at once' },
 ];
 
 const COARSE = typeof matchMedia === 'function' && matchMedia('(hover: none) and (pointer: coarse)').matches;
@@ -62,6 +75,7 @@ export function defaultSettings(device: { coarse: boolean; reducedMotion: boolea
     music: true,
     musicVolume: 0.5,
     uiScale: 1,
+    reactions: 'all',
   };
 }
 
@@ -92,6 +106,7 @@ export function normalizeSettings(saved: unknown, defaults: Settings = DEFAULTS)
     music: bool(s.music, defaults.music),
     musicVolume: num(s.musicVolume, 0, 1, defaults.musicVolume),
     uiScale: num(s.uiScale, UI_SCALE_MIN, UI_SCALE_MAX, defaults.uiScale),
+    reactions: oneOf(s.reactions, REACTIONS, defaults.reactions),
   };
 }
 

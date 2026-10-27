@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { ConfirmButton } from '../ConfirmButton';
 import { NAME_PATTERN } from '../playerName';
-import { ANIM_SPEEDS, QUALITIES, settings, UI_SCALE_MAX, UI_SCALE_MIN, useSettings, type Settings } from '../settings';
+import { ANIM_SPEEDS, QUALITIES, REACTIONS, settings, UI_SCALE_MAX, UI_SCALE_MIN, useSettings, type Settings } from '../settings';
 import { Choices, Toggle } from './Choices';
 
 /*
@@ -26,6 +26,13 @@ export function SettingsView({ name, onRename }: { name: string; onRename?: (nam
       <div className="lobby-form">
         <Choices label="Graphics quality" value={s.quality} options={QUALITIES} onChange={(quality) => settings.update({ quality })} />
         <Choices label="Animation speed" value={s.animSpeed} options={ANIM_SPEEDS} onChange={(animSpeed) => settings.update({ animSpeed })} />
+        <Choices
+          label="Hero League reactions"
+          value={s.reactions}
+          options={REACTIONS}
+          hint="When a superpower could answer a throw or a card: ask every time, only about your own throws, or never"
+          onChange={(reactions) => settings.update({ reactions })}
+        />
         {FLAGS.map((f) => (
           <Toggle key={f.key} label={f.label} hint={f.hint} checked={s[f.key]} onChange={(on) => settings.update({ [f.key]: on } as Partial<Settings>)} />
         ))}

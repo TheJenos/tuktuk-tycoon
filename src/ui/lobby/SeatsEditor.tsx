@@ -3,11 +3,11 @@ import type { BotSkill } from '../../net/types';
 import { isValidName } from '../playerName';
 import { ColorPicker, SeatToken, TokenPicker } from './TokenPicker';
 import { getBoard } from '../../rules';
-import { addSeat, maxSeatsFor, MIN_SEATS, SKILLS, type SeatDraft } from './seats';
+import { addSeat, maxSeatsFor, MIN_SEATS, SKILLS, uniqueTokens, type SeatDraft } from './seats';
 
 /*
  * The local game's table: you, more players taking turns at this screen (hot-seat), and bots with a level each.
- * Every seat has a token and a colour nobody else at the table has.
+ * Every seat has a token (on Hero League: its hero) and a colour nobody else at the table has.
  */
 
 /** What stops this table from starting on `board`, if anything */
@@ -35,8 +35,10 @@ export function SeatsEditor({ seats, onChange, botSkill = 'normal', board = 'lan
 }) {
   const [open, setOpen] = useState<number | null>(null);
   const set = (key: number, patch: Partial<SeatDraft>) => onChange(seats.map((s) => (s.key === key ? { ...s, ...patch } : s)));
-  const remove = (key: number) => onChange(seats.filter((s) => s.key !== key));
+  // A seat past a smaller board's cap may share a token: removing one hands them out again
+  const remove = (key: number) => onChange(uniqueTokens(seats.filter((s) => s.key !== key), board));
   const max = maxSeatsFor(board);
+  const piece = getBoard(board).heroes ? 'hero' : 'token';
   const full = seats.length >= max;
   const humans = seats.filter((s) => s.kind !== 'bot').length;
 
@@ -57,8 +59,8 @@ export function SeatsEditor({ seats, onChange, botSkill = 'normal', board = 'lan
                   type="button"
                   className="seat-token-button"
                   aria-expanded={open === s.key}
-                  aria-label={`Token and colour for ${who}`}
-                  title="Token and colour"
+                  aria-label={`${piece === 'hero' ? 'Hero' : 'Token'} and colour for ${who}`}
+                  title={piece === 'hero' ? 'Hero and colour' : 'Token and colour'}
                   onClick={() => setOpen(open === s.key ? null : s.key)}
                 >
                   <SeatToken token={s.token} color={s.color} />
@@ -109,7 +111,7 @@ export function SeatsEditor({ seats, onChange, botSkill = 'normal', board = 'lan
               </div>
               {open === s.key && (
                 <div className="seat-row-pickers">
-                  <TokenPicker board={board} label={`${who}: token`} value={s.token} color={s.color} taken={others.map((x) => x.token)} onPick={(token) => set(s.key, { token })} />
+                  <TokenPicker board={board} label={`${who}: ${piece}`} value={s.token} color={s.color} taken={others.map((x) => x.token)} onPick={(token) => set(s.key, { token })} />
                   <ColorPicker label={`${who}: colour`} value={s.color} taken={others.map((x) => x.color)} onPick={(color) => set(s.key, { color })} />
                 </div>
               )}

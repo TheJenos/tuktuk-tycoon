@@ -1,4 +1,5 @@
-import { type Ctx, emit, err, isActive, player, propBidders, rs, setPhase } from './ctx';
+import { type Ctx, emit, err, isActive, player, propBidders, setPhase } from './ctx';
+import { boardMoney } from './currency';
 import { type Handler, isInt, seatAction, systemAction } from './handler';
 import { maxRaise, pay, transfer } from './money';
 import type { AuctionPhase, BoardDef, GameState, Lot, Phase, RuleError, SeatId } from './types';
@@ -81,7 +82,7 @@ export function checkBid(s: GameState, seat: SeatId, amount: unknown): RuleError
   if (!ph.eligible.includes(seat)) return err('notBidder', 'You are not in this auction');
   if (ph.passed.includes(seat)) return err('passed', 'You have passed');
   if (ph.high?.seat === seat) return err('highBidder', 'You already hold the high bid');
-  if (!isInt(amount) || amount < minBid(ph)) return err('low', `Bid at least ${rs(minBid(ph))}`);
+  if (!isInt(amount) || amount < minBid(ph)) return err('low', `Bid at least ${boardMoney(s.cfg.board, minBid(ph))}`);
   if (amount > player(s, seat).cash) return err('cash', 'You cannot bid more than your cash');
   return null;
 }

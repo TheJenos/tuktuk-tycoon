@@ -16,7 +16,7 @@
 /* The board picker: a card per board (colour strip, name, blurb) */
 .board-setting { align-items: start; }
 .board-setting > .lobby-setting-label { padding-top: 10px; }
-/* Two to a row however wide the panel gets (so the four boards stay 2 by 2), one when there isn't room */
+/* Two to a row however wide the panel gets (the boards two by two), one when there isn't room */
 .board-choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(max(220px, calc(50% - 4px)), 1fr)); gap: 8px; }
 .board-choice {
   display: flex;
@@ -88,6 +88,10 @@
 .color-opt:hover:not(:disabled) { filter: brightness(1.15); }
 .color-opt.selected { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--text); }
 .color-opt:disabled { opacity: 0.2; }
+/* Hero League: the picked hero's superpower under the tokens */
+.hero-picker { display: grid; gap: 6px; min-width: 0; }
+.hero-power { margin: 0; max-width: 60ch; font-size: 14px; line-height: 1.4; color: var(--muted); }
+.hero-power strong { color: var(--text); }
 
 /* ---------- The local game's seats ---------- */
 

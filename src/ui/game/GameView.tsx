@@ -10,13 +10,14 @@ import { connectDirector, useIdle } from '../../view';
 import { useSettings } from '../settings';
 import { installGameHooks } from '../testHooks';
 import { inflight, send, toast } from './actions';
-import { priceOf } from './format';
-import { GameSessionProvider, useDoc, useMySeats, useSessionSel } from './context';
+import { myPropsTitle, priceOf } from './format';
+import { GameSessionProvider, useDoc, useMySeats, useNames, useSessionSel } from './context';
 import { AuctionModal } from './decisions/AuctionModal';
 import { CardModal } from './decisions/CardModal';
 import { AuctionStatus, Decisions, promptUp } from './decisions/Decisions';
 import { GameOver } from './decisions/GameOver';
 import { PassDevice } from './decisions/PassDevice';
+import { ReactionStatus, useReactionAutoPass } from './decisions/ReactionBanner';
 import { TileInspector } from './deeds/TileInspector';
 import { GameMenu, type OwnerActions } from './GameMenu';
 import { hotSeatCards } from './hotSeat';
@@ -24,6 +25,7 @@ import { ActionBar } from './hud/ActionBar';
 import { BoardCenter, usePhoneLayout } from './hud/BoardCenter';
 import { DiceReadout } from './hud/DiceReadout';
 import { EventLog } from './hud/EventLog';
+import { HeroCard } from './hud/HeroCard';
 import { MyProperties } from './hud/MyProperties';
 import { PlayersPanel } from './hud/PlayersPanel';
 import { Announcer, Toasts } from './hud/Toasts';
@@ -31,7 +33,7 @@ import { TurnBar } from './hud/TurnBar';
 import { fitUiScale, insetsFrom, isTypingTarget, sameInsets, shortcutOf, type Shortcut } from './layout';
 import { ManageProperties } from './manage/ManageProperties';
 import { MiniBoard } from './MiniBoard';
-import { actingSeat, decisionKey, decisionSeat, gateDecision, handOver, myBidders, tradeLock, type HandOver } from './selectors';
+import { actingSeat, decisionKey, decisionSeat, gateDecision, handOver, heroesOn, myBidders, tradeLock, type HandOver } from './selectors';
 import { TableStatus } from './hud/TableStatus';
 import { TradeBuilder, type TradeDraft } from './trade/TradeBuilder';
 import { TradeOffers } from './trade/TradeOffer';
@@ -70,18 +72,21 @@ const uiSel = (u: UiState) => ({ panel: u.panel, selected: u.selected, gl: u.gl 
 function GameScreen({ session, onLeave, onRematch, isOwner = false, ownerActions, onTakeBack, lateJoin }: GameViewProps) {
   useEffect(() => connectDirector(session), [session]);
   useEffect(() => installGameHooks(session), [session]);
-  // Nothing of the last game's pickers or panels carries over
-  useEffect(() => () => uiStore.update({ picker: null, selected: null, preview: null, panel: null, hover: null }), []);
+  // Nothing of the last game's pickers, panels or picked seat carries over
+  useEffect(() => () => uiStore.update({ picker: null, selected: null, preview: null, panel: null, hover: null, shownSeat: null }), []);
 
   const doc = useDoc();
   const s = doc?.game ?? null;
   const mine = useMySeats();
+  const names = useNames();
   const idle = useIdle();
   const connected = useSessionSel((v) => v.connected);
   const tamper = useSessionSel((v) => v.tamper);
   const ui = useSelector(uiStore, uiSel, shallowEqual);
   const { uiScale } = useSettings();
   const scale = useFittedScale(uiScale);
+  // Hero League: the reaction windows the Reactions setting doesn't ask me about are passed straight away
+  useReactionAutoPass();
 
   // A decision appears once the board has caught up, and stays while it is open
   const key = decisionKey(s, mine);
@@ -153,7 +158,9 @@ function GameScreen({ session, onLeave, onRematch, isOwner = false, ownerActions
     auction: () => {
       if (buyDecision) void send(session, buyDecision.turn.seat, { k: 'decline' });
     },
-    manage: () => openManage(seat),
+    manage: () => {
+      if (!heroesOn(s)) openManage(seat);
+    },
     trade: () => {
       if (!tradeLock(s, seat)) openTrade(seat);
     },
@@ -217,6 +224,7 @@ function GameScreen({ session, onLeave, onRematch, isOwner = false, ownerActions
     };
   }, [doc === null]);
 
+  const propsLabel = myPropsTitle(names.board);
   const classes = ['game-hud', menuOpen && 'paused', ui.panel === 'log' && 'log-open', ui.panel === 'props' && 'props-open', tradeOpen && 'trade-open', (!glOk || mini) && 'mini-on'].filter(Boolean).join(' ');
   return (
     <div id="hud" ref={hud} className={classes} style={{ '--ui-scale': scale } as CSSProperties}>
@@ -233,7 +241,7 @@ function GameScreen({ session, onLeave, onRematch, isOwner = false, ownerActions
               <TurnBar />
               {/* Phones only (CSS): My properties is on demand there */}
               {mine.length > 0 && (
-                <button type="button" className="icon-button props-button" onClick={toggleProps} aria-pressed={ui.panel === 'props'} aria-label="My properties" title="My properties">
+                <button type="button" className="icon-button props-button" onClick={toggleProps} aria-pressed={ui.panel === 'props'} aria-label={propsLabel} title={propsLabel}>
                   ⌂
                 </button>
               )}
@@ -262,9 +270,11 @@ function GameScreen({ session, onLeave, onRematch, isOwner = false, ownerActions
             <DiceReadout />
             <div className="hud-decision" data-inset>
               {phase === 'auction' && !shown && <AuctionStatus />}
+              {phase === 'react' && <ReactionStatus />}
               {phone && decision}
               <TradeOffers onCounter={(from, draft) => openTrade(from, draft)} />
             </div>
+            <HeroCard />
             <MyProperties onClose={closePanel} />
             <EventLog expanded={ui.panel === 'log'} onToggle={toggleLog} />
           </aside>

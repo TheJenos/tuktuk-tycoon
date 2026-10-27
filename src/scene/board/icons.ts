@@ -1,12 +1,37 @@
 /*
  * Generic board icons as SVG path data in a 100 x 100 box, drawn with Path2D. Simple silhouettes only: no
- * copyrighted board art.
+ * copyrighted board art. A board picks its own for some spaces by name (display.art; artIcon).
  */
 
-export type IconName = 'rail' | 'bulb' | 'tap' | 'ring' | 'coins' | 'chest' | 'car' | 'lock' | 'arrow' | 'bus' | 'tuktuk';
+export type IconName =
+  | 'rail'
+  | 'bulb'
+  | 'tap'
+  | 'ring'
+  | 'coins'
+  | 'chest'
+  | 'car'
+  | 'lock'
+  | 'arrow'
+  | 'bus'
+  | 'tuktuk'
+  | 'mask'
+  | 'shield'
+  | 'lookout'
+  | 'ambush';
 
 const circle = (cx: number, cy: number, r: number) =>
   `M${cx - r} ${cy} a${r} ${r} 0 1 0 ${2 * r} 0 a${r} ${r} 0 1 0 ${-2 * r} 0 Z`;
+
+/** A five-point star, point up */
+function star(cx: number, cy: number, outer: number, inner: number): string {
+  const pts = Array.from({ length: 10 }, (_, k) => {
+    const a = -Math.PI / 2 + (k * Math.PI) / 5;
+    const r = k % 2 ? inner : outer;
+    return `${(cx + r * Math.cos(a)).toFixed(1)} ${(cy + r * Math.sin(a)).toFixed(1)}`;
+  });
+  return `M${pts.join(' L')} Z`;
+}
 
 const PATHS: Record<IconName, string> = {
   // A steam locomotive facing left on a rail
@@ -55,15 +80,50 @@ const PATHS: Record<IconName, string> = {
     circle(28, 76, 11),
     circle(80, 78, 8),
   ].join(' '),
+  // A villain's eye mask: a band swept up at its tips, a notch for the nose, two almond eye holes
+  mask: [
+    'M2 26 C20 33 34 35 50 35 C66 35 80 33 98 26 C97 46 90 62 75 70 C64 76 56 68 50 58 C44 68 36 76 25 70 C10 62 3 46 2 26 Z',
+    'M15 45 C21 38 34 38 41 46 C34 54 21 53 15 45 Z',
+    'M85 45 C79 38 66 38 59 46 C66 54 79 53 85 45 Z',
+  ].join(' '),
+  // A kite-shaped crest with a star cut through it (Hero HQ)
+  shield: ['M50 4 L88 18 C88 52 74 78 50 96 C26 78 12 52 12 18 Z', star(50, 44, 22, 9)].join(' '),
+  // Binoculars (a rooftop lookout): eyepieces, barrels and a bridge, big lenses
+  lookout: [
+    'M24 12 H40 V28 H24 Z',
+    'M60 12 H76 V28 H60 Z',
+    'M16 30 H46 V57 H16 Z',
+    'M54 30 H84 V57 H54 Z',
+    'M46 38 H54 V50 H46 Z',
+    circle(31, 74, 16),
+    circle(69, 74, 16),
+  ].join(' '),
+  // Handcuffs (a villain's ambush captures you): two cuffs on hinges, joined by a chain
+  ambush: [
+    circle(26, 64, 21),
+    circle(26, 64, 13),
+    circle(74, 64, 21),
+    circle(74, 64, 13),
+    'M20 30 H32 V42 H20 Z',
+    'M68 30 H80 V42 H68 Z',
+    'M34 32 H44 V37 H34 Z',
+    'M47 30 H53 V39 H47 Z',
+    'M56 32 H66 V37 H56 Z',
+  ].join(' '),
 };
 
-/** Cut-outs drawn in the background colour on top of an icon (train and bus windows, the lock's keyhole) */
+/** Cut-outs drawn in the background colour on top of an icon (train and bus windows, the lock's keyhole, lenses) */
 const HOLES: Partial<Record<IconName, string>> = {
   rail: 'M64 26 H80 V38 H64 Z',
   bus: 'M16 24 H30 V42 H16 Z M36 24 H52 V42 H36 Z M58 24 H74 V42 H58 Z M80 24 H88 V42 H80 Z',
   lock: `${circle(50, 62, 6)} M47 64 H53 V78 H47 Z`,
   tuktuk: 'M22 52 H48 V64 H24 Z M52 52 H74 L80 64 H52 Z',
+  lookout: `${circle(31, 74, 8)} ${circle(69, 74, 8)}`,
 };
+
+/** A board's art name for a space (BoardDef.display.art) as an icon, or null when unknown (the classic art then) */
+export const artIcon = (name: string | undefined): IconName | null =>
+  name !== undefined && Object.hasOwn(PATHS, name) ? (name as IconName) : null;
 
 const cache = new Map<string, Path2D>();
 const path = (d: string): Path2D => {

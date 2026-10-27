@@ -5,14 +5,13 @@ import { uiStore } from '../../state/ui';
 import { useView } from '../../view';
 import { safeColor } from '../colors';
 import { useDoc, useGame, useNames } from './context';
-import { levelText, money, shortSpaceName } from './format';
+import { levelText, money, shortSpaceName, tokenOf } from './format';
 import { diceText } from './hud/formatEvent';
 import { cellOf, sideOf } from './layout';
 import { TokenIcon } from './tokenIcons';
-import { DEFAULT_TOKEN } from '../../shared/tokens';
 
 /**
- * The board in 2D: an 11x11 grid of the 40 spaces (GO bottom right, clockwise), with owners, buildings, mortgages
+ * The board in 2D: a grid of the spaces (11x11 for 40, 8x8 for Hero League's 28; GO bottom right, clockwise), with owners, buildings, mortgages
  * and tokens from the DISPLAYED state. It is the whole board when WebGL is missing or lost, and an optional view
  * otherwise, opaque over the 3D one. A cell click picks a space for an open picker (Bus, triples, placing a house)
  * or opens its details. Names are shortened to whole short words, and the cells' text scales with the cells.
@@ -61,7 +60,7 @@ export function MiniBoard() {
         ].filter(Boolean).join(' ');
         const label = [
           sp.name,
-          ps ? `owned by ${names.seat(ps.owner)}` : null,
+          ps ? `${names.terms.owned} by ${names.seat(ps.owner)}` : null,
           ps && ps.level > 0 ? levelText(ps.level) : null,
           ps?.mortgaged ? 'mortgaged' : null,
           tokens.length ? `here: ${tokens.map((t) => names.seat(t)).join(', ')}` : null,
@@ -87,13 +86,13 @@ export function MiniBoard() {
             {ps && ps.level > 0 && (
               <span className="cell-level" aria-hidden="true">{ps.level === 5 ? 'H' : '▪'.repeat(ps.level)}</span>
             )}
-            {!ps && 'price' in sp && <span className="cell-price" aria-hidden="true">{money(sp.price)}</span>}
+            {!ps && 'price' in sp && <span className="cell-price" aria-hidden="true">{money(sp.price, b)}</span>}
             {owner && <span className="cell-owner" aria-hidden="true" />}
             {tokens.length > 0 && (
               <span className="cell-tokens" aria-hidden="true">
                 {tokens.map((seat) => (
                   <span key={seat} style={{ color: safeColor(doc?.seats[seat]?.color) }}>
-                    <TokenIcon token={doc?.seats[seat]?.token ?? DEFAULT_TOKEN} size={14} />
+                    <TokenIcon token={tokenOf(s, seat, doc?.seats[seat]?.token)} size={14} />
                   </span>
                 ))}
               </span>
@@ -104,7 +103,7 @@ export function MiniBoard() {
       <div className="mini-centre" style={{ gridRow: `2 / ${side}`, gridColumn: `2 / ${side}` }}>
         <strong>{b.display.title}</strong>
         {dice && <span className="muted">{names.seat(dice.seat)}: {diceText(names, dice)}</span>}
-        <span className="muted small">Bank: {s.bank.houses} houses · {s.bank.hotels} hotels</span>
+        {!b.heroes && <span className="muted small">Bank: {s.bank.houses} houses · {s.bank.hotels} hotels</span>}
       </div>
     </div>
   );

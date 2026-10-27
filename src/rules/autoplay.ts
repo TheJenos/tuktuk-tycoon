@@ -20,9 +20,12 @@ export function awaiting(s: GameState): SeatId[] {
     case 'auction':
       return bidders(s, ph);
     case 'buildClaim':
+    case 'react':
       return ph.open.filter((seat) => isActive(s, seat));
     case 'place':
     case 'mortgageXfer':
+    case 'aim':
+    case 'boost':
       return [ph.seat];
     case 'debt':
       return [ph.debtor];
@@ -45,7 +48,9 @@ function defaultSpace(s: GameState, seat: SeatId): number {
 
 /**
  * A safe move for an awaited seat (timeouts, AFK fallback): roll, the bigger Bus move, decline to buy (the property
- * is auctioned), the cheaper tax, pass, keep received mortgages, raise cash automatically, end the turn.
+ * is auctioned), the cheaper tax, pass, keep received mortgages, raise cash automatically, end the turn. Hero League
+ * windows: pass (let the throw stand or the effect happen, no Viper Strike, no Dead Aim), or after Dead Aim's reveal
+ * the first card revealed.
  */
 export function defaultAction(s: GameState, seat: SeatId): Action | null {
   if (!awaiting(s).includes(seat)) return null;
@@ -77,6 +82,13 @@ export function defaultAction(s: GameState, seat: SeatId): Action | null {
       return { k: 'settleMortgages', lift: [] };
     case 'debt':
       return { k: 'autoRaise' };
+    case 'react':
+    case 'boost':
+      return { k: 'pass', at: s.since };
+    case 'aim': {
+      const first = ph.cards?.[0];
+      return first === undefined ? { k: 'pass', at: s.since } : { k: 'pickCard', card: first, at: s.since };
+    }
     default:
       return null;
   }
@@ -92,8 +104,11 @@ const TIMER_KIND: Record<string, TimerInfo['kind']> = {
   place: 'decision',
   buildClaim: 'decision',
   mortgageXfer: 'decision',
+  aim: 'decision',
+  boost: 'decision',
   auction: 'auction',
   debt: 'debt',
+  react: 'reaction',
 };
 
 /**
@@ -107,14 +122,15 @@ export function timer(s: GameState): TimerInfo | null {
 }
 
 /**
- * What to apply once the deadline passes: close the auction or the contest window, or play the awaited seat's
- * defaultAction as a `forced` system command. Always carries basis = seq, so a stale timeout is refused.
+ * What to apply once the deadline passes: close the auction, the contest window or the reaction window, or play the
+ * awaited seat's defaultAction as a `forced` system command. Always carries basis = seq, so a stale timeout is refused.
  */
 export function timeoutCommand(s: GameState): Command | null {
   const ph = s.phase;
   if (ph.k === 'over' || ph.k === 'busy') return null;
   if (ph.k === 'auction') return { by: 'system', a: { k: 'closeAuction' }, basis: s.seq };
   if (ph.k === 'buildClaim') return { by: 'system', a: { k: 'closeClaim' }, basis: s.seq };
+  if (ph.k === 'react') return { by: 'system', a: { k: 'closeReact' }, basis: s.seq };
   const seat = awaiting(s)[0];
   const a = seat === undefined ? null : defaultAction(s, seat);
   return seat === undefined || !a ? null : { by: 'system', a: { k: 'forced', seat, a }, basis: s.seq };

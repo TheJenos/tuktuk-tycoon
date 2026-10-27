@@ -1,10 +1,10 @@
 import { useIdle, useView } from '../../../view';
 import { safeColor } from '../../colors';
 import { useDoc, useMySeats, useNames } from '../context';
+import { tokenOf } from '../format';
 import { activeDeadline, phaseLabel, speedActive } from '../selectors';
 import { TokenIcon } from '../tokenIcons';
 import { TimerRing } from './TimerRing';
-import { DEFAULT_TOKEN } from '../../../shared/tokens';
 
 /**
  * Top centre: whose turn it is, what the game waits for, the turn timer and the Speed Die badge. It reads what the
@@ -29,7 +29,7 @@ export function TurnBar() {
   return (
     <div className={yours ? 'turn-bar panel yours' : 'turn-bar panel'} data-testid="turn-bar">
       <span className="turn-who" style={{ color: safeColor(info?.color) }}>
-        <TokenIcon token={info?.token ?? DEFAULT_TOKEN} color={info?.color} size={22} />
+        <TokenIcon token={tokenOf(s, seat, info?.token)} color={info?.color} size={22} />
       </span>
       <div className="turn-text">
         <strong>{title}</strong>
@@ -37,7 +37,7 @@ export function TurnBar() {
       </div>
       {!over && speedActive(s, seat) && <span className="badge speed" title="This player rolls the red Speed Die">Speed Die</span>}
       <span className="badge" title="Turns played, all players together">Turn {s.turn.no}</span>
-      {deadline && <TimerRing deadline={deadline} label={deadline.kind === 'auction' ? 'Auction closes in' : 'Time to decide'} />}
+      {deadline && <TimerRing deadline={deadline} label={deadline.kind === 'auction' ? 'Auction closes in' : deadline.kind === 'reaction' ? 'Time to react' : 'Time to decide'} />}
     </div>
   );
 }

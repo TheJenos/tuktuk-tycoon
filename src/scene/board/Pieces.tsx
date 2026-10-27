@@ -14,7 +14,7 @@ import {
   type BufferGeometry,
 } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import type { GameState, SeatId } from '../../rules';
+import { getBoard, type GameState, type SeatId } from '../../rules';
 import { ANIM } from '../../shared/timing';
 import { useSelector } from '../../state/store';
 import { uiStore } from '../../state/ui';
@@ -28,7 +28,7 @@ import { pieceChanges, piecesOf, type Pieces as PieceList } from './pieceList';
 /*
  * Houses, hotels, owner bars and mortgage stamps, each kind one InstancedMesh rebuilt from the displayed state
  * (only when it changes or something animates). The 'board' scene API plays the change an event just made: a house
- * drops in or shrinks away, an owner bar pops up, a stamp lands.
+ * drops in or shrinks away, an owner bar pops up, a stamp lands. Hero League builds nothing: no houses or hotels.
  */
 
 const merged = (parts: BufferGeometry[]): BufferGeometry => {
@@ -125,6 +125,7 @@ export function Pieces() {
   const geos = useMemo(tileGeometries, []);
   const looks = useSeatLooks();
   const caps = useView((v) => `${Math.max(32, v.game?.cfg.houses ?? 32) + 8}:${Math.max(12, v.game?.cfg.hotels ?? 12) + 4}`);
+  const builds = useView((v) => !getBoard(v.game?.cfg.board ?? 'lanka').heroes);
   const [houseCap, hotelCap] = caps.split(':').map(Number) as [number, number];
   const invalidate = useThree((s) => s.invalidate);
   const houses = useRef<InstancedMesh>(null);
@@ -308,8 +309,8 @@ export function Pieces() {
 
   return (
     <group>
-      <instancedMesh key={`h${houseCap}`} ref={houses} args={[houseGeo, houseMat, houseCap]} frustumCulled={false} castShadow receiveShadow />
-      <instancedMesh key={`H${hotelCap}`} ref={hotels} args={[hotelGeo, hotelMat, hotelCap]} frustumCulled={false} castShadow receiveShadow />
+      {builds && <instancedMesh key={`h${houseCap}`} ref={houses} args={[houseGeo, houseMat, houseCap]} frustumCulled={false} castShadow receiveShadow />}
+      {builds && <instancedMesh key={`H${hotelCap}`} ref={hotels} args={[hotelGeo, hotelMat, hotelCap]} frustumCulled={false} castShadow receiveShadow />}
       <instancedMesh ref={chips} args={[geos.chip, chipMat, TILES]} frustumCulled={false} castShadow />
       <instancedMesh ref={stamps} args={[geos.stamp, stampMaterial(), TILES]} frustumCulled={false} renderOrder={1} />
     </group>

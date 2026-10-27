@@ -1,5 +1,5 @@
 import { memo, useEffect, useLayoutEffect, useRef, type CSSProperties } from 'react';
-import { netWorth, type BoardDef, type GameState, type SeatId } from '../../../rules';
+import { heroOf, netWorth, powerReady, score, type BoardDef, type GameState, type SeatId } from '../../../rules';
 import type { SeatInfo, SessionView } from '../../../net/types';
 import { uiStore } from '../../../state/ui';
 import { useView } from '../../../view';
@@ -8,16 +8,17 @@ import { settings, useSettings } from '../../settings';
 import { useDoc, useGame, useMySeats, useNames, useSessionSel } from '../context';
 import { skillLabel } from '../../lobby/seats';
 import { jailCard, JAIL_CARD_NAME } from '../deeds/jailCard';
-import { levelText, money, type Names } from '../format';
+import { capital, levelText, pluralWord, tokenOf, type Names } from '../format';
 import { stripScroll } from '../layout';
 import { TokenIcon } from '../tokenIcons';
 import { Money } from './Money';
-import { DEFAULT_TOKEN } from '../../../shared/tokens';
+import '../heroes.css';
 
 /*
  * Every player, in turn order: token, name and badges, cash (counting along with the board), and their property
  * as swatches by colour group (mortgaged ones hatched, houses as pips), and online whether each human player is
- * connected. Reads the DISPLAYED state, so a purchase shows up when the board shows it.
+ * connected. On Hero League each also shows their hero and whether its superpower is ready, and the score in place of
+ * net worth. Reads the DISPLAYED state, so a purchase shows up when the board shows it.
  * On narrow screens the list is a strip (compact chips on phones, sized to fit them all where they can). When it
  * still overflows, its edges fade where more players are hidden, and it scrolls itself to keep the player whose
  * turn it is in view, and mine along with them when both fit.
@@ -174,6 +175,8 @@ export const PlayerCard = memo(function PlayerCard({ seat, s, info, names, mine,
   const left = info?.kind === 'human' && !info.ctrl;
   const status = info?.kind === 'human' && !left && !p.out ? presence : undefined;
   const classes = ['player-card', turn && 'active', p.out && 'out', mine && 'mine', you && 'you', p.jail && 'jailed'].filter(Boolean).join(' ');
+  const hero = heroOf(s, seat);
+  const heroes = !!names.board.heroes;
   const owned = clusters(names.board)
     .map((c) => ({ ...c, mine: c.spaces.filter((i) => s.props[`p${i}`]?.owner === seat) }))
     .filter((c) => c.mine.length > 0);
@@ -190,7 +193,7 @@ export const PlayerCard = memo(function PlayerCard({ seat, s, info, names, mine,
     >
       <div className="player-row">
         <span className="player-token" style={{ color: colour }}>
-          <TokenIcon token={info?.token ?? DEFAULT_TOKEN} color={info?.color} size={26} label={true} />
+          <TokenIcon token={tokenOf(s, seat, info?.token)} color={info?.color} size={26} label={true} />
         </span>
         <span className="player-name">
           <span className="player-title">
@@ -211,17 +214,38 @@ export const PlayerCard = memo(function PlayerCard({ seat, s, info, names, mine,
             )}
             {info?.afk && <span className="badge" title="Away: a bot is playing this seat">AFK</span>}
             {left && <span className="badge danger" title="This player left the game">Left</span>}
-            {p.jail && <span className="badge danger" title={`In jail, try ${p.jail.tries + 1} of 3`}>Jail</span>}
+            {p.jail && (
+              <span className="badge danger" title={heroes ? `In the ${names.space(names.board.jailIndex)}: pays the fine at the start of the next turn` : `In jail, try ${p.jail.tries + 1} of 3`}>
+                Jail
+              </span>
+            )}
             {p.out && <span className="badge danger">{p.out === 'resigned' ? 'Resigned' : 'Bankrupt'}</span>}
           </span>
         </span>
         <span className="player-cash">
           <Money value={p.cash} />
-          {showNetWorth && !p.out && <small className="muted" title="Net worth">{money(netWorth(s, seat))}</small>}
+          {showNetWorth && !p.out && (heroes ? (
+            <small className="muted" title={`${capital(names.terms.worth)}: ${names.money(p.cash)} + ${names.board.heroes?.locationPoints ?? 0} for each ${names.terms.property}`}>
+              {capital(names.terms.worth)} {score(s, seat).toLocaleString('en-US')}
+            </small>
+          ) : (
+            <small className="muted" title="Net worth">{names.money(netWorth(s, seat))}</small>
+          ))}
         </span>
       </div>
+      {/* A line of its own, the card's full width: the name column beside the cash is too narrow for the badge */}
+      {hero && (
+        <div className="player-hero" style={{ '--hero': safeColor(hero.colour) } as CSSProperties}>
+          <span className="hero-name" title={`${hero.powerName}: ${hero.powerText}`}>{hero.name}</span>
+          {!p.out && (powerReady(s, seat) ? (
+            <span className="badge good" title={hero.powerText}>{hero.powerName} ready</span>
+          ) : (
+            <span className="badge" title={`${hero.powerName} is used until the next ${names.space(0)} salary`}>Superpower used</span>
+          ))}
+        </div>
+      )}
       {(owned.length > 0 || p.goojf.length > 0) && (
-        <div className="swatches" aria-label={`${names.seat(seat)}'s property`}>
+        <div className="swatches" aria-label={`${names.seat(seat)}'s ${heroes ? pluralWord(names.terms.property) : 'property'}`}>
           {owned.map((c) => (
             <span key={c.id} className="swatch-group" title={c.label}>
               {c.spaces.map((i) => {

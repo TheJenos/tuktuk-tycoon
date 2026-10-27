@@ -87,12 +87,14 @@ export interface StreetDef {
   name: string;
   group: string;
   price: number;
-  /** [base, 1 house, 2, 3, 4 houses, hotel] */
+  /** [base, 1 house, 2, 3, 4 houses, hotel]; a heroes board's location has one entry, its power-up */
   rent: number[];
   house: number;
   /** Hotel cost; defaults to the house cost */
   hotel?: number;
   mortgage: number;
+  /** Heroes boards: the villain holding the location until a hero saves it (UI only) */
+  villain?: string;
 }
 export interface RailDef {
   k: 'rail';
@@ -138,7 +140,47 @@ export type CardFx =
   | { k: 'cash'; amount: number }
   /** Positive: collect from every other player. Negative: pay every other player. */
   | { k: 'each'; amount: number }
-  | { k: 'repairs'; house: number; hotel: number };
+  | { k: 'repairs'; house: number; hotel: number }
+  /** Heroes: throw the Hero die `rolls` times; each distinct hero rolled (and played) takes `hit` */
+  | { k: 'heroDie'; rolls: number; hit: HitFx }
+  /** Heroes: the cheapest location you own (ties: the lowest board index) goes back to its villain */
+  | { k: 'lose' }
+  /** Heroes: advance to the next villain-held location (salary when passing GO); `free`: it is saved for nothing */
+  | { k: 'nearestFree'; free: boolean }
+  /** Heroes: your superpower is ready again */
+  | { k: 'recharge' };
+
+/** What a Hero-die hit does to the hero rolled (cash: a loss, amount < 0) */
+export type HitFx = { k: 'cash'; amount: number } | { k: 'lose' } | { k: 'jail' } | { k: 'back'; n: number };
+
+/** A hero's superpower */
+export type PowerId = 'smash' | 'shield' | 'copy' | 'thunder' | 'sting' | 'aim';
+
+/** One hero of a heroes board: a seat plays it, and its id is the board's token id */
+export interface HeroDef {
+  /** Letters only, unique across boards (it is the token id too) */
+  id: string;
+  name: string;
+  /** The hero card's colour (UI only) */
+  colour: string;
+  power: PowerId;
+  /** The superpower's name ("Thunder Call") */
+  powerName: string;
+  /** Its card text */
+  powerText: string;
+}
+
+/** The Hero League rules block: present only on heroes boards, and its presence switches those rules on */
+export interface HeroesDef {
+  /** The six heroes, in Hero-die face order (face 1 = list[0]) */
+  list: HeroDef[];
+  /** Score per location owned at the end (score = cash + this x locations) */
+  locationPoints: number;
+  /** Viper Strike: the most extra spaces */
+  stingMax: number;
+  /** Dead Aim: cards revealed */
+  aimCards: number;
+}
 
 export interface CardDef {
   /** Stable id; the prefix tells which deck a Get Out of Jail Free card returns to */
@@ -166,6 +208,8 @@ export interface BoardDef {
   speedDie: { faces: SpeedFace[]; labels: Record<string, string> };
   /** The most players the board seats: a smaller board seats fewer */
   maxPlayers: number;
+  /** Present on a heroes board (Hero League): its heroes, and the Hero League rules apply (docs/heroes.md) */
+  heroes?: HeroesDef;
   /**
    * The board's standard rules, over DEFAULT_RULES: where the lobby starts for this board (the table can still change
    * any of them). Not applied by the engine itself: a game's config is whatever it was created with.
@@ -173,7 +217,7 @@ export interface BoardDef {
   rules: Partial<Omit<RulesConfig, 'board' | 'debug'>>;
   /**
    * What the UI prints: the board title, its name, subtitle and blurb, each card deck's name, the colour groups' colours and the currency. Money
-   * is shown as `symbol` and the engine's amount times `scale` (the engine counts rulebook units).
+   * is shown as `symbol` and the engine's amount times `scale` (the engine counts rulebook units), the symbol after the number when `after`.
    */
   display: {
     title: string;
@@ -187,8 +231,39 @@ export interface BoardDef {
     rulesBlurb?: string;
     decks: Record<Deck, string>;
     groupColours: Record<string, string>;
-    currency: { symbol: string; scale: number };
+    currency: Currency;
+    /** UI wording that replaces the classic terms on this board ("location" for property, "save" for buy...) */
+    terms?: BoardTerms;
+    /** Icon names the scene draws on special spaces (unknown ones fall back to the classic art) */
+    art?: BoardArt;
   };
+}
+
+/** How money is shown: `symbol` and the engine's units times `scale`; `after`: "1,500 Power" rather than "Rs. 150,000" */
+export interface Currency {
+  symbol: string;
+  scale: number;
+  after?: boolean;
+}
+
+/** UI-only wording overrides (absent = the classic word) */
+export interface BoardTerms {
+  property?: string;
+  buy?: string;
+  bought?: string;
+  rent?: string;
+  bank?: string;
+  worth?: string;
+}
+
+/** UI-only art names for special spaces (absent = the classic art) */
+export interface BoardArt {
+  chance?: string;
+  chest?: string;
+  parking?: string;
+  goToJail?: string;
+  /** The words printed on GO's arrow */
+  goLine?: string;
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -198,7 +273,7 @@ export interface PlayerState {
   seat: SeatId;
   name: string;
   cash: number;
-  /** Board index 0-39 */
+  /** Board index, 0 to the board's size - 1 */
   pos: number;
   /** Present while in jail; tries = failed jail rolls so far (0-2) */
   jail?: { tries: number };
@@ -211,6 +286,10 @@ export interface PlayerState {
   out?: 'bankrupt' | 'resigned';
   /** seq of the command that put the player out (for the final ranking) */
   outAt?: number;
+  /** Heroes boards only (always present there): the hero this seat plays, a HeroDef id */
+  hero?: string;
+  /** Heroes boards: the turn.no in which the superpower was used; absent = ready */
+  powerUsed?: number;
 }
 
 /** An owned property. Absent from GameState.props = owned by the bank. */
@@ -247,7 +326,7 @@ export type Owed = Partial<Record<Creditor, number>>;
 
 /**
  * Where the game waits. Turn phases belong to the turn seat. Interrupts (auction, place, buildClaim, mortgageXfer,
- * debt) store `resume`, the phase to return to when they finish; they can nest.
+ * debt; on Hero League react, aim and boost) store `resume`, the phase to return to when they finish; they can nest.
  */
 export type Phase =
   | { k: 'preRoll' }
@@ -263,6 +342,9 @@ export type Phase =
   | BuildClaimPhase
   | MortgageXferPhase
   | DebtPhase
+  | ReactPhase
+  | AimPhase
+  | BoostPhase
   | OverPhase;
 
 /** Timed open bidding with a fixed countdown (bids never add time). Any eligible seat that has not passed may bid at any time. */
@@ -326,28 +408,107 @@ export interface DebtPhase {
   resume: Phase;
 }
 
+/**
+ * Heroes: a reaction window, opened on top of `busy` after a throw (`thunder`: anyone in `open` may re-roll it) or
+ * before an effect aimed at a hero (`shield`: `open` is that hero alone). `then` is the deferred work: once nobody
+ * active is open it runs (the throw stands, the effect happens); a `shield` drops it.
+ */
+export interface ReactPhase {
+  k: 'react';
+  kind: 'thunder' | 'shield';
+  /** thunder: who threw; shield: the target */
+  seat: SeatId;
+  /** Seats that may still answer (reroll / shield, or pass) */
+  open: SeatId[];
+  about: ReactAbout;
+  /** Internal: the work the window holds back */
+  then: Step;
+  /** Always busy */
+  resume: Phase;
+}
+
+/** What a reaction window is about (for the UI) */
+export type ReactAbout =
+  /** The turn seat's move throw (state.turn.roll) */
+  | { k: 'move' }
+  /** A Hero-die throw for a card (`card`) or a back-up save (`space`); `face` 1-6 = heroes.list[face - 1] */
+  | { k: 'hero'; face: number; purpose: 'card' | 'backup'; card?: string; space?: number }
+  /** A Villain Strike effect aimed at `seat`: the drawer's own card (`by` absent) or a Hero-die hit by `by`'s card */
+  | { k: 'hit'; fx: CardFx | HitFx; card: string; by?: SeatId }
+  /** A Titan Smash by `by` would move `seat` */
+  | { k: 'smash'; by: SeatId };
+
+/** Heroes: Dead Aim. `seat` landed on Villain Strike able to aim: pass (draw normally) or aim (reveal `cards`), then pickCard. */
+export interface AimPhase {
+  k: 'aim';
+  seat: SeatId;
+  deck: Deck;
+  /** The revealed top cards once `aim` was played (still in the deck) */
+  cards?: string[];
+  /** Always busy */
+  resume: Phase;
+}
+
+/** Heroes: Viper Strike. The turn seat's final move throw `total`: sting {n} to go n further, or pass. */
+export interface BoostPhase {
+  k: 'boost';
+  seat: SeatId;
+  /** The dice total */
+  total: number;
+  /** Internal: the dice move it extends */
+  then: Step;
+  /** Always busy */
+  resume: Phase;
+}
+
 export interface OverPhase {
   k: 'over';
   winner: SeatId;
-  /** Every seat, best first: active seats by net worth, then the others, last out first */
+  /** Every seat, best first: active seats by net worth (heroes: by score), then the others, last out first */
   ranking: SeatId[];
-  why: 'lastStanding' | 'turnLimit' | 'endGame' | 'firstBankrupt' | 'timeUp';
+  why: 'lastStanding' | 'turnLimit' | 'endGame' | 'firstBankrupt' | 'timeUp' | 'allSaved';
+  /** Heroes boards: every seat's score (cash + locationPoints x locations owned) */
+  scores?: Partial<Record<SeatId, number>>;
 }
 
-export type InterruptPhase = AuctionPhase | PlacePhase | BuildClaimPhase | MortgageXferPhase | DebtPhase;
+export type InterruptPhase =
+  | AuctionPhase
+  | PlacePhase
+  | BuildClaimPhase
+  | MortgageXferPhase
+  | DebtPhase
+  | ReactPhase
+  | AimPhase
+  | BoostPhase;
 
-export type MoveVia = 'dice' | 'card' | 'uncle' | 'triple' | 'bus' | 'jail' | 'back';
+/** swap: a Titan Smash (a jump, no salary, no landing); power: reserved */
+export type MoveVia = 'dice' | 'card' | 'uncle' | 'triple' | 'bus' | 'jail' | 'back' | 'power' | 'swap';
 
 /** The queue of work left in a turn (moves, landings, payments). Internal, but stored in the state. */
 export type Step =
   | { k: 'move'; seat: SeatId; to: number; via: MoveVia }
   | { k: 'back'; seat: SeatId; n: number }
-  | { k: 'land'; seat: SeatId; rentMul?: number; utilFresh?: true }
+  | { k: 'land'; seat: SeatId; rentMul?: number; utilFresh?: true; free?: true }
   | { k: 'uncle'; seat: SeatId }
   | { k: 'pay'; from: SeatId; owed: Owed; why: CashWhy }
   | { k: 'free'; seat: SeatId; how: JailExitHow }
   | { k: 'afterRoll' }
-  | { k: 'nextTurn' };
+  | { k: 'nextTurn' }
+  // Heroes boards
+  /** The move throw stands (after its Thunder window): doubles, third-doubles jail, Viper Strike, the move */
+  | { k: 'throwDone'; seat: SeatId }
+  /** A card's next Hero-die throw (`left` to go, `hits` so far) */
+  | { k: 'throwHero'; seat: SeatId; card: string; left: number; hits: SeatId[] }
+  /** A card's Hero-die throw stands at `face` */
+  | { k: 'heroFace'; seat: SeatId; card: string; face: number; left: number; hits: SeatId[] }
+  /** A Villain Strike effect aimed at `seat` (`asked`: its shield window is done) */
+  | { k: 'hit'; seat: SeatId; fx: CardFx; card: string; by?: SeatId; asked?: true }
+  /** The back-up throw stands at `face` */
+  | { k: 'backupPick'; seat: SeatId; space: number; face: number }
+  /** A Titan Smash by `by`: shield windows for a then b (`asked` so far), then the swap */
+  | { k: 'swap'; by: SeatId; a: SeatId; b: SeatId; asked: number }
+  /** Back to preRoll after a Titan Smash */
+  | { k: 'beforeRoll' };
 
 /** Immediate assets only: there are no loans or promises */
 export interface Bundle {
@@ -374,7 +535,7 @@ export interface GameState {
   seq: number;
   /** seq at which the current phase was entered (timer keys; an auction's bids do not change it) */
   since: number;
-  /** mulberry32 state (uint32). Only createGame, roll and the utility fresh throw consume it. */
+  /** mulberry32 state (uint32). Only throws consume it: createGame, roll, the utility fresh throw, the Hero die (heroes). */
   rng: number;
   cfg: RulesConfig;
   players: Partial<Record<SeatId, PlayerState>>;
@@ -393,6 +554,8 @@ export interface GameState {
   trades: Record<string, Trade>;
   /** Debug: queued rigged throws (empty unless cfg.debug) */
   rig: RigRoll[];
+  /** Debug, heroes boards: queued Hero-die faces (1-6); absent unless some are queued */
+  rigHero?: number[];
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -411,7 +574,8 @@ export type Action =
   | { k: 'endTurn' }
   // Auctions and the building contest
   | { k: 'bid'; amount: number }
-  | { k: 'pass' }
+  /** Also answers a heroes window (react, aim before the reveal, boost): then `at` must be the window's state.since */
+  | { k: 'pass'; at?: number }
   | { k: 'requestBuild'; n: number }
   | { k: 'place'; space: number }
   // Managing property
@@ -429,6 +593,19 @@ export type Action =
   | { k: 'accept'; id: string }
   | { k: 'reject'; id: string }
   | { k: 'cancel'; id: string }
+  // Superpowers (heroes boards). `at`: state.since of the window answered, else refused as stale
+  /** Viper Strike: move n (1..stingMax) spaces further than the dice (boost) */
+  | { k: 'sting'; n: number; at: number }
+  /** Titan Smash: swap two heroes before the turn's first roll (preRoll) */
+  | { k: 'smash'; a: SeatId; b: SeatId }
+  /** Dead Aim: reveal the top cards (aim) */
+  | { k: 'aim'; at: number }
+  /** Dead Aim: play one of the revealed cards (aim, after the reveal) */
+  | { k: 'pickCard'; card: string; at: number }
+  /** Thunder Call: throw again (react thunder) */
+  | { k: 'reroll'; at: number }
+  /** Star Shield: say no (react shield) */
+  | { k: 'shield'; at: number }
   // Debt and leaving
   | { k: 'autoRaise' }
   | { k: 'bankrupt' }
@@ -436,13 +613,16 @@ export type Action =
   // System (by: 'system', basis required)
   | { k: 'closeAuction' }
   | { k: 'closeClaim' }
+  /** A reaction window ran out: every seat still open passes */
+  | { k: 'closeReact' }
   | { k: 'endGame' }
   /** The room's time limit ran out: ends the game ranked by net worth */
   | { k: 'timeUp' }
   /** A timeout: plays `a` for `seat`, which must be awaited and `a` must equal defaultAction(state, seat) */
   | { k: 'forced'; seat: SeatId; a: Action }
   // Debug (cfg.debug only)
-  | { k: 'debugRig'; dice: RigRoll[] }
+  /** `hero`: Hero-die faces (1-6) for the next Hero-die throws (heroes boards) */
+  | { k: 'debugRig'; dice: RigRoll[]; hero?: number[] }
   | { k: 'debugSetCash'; seat: SeatId; cash: number };
 
 export type ActionKind = Action['k'];
@@ -493,8 +673,11 @@ export type CashWhy =
 
 export type JailReason = 'space' | 'card' | 'doubles';
 export type JailExitHow = 'doubles' | 'fine' | 'card' | 'forced';
-/** sold: sold back to the bank (sellProperty) */
-export type OwnerVia = 'buy' | 'auction' | 'trade' | 'bankrupt' | 'deal' | 'sold';
+/**
+ * sold: sold back to the bank (sellProperty). Heroes: buy = the lander's own save, backup = a back-up hero's save,
+ * free = a free save (card), villain = lost to a card (back to its villain)
+ */
+export type OwnerVia = 'buy' | 'auction' | 'trade' | 'bankrupt' | 'deal' | 'sold' | 'backup' | 'villain' | 'free';
 
 export type GameEvent =
   | { t: 'order'; order: SeatId[] }
@@ -562,7 +745,22 @@ export type GameEvent =
   | { t: 'debtPaid'; debtor: SeatId }
   | { t: 'bankrupt'; seat: SeatId; to: Creditor; resigned: boolean }
   | { t: 'timeout'; seat: SeatId; a: Action }
-  | { t: 'over'; winner: SeatId; ranking: SeatId[]; why: OverPhase['why'] };
+  | { t: 'over'; winner: SeatId; ranking: SeatId[]; why: OverPhase['why'] }
+  // Heroes boards
+  /** A Hero-die throw by `seat` (a re-roll is a new one): `face` 1-6, `hero` its HeroDef id */
+  | { t: 'heroDie'; seat: SeatId; face: number; hero: string; purpose: 'backup' | 'card'; card?: string }
+  /** A superpower used: `power` (copied: by Steel Ace's Suit Up); `target`: the thrower whose throw is re-rolled */
+  | { t: 'power'; seat: SeatId; power: PowerId; copied?: true; target?: SeatId }
+  /** The superpower is ready again (a Rally Point salary or a Recharge card) */
+  | { t: 'powerReady'; seat: SeatId }
+  /** Dead Aim revealed the top cards (only the aiming seat's players should see them) */
+  | { t: 'aimPeek'; seat: SeatId; deck: Deck; cards: string[] }
+  /** Nobody could save `space` that `seat` landed on: the villain keeps it */
+  | { t: 'noSave'; seat: SeatId; space: number }
+  /** A payment fell short: `paid` of `owed` (by creditor) was paid, the rest is forgiven */
+  | { t: 'short'; seat: SeatId; why: CashWhy; space?: number; owed: Owed; paid: Owed }
+  /** A reaction window ran out (closeReact) with these seats still open */
+  | { t: 'reactTimeout'; seats: SeatId[] };
 
 export type EventType = GameEvent['t'];
 
@@ -570,7 +768,7 @@ export type EventType = GameEvent['t'];
 export interface TimerInfo {
   /** Changes whenever the deadline should restart */
   key: string;
-  /** turn: preRoll/postRoll. decision: bus, chooseSpace, buy, incomeTax, place, buildClaim, mortgageXfer.
-   *  trade: reserved (offers never block play and never expire). */
-  kind: 'turn' | 'auction' | 'decision' | 'debt' | 'trade';
+  /** turn: preRoll/postRoll. decision: bus, chooseSpace, buy, incomeTax, place, buildClaim, mortgageXfer, aim, boost.
+   *  reaction: react (heroes). trade: reserved (offers never block play and never expire). */
+  kind: 'turn' | 'auction' | 'decision' | 'debt' | 'trade' | 'reaction';
 }

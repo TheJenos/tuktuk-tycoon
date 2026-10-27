@@ -27,7 +27,7 @@
           ".validate": "newData.isBoolean()"
         },
         "board": {
-          ".validate": "newData.val() === 'lanka' || newData.val() === 'colombo' || newData.val() === 'hill' || newData.val() === 'south'"
+          ".validate": "newData.val() === 'lanka' || newData.val() === 'colombo' || newData.val() === 'hill' || newData.val() === 'south' || newData.val() === 'heroes'"
         },
         "maxSeats": {
           ".validate": "newData.isNumber() && newData.val() >= 2 && newData.val() <= 8"
@@ -69,7 +69,7 @@
               ".validate": "newData.isBoolean()"
             },
             "board": {
-              ".validate": "newData.val() === 'lanka' || newData.val() === 'colombo' || newData.val() === 'hill' || newData.val() === 'south'"
+              ".validate": "newData.val() === 'lanka' || newData.val() === 'colombo' || newData.val() === 'hill' || newData.val() === 'south' || newData.val() === 'heroes'"
             },
             "startCash": {
               ".validate": "newData.isNumber() && newData.val() >= 100 && newData.val() <= 20000"
@@ -193,7 +193,7 @@
                 ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 16"
               },
               "token": {
-                ".validate": "newData.val() === 'tuktuk' || newData.val() === 'elephant' || newData.val() === 'coconut' || newData.val() === 'cricket' || newData.val() === 'tea' || newData.val() === 'drum' || newData.val() === 'oruwa' || newData.val() === 'kite' || newData.val() === 'cityBus' || newData.val() === 'lotusTower' || newData.val() === 'clockTower' || newData.val() === 'crow' || newData.val() === 'hopper' || newData.val() === 'isso' || newData.val() === 'briefcase' || newData.val() === 'trafficCone' || newData.val() === 'steamTrain' || newData.val() === 'adamsPeak' || newData.val() === 'archBridge' || newData.val() === 'teaBasket' || newData.val() === 'strawberry' || newData.val() === 'umbrella' || newData.val() === 'leech' || newData.val() === 'sambar' || newData.val() === 'stiltFisher' || newData.val() === 'seaTurtle' || newData.val() === 'surfboard' || newData.val() === 'lighthouse' || newData.val() === 'palmTree' || newData.val() === 'devilMask' || newData.val() === 'crab' || newData.val() === 'conch'"
+                ".validate": "newData.val() === 'tuktuk' || newData.val() === 'elephant' || newData.val() === 'coconut' || newData.val() === 'cricket' || newData.val() === 'tea' || newData.val() === 'drum' || newData.val() === 'oruwa' || newData.val() === 'kite' || newData.val() === 'cityBus' || newData.val() === 'lotusTower' || newData.val() === 'clockTower' || newData.val() === 'crow' || newData.val() === 'hopper' || newData.val() === 'isso' || newData.val() === 'briefcase' || newData.val() === 'trafficCone' || newData.val() === 'steamTrain' || newData.val() === 'adamsPeak' || newData.val() === 'archBridge' || newData.val() === 'teaBasket' || newData.val() === 'strawberry' || newData.val() === 'umbrella' || newData.val() === 'leech' || newData.val() === 'sambar' || newData.val() === 'stiltFisher' || newData.val() === 'seaTurtle' || newData.val() === 'surfboard' || newData.val() === 'lighthouse' || newData.val() === 'palmTree' || newData.val() === 'devilMask' || newData.val() === 'crab' || newData.val() === 'conch' || newData.val() === 'jadeTitan' || newData.val() === 'starCaptain' || newData.val() === 'steelAce' || newData.val() === 'stormLord' || newData.val() === 'velvetViper' || newData.val() === 'sharpshot'"
               },
               "color": {
                 ".validate": "newData.isString() && newData.val().matches(/^#[0-9a-fA-F]{6}$/)"

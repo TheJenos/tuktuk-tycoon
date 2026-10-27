@@ -220,7 +220,7 @@ test('a trade with a bot: an invalid offer is held back, a fair one is accepted'
   await expect(trade.getByRole('radio', { name: 'Ava' })).toHaveAttribute('aria-checked', 'true');
   const send = trade.getByRole('button', { name: 'Send offer' });
   // Cash for nothing would be a loan
-  await trade.getByRole('group', { name: 'You give' }).getByLabel('Cash').fill('30000');
+  await trade.getByRole('group', { name: 'You give' }).getByLabel('Cash', { exact: true }).fill('30000');
   await expect(send).toBeDisabled();
   await expect(trade.locator('.trade-problems')).not.toHaveText('The offer is valid');
   await trade.getByRole('group', { name: 'You get from Ava' }).getByRole('checkbox', { name: 'Pettah Pavement' }).check();

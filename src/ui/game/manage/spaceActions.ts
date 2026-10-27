@@ -47,13 +47,16 @@ export interface SpaceActions {
 const stepCost = (sp: StreetDef, level: number): number => (level === 5 ? sp.hotel ?? sp.house : sp.house);
 const sameAction = (a: Action, b: Action): boolean => JSON.stringify(a) === JSON.stringify(b);
 
-/** The property actions `seat` has on `space`; null when it is not the seat's property (or the seat is out) */
+/**
+ * The property actions `seat` has on `space`; null when it is not the seat's property (or the seat is out), and on
+ * Hero League, where a saved location is never built on, mortgaged or sold
+ */
 export function spaceActions(s: GameState, seat: SeatId, space: number): SpaceActions | null {
   const b = boardOf(s);
   const sp = b.spaces[space];
   const ps = s.props[`p${space}`];
   const p = s.players[seat];
-  if (!isProperty(sp) || ps?.owner !== seat || !p || p.out || s.phase.k === 'over') return null;
+  if (b.heroes || !isProperty(sp) || ps?.owner !== seat || !p || p.out || s.phase.k === 'over') return null;
 
   const mortgage: SpaceActions['mortgage'] = ps.mortgaged
     ? { kind: 'unmortgage', amount: unmortgageCost(s, space), ...verdict({ k: 'unmortgage', space }, canUnmortgage(s, seat, space)?.message) }

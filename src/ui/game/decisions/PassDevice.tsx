@@ -3,8 +3,8 @@ import type { SeatId } from '../../../rules';
 import { safeColor } from '../../colors';
 import { useDoc, useNames } from '../context';
 import { Dialog } from '../Dialog';
+import { tokenOf } from '../format';
 import { TokenIcon } from '../tokenIcons';
-import { DEFAULT_TOKEN } from '../../../shared/tokens';
 
 /**
  * Hot-seat: the device goes to another player before their decision shows, so nobody sees (or taps) the next
@@ -29,7 +29,7 @@ export function PassDevice({ seat, onReady, covered }: { seat: SeatId; onReady()
     >
       <div className="pass-who" style={{ '--seat': safeColor(info?.color) } as CSSProperties}>
         <span className="player-token">
-          <TokenIcon token={info?.token ?? DEFAULT_TOKEN} color={info?.color} size={40} label={true} />
+          <TokenIcon token={tokenOf(doc?.game, seat, info?.token)} color={info?.color} size={40} label={true} />
         </span>
         <p>
           Hand the device to <strong>{name}</strong>. Their choices stay hidden until they are ready.

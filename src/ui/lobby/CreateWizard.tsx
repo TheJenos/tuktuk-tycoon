@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import type { BotSkill } from '../../net/types';
+import { getBoard } from '../../rules';
 import { boardTokens, tokenOn, type TokenId } from '../../shared/tokens';
 import { Choices, type Choice } from './Choices';
 import { DEFAULT_DRAFT, RulesForm, RulesSummary, rulesLine, rulesTitle, type RulesDraft } from './RulesForm';
@@ -80,8 +81,8 @@ export function TableStep({ plan, onChange }: { plan: RoomPlan; onChange(p: Part
         </div>
       </div>
       <div className="lobby-setting">
-        <span className="lobby-setting-label">Your token</span>
-        <TokenPicker board={board} label="Your token" value={plan.token} taken={[]} onPick={(token) => onChange({ token })} />
+        <span className="lobby-setting-label">{getBoard(board).heroes ? 'Your hero' : 'Your token'}</span>
+        <TokenPicker board={board} label={getBoard(board).heroes ? 'Your hero' : 'Your token'} value={plan.token} taken={[]} onPick={(token) => onChange({ token })} />
       </div>
     </div>
   );

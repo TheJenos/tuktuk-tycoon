@@ -13,14 +13,27 @@ export { checkInvariants } from './invariants';
 export { encode, decode, RULES_VERSION, UPGRADABLE_VERSIONS } from './codec';
 export { DEFAULT_RULES, normalizeConfig } from './config';
 export { getBoard, boardName, BOARDS, BOARD_IDS, deckOf, pathForward, pathBack, isProperty, isStreet, type BoardInfo } from './board';
+export { HEROES_FIXED } from './heroesFixed';
 export { COLOMBO } from '../boards/colombo/rules';
+export { HEROES } from '../boards/heroes/rules';
 export { HILL } from '../boards/hill/rules';
 export { SOUTH } from '../boards/south/rules';
 export { LANKA } from '../boards/lanka/rules';
 export { busOptions, isDoubles, isTriples } from './dice';
 export { faceValue, rollTotal } from './rent';
 export { deepEqual } from './ctx';
-export { formatMoney, toUnits, toRupees, MONEY_SCALE, MONEY_SYMBOL, type MoneyOpts } from './currency';
+export {
+  formatMoney,
+  boardMoney,
+  currencyOf,
+  toUnits,
+  toShown,
+  toRupees,
+  DEFAULT_CURRENCY,
+  MONEY_SCALE,
+  type MoneyOpts,
+} from './currency';
+export { owedTotal } from './money';
 export {
   boardOf,
   rentFor,
@@ -50,6 +63,15 @@ export {
   buildOptions,
   incomeTaxAmounts,
   opponents,
+  heroesOf,
+  heroOf,
+  powerReady,
+  canUsePower,
+  shieldableByDrawer,
+  usablePowers,
+  smashPairs,
+  score,
   type BuildOption,
+  type UsablePower,
 } from './selectors';
 export type { RentOpts } from './rent';

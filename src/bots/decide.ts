@@ -13,6 +13,7 @@ import { auctionChoice } from './auction';
 import { claimChoice, placeChoice, postRollChoice, xferChoice } from './build';
 import { type BotCtx, type BotTable, makeCtx } from './ctx';
 import { debtChoice } from './debt';
+import { aimChoice, boostChoice, heroesBoard, preRollChoice, reactChoice } from './heroes';
 import { profileOf } from './profile';
 import { searchDebt, searchJail, searchPostRoll, searchProposal, searchRespond } from './search';
 import { proposal, respond, staleOffer } from './trade';
@@ -21,7 +22,7 @@ import { buyChoice, busChoice, chooseSpaceChoice, incomeTaxChoice, jailChoice } 
 /*
  * The bot's entry point. choose() picks an action from the policies; decide() checks it against the engine (a
  * throwaway apply) and falls back to the engine's safe default, so whatever a policy gets wrong, the driver is
- * only ever handed an action the engine accepts right now.
+ * only ever handed an action the engine accepts right now. Hero League's superpowers and windows are heroes.ts's.
  */
 
 /** Phases in which an offer may be accepted (mirrors the engine) */
@@ -49,6 +50,8 @@ export function choose(c: BotCtx): Action | null {
   const ph = s.phase;
   switch (ph.k) {
     case 'preRoll':
+      // Hero League: no trades and no jail choice (the fine is paid at the start of the turn), only Titan Smash
+      if (heroesBoard(c)) return preRollChoice(c);
       return deep ? (searchProposal(c) ?? searchJail(c)) : (proposal(c) ?? jailChoice(c));
     case 'bus':
       return busChoice(c, ph.opts);
@@ -70,6 +73,12 @@ export function choose(c: BotCtx): Action | null {
       return xferChoice(c, ph);
     case 'debt':
       return deep ? searchDebt(c, ph) : debtChoice(c, ph);
+    case 'react':
+      return reactChoice(c, ph);
+    case 'aim':
+      return aimChoice(c, ph);
+    case 'boost':
+      return boostChoice(c, ph);
     default:
       return null;
   }

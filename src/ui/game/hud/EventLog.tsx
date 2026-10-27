@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { GameEvent } from '../../../rules';
+import { currencyOf, DEFAULT_CURRENCY, type BoardDef, type GameEvent } from '../../../rules';
 import { useView } from '../../../view';
 import { useMySeats, useNames } from '../context';
 import { eventSeats, formatEvent, moneyEvent, quietEvent } from './formatEvent';
@@ -21,9 +21,14 @@ const ICONS: Partial<Record<GameEvent['t'], string>> = {
   turn: '▸', dice: '⚄', move: '→', cash: '₨', card: '?', jail: '▦', jailExit: '▢', jailStay: '▦',
   auctionStart: '⚖', bid: '⚖', auctionEnd: '⚖', tradeDone: '⇄', tradeProposed: '⇄', level: '⌂',
   bankrupt: '✕', over: '★', debt: '!', speedOn: '◆', uncle: '◆', bus: '◆', chooseSpace: '◆', salary: '₨',
+  heroDie: '⚄', power: '✦', powerReady: '✦', aimPeek: '?', short: '!', noSave: '·', reactTimeout: '⏱',
 };
 
-const iconOf = (ev: GameEvent): string => ICONS[ev.t] ?? '·';
+/** The rupee sign marks money on the boards that count in rupees; any other currency gets the generic sign */
+const iconOf = (ev: GameEvent, b: BoardDef): string => {
+  const icon = ICONS[ev.t] ?? '·';
+  return icon === '₨' && currencyOf(b).symbol !== DEFAULT_CURRENCY.symbol ? '¤' : icon;
+};
 
 export function EventLog({ expanded, onToggle }: { expanded: boolean; onToggle(): void }) {
   const log = useView((v) => v.log);
@@ -84,9 +89,9 @@ export function EventLog({ expanded, onToggle }: { expanded: boolean; onToggle()
         {rows.length === 0 && <li className="muted">Nothing yet</li>}
         {rows.map(({ e, i }) => (
           <li key={`${e.seq}:${i}`} className={`log-line t-${e.ev.t}`}>
-            <span className="log-icon" aria-hidden="true">{iconOf(e.ev)}</span>
+            <span className="log-icon" aria-hidden="true">{iconOf(e.ev, names.board)}</span>
             <span>
-              {splitMoney(formatEvent(e.ev, names)).map((p, j) =>
+              {splitMoney(formatEvent(e.ev, names), currencyOf(names.board)).map((p, j) =>
                 p.money ? <span key={j} className={`log-money ${p.money}`}>{p.text}</span> : p.text,
               )}
             </span>

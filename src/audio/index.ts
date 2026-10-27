@@ -2,10 +2,11 @@ import { ownerOf, type GameEvent } from '../rules';
 import { boardTheme } from '../shared/boardThemes';
 import { sessionStore } from '../state/session';
 import { toasts } from '../ui/game/actions';
+import { askReaction } from '../ui/game/selectors';
 import { settings } from '../ui/settings';
 import { director, type PlayInfo } from '../view';
 import { AudioEngine, type Voice } from './engine';
-import { cuesFor, pickInstant, type Cue } from './events';
+import { cuesFor, pickInstant, reactionCue, type Cue } from './events';
 import { SOUND_NAMES } from './sounds';
 
 /*
@@ -151,11 +152,20 @@ export function initAudio(): void {
 
   // The intro jingle as a game appears on screen (a new game, a rematch, or coming back to one)
   let hadGame = inGame();
+  // Hero League: the bell as a reaction window on screen opens for one of my seats the Reactions setting asks
+  let prevGame = director.view.get().game;
   director.view.subscribe(() => {
     const now = inGame();
     syncBoard();
     if (now && !hadGame) engine?.playIntro();
     hadGame = now;
+    const game = director.view.get().game;
+    if (game !== prevGame) {
+      const asked = game ? (sessionStore.get().session?.view.get().mySeats ?? []).filter((seat) => askReaction(game, seat, settings.get().reactions)) : [];
+      const q = reactionCue(prevGame, game, asked);
+      prevGame = game;
+      if (q && engine?.running) engine.play(q.name, q);
+    }
   });
 
   // Game events

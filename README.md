@@ -9,14 +9,15 @@ and nothing to set up, pass one screen round the table, or open an online room (
 over **Firebase Realtime Database**, from an invite link or a Discord voice channel.
 
 The rules are the classic 2007 property-trading rulebook (with the Speed Die), unchanged; only the names, card texts
-and currency are themed. They live in a pure TypeScript engine (`src/rules`) that every client runs on the same
-JSON state; the 3D scene only shows what the engine decided, and every action is also a plain DOM button, so the game
-plays without WebGL too.
+and currency are themed. One board, **Hero League**, plays rules of its own: superheroes saving a city, with
+superpowers and no bankruptcy ([docs/heroes.md](docs/heroes.md)). The rules live in a pure TypeScript engine
+(`src/rules`) that every client runs on the same JSON state; the 3D scene only shows what the engine decided, and every
+action is also a plain DOM button, so the game plays without WebGL too.
 
 ## Theme
 
 Each board is one folder, `src/boards/<board>/`: its spaces, cards, size, player cap and standard rules, its tokens
-(shapes and icons), its bots' names and its sounds (see `src/boards/README.md`). Four boards, picked when a room or
+(shapes and icons), its bots' names and its sounds (see `src/boards/README.md`). Five boards, picked when a room or
 local game is set up (the Board cards at the top of the rules):
 
 - **All Island** (`src/boards/lanka/`, the default, described below): the whole island in one lap, 40 spaces.
@@ -26,6 +27,20 @@ local game is set up (the Board cards at the top of the rules):
   stations; Mountain Mist and Tea Tin decks.
 - **Down South** (`south/`, 48 spaces, 2–8 players): Hambantota Salt Pans up to Bentota Beach Palace; Hikkaduwa, Galle, Weligama and
   Matara stations; Lucky Wave and Fishermen's Kitty decks.
+- **Hero League** (`heroes/`, 28 spaces, 2–6 players): Midtown Back Alleys up to League Tower, sixteen locations held
+  by eight villains; Villain Strike and Hero HQ decks. Its rules are its own (below).
+
+**Hero League** is an original parody of a superhero edition's rules, with every hero, villain, place and card our
+own. Each player is one of six heroes (the board's six tokens: Jade Titan, Star Captain, Steel Ace, Storm Lord,
+Velvet Viper and Sharpshot), each with a once-per-lap superpower: swap two heroes' places, say no to a villain's
+attack, borrow another hero's superpower, demand a re-roll of any throw, move up to 6 extra spaces, or draw two
+Villain Strike cards and play one. Money is **Power** (`1,500 Power`). Land on a villain-held location and you must
+save it if you can pay; if you can't, a back-up hero who can saves it instead (the **Hero die**, whose faces are the
+six heroes, picks one when several can). Short of Power, you pay what you have and nobody goes bankrupt. The game ends
+the moment every location is saved: the highest score (Power plus 100 a location) wins. Re-rolls and shields are
+asked for in short **reaction windows** (8 s online, 6 s on one screen; a setting can keep them to your own throws).
+Speed Die, houses, auctions, mortgages, trades and taxes are not part of it, so the rules form hides those options
+there. The full rules: [docs/heroes.md](docs/heroes.md).
 
 The All Island board:
 
@@ -145,14 +160,15 @@ reduced motion and on touch screens).
 - **Play now**: you and three Normal bots, Classic rules. **Continue solo game** appears when one is saved (starting
   a new one replaces it).
 - **Local game**: three steps, **Rules → Seats → Start**. Seats are you, more players at this screen (**Add a
-  player**) and bots (**Add a bot**, each with its level), 2 to 8 in all, each with a token and a colour of its own.
+  player**) and bots (**Add a bot**, each with its level), 2 to 8 in all (as many as the board seats), each with a
+  token and a colour of its own (on Hero League the token is your hero, its superpower shown under the picker).
   With two or more people at one screen, a **Pass to *name*** card hides the next player's choices until they say
   they're ready (it can be turned off in the game menu's Settings).
 - **Rooms**: every open public room as a card (name, code, host, seats taken, Speed Die, waiting or playing) with
   **Join** for a waiting room, **Watch** for a running game, or **Rejoin** for one this browser holds a seat in. The
   search box filters them. **Room code** in the menu joins any room, listed or private.
-- **Create room**: **Rules → Seats → Launch**: the rules, how many seats (2 to 8), its bots and your token, then the
-  room's name and whether it is listed.
+- **Create room**: **Rules → Seats → Launch**: the rules, how many seats (2 to 8, at most the board's own cap), its
+  bots and your token, then the room's name and whether it is listed.
 - **Settings**: see [Settings](#settings).
 - **Invite links** (`…/?room=CODE`, or `#CODE`) show "Joining room CODE…" with a two-second countdown, **Join now**
   and **Stay in the lobby**; someone without a name yet picks one first. A room that has closed says so.
@@ -162,7 +178,8 @@ reduced motion and on touch screens).
 **The waiting room** shows the seats, with an online dot for each player, your token, the rules and a **Copy invite**
 box (on phones it opens the share sheet). The owner adds, changes and removes bots, removes players, edits the rules
 and presses **Start game** once two seats are filled; everyone else sees "Waiting for *owner* to start". Once every
-seat is taken, newcomers watch.
+seat is taken, newcomers watch. A board too small for the table can't be picked; a new board gives every seat a token
+of its own set (none twice) and caps the room's seats at its size. Bots on Hero League get a random free hero.
 
 ### A turn
 
@@ -280,6 +297,9 @@ from the roll after your first Start salary (the Roll button then says "+ Speed 
 - **Turn timer** (Create room, Rules): off, 30 s, 60 s (the default) or 2 min. The other decisions follow it (45 s at
   most; 2 min for a debt), and auctions always count down. A player who times out twice in a row is played by a bot
   until they act again or press **Take back control**; the owner can also **Let a bot play**.
+- **Hero League's reaction windows** always count down (8 s, from when the throw has finished playing). One that runs
+  out is never a timeout towards a bot taking over; after three in a row the game stops waiting for that player in
+  them until they next act. Bots answer as soon as the throw has played.
 - **Leaving** a running game keeps your seat, and a bot plays it until you are back: rejoin from the lobby's banner,
   the invite link or the room code, and your first move (or **Take back control**) takes it back.
 - **Rematch** keeps the table as the game ended: a removed player's seat goes to a bot, and a player who isn't in
@@ -287,7 +307,7 @@ from the roll after your first Start salary (the Roll button then says "+ Speed 
 - **A second tab** of the same browser opening the invite link joins as a second player, not as the first tab's.
 - **Spectators** watch read-only; the owner can give them a free seat.
 - **Turn limit** (Rules step, any game): after that many turns by everyone together, the game ends ranked by net
-  worth.
+  worth (on Hero League, by score).
 
 ### Settings
 
@@ -330,6 +350,7 @@ choice made is in that file's [Rules decisions](docs/rules.md#rules-decisions) t
 - **The Speed Die** takes effect from the roll after the first Start salary; the nearest-Board card's throw includes it
   when active; its faces are 1, 2, 3, Bus, Tuk-Tuk Uncle, Tuk-Tuk Uncle.
 - **Cards** have the standard effects of this era's decks (the rulebook lists none), with Sri Lankan texts.
+- **Hero League** plays its own rules, every decision about them in [docs/heroes.md](docs/heroes.md).
 
 The engine's own finer decisions (who may bid, when trades can be accepted, how auto-raise sells, rounding, timeouts)
 are in the same table, and in [src/rules/README.md](src/rules/README.md#rule-decisions-made-in-the-engine).
@@ -346,6 +367,10 @@ engine's safe default stands in if a policy gets it wrong). Four levels:
 | **Normal** | Sound rules of thumb: a cash reserve, even building, set-for-set swaps |
 | **Hard** | Values every square by its long-run landing chance (a Markov chain over the board, `landingProb.ts`), keeps a reserve sized by the rent around it, holds groups at 4 houses to keep the bank short, completes sets through trades with cash sweeteners |
 | **Expert** | Hard, plus Monte-Carlo search with the engine: for building, jail, raising cash, trades and buy or auction limits it lays out a few whole plans, plays each a few rounds ahead on the same dice and keeps the best. Bounded by a budget of engine commands, not a clock: a few ms on average |
+
+On Hero League the only choices are the superpowers (`src/bots/heroes.ts`), and there only Easy plays differently: it
+spends its superpower on a whim and now and then forgets it. Normal, Hard and Expert are about equally strong (Hard
+wins about 50% of 2-player games against Normal, Normal some 55% against Easy), and the lobby's level hints say so.
 
 - Bots wait as long as the animations take (and a moment to "think") before acting, build, lift mortgages and propose
   trades only on their own turn, propose at most once a turn and never wait on an offer.
@@ -459,7 +484,7 @@ in localStorage, or while both the effects and the music are off.
 
 **The scene** is generated, with no model, image or font files and nothing fetched (which also keeps Discord's
 content policy happy): the board top is one canvas texture painted from the data file (4096 px, 2048 on Low) with
-generic icons and the system's condensed fonts; eight low-poly Sri Lankan tokens built from primitives and painted in their seat colours; instanced houses,
+generic icons and the system's condensed fonts; each board's low-poly tokens (Hero League's six heroes) built from primitives and painted in their seat colours; instanced houses,
 hotels, owner chips and mortgage stamps; one invisible plane for pointing at tiles. The engine decides the dice; the
 scene throws them with **Rapier** physics, simulated headless and recorded, then turns each die's mesh by one of the
 cube's 24 symmetries so the engine's value lands on top (Rapier loads in its own chunk on first use; Low quality and
@@ -477,8 +502,8 @@ back.
 ### Database layout
 
 ```
-lobby/{code}                  name, host, hostId, createdAt, status, v, speedDie, maxSeats, seatsTaken, public,
-                              lastMoveAt, members{pid: name}    small: everyone in the lobby list downloads it
+lobby/{code}                  name, host, hostId, createdAt, status, v, speedDie, board, maxSeats, seatsTaken, public,
+                              spectators, lateJoin, lastMoveAt, members{pid: name}    small: everyone in the lobby list downloads it
 rooms/{code}/setup            rules, seats{seatId: SeatInfo}, locked, op    the waiting room (by transaction; op = last edit's id)
 rooms/{code}/state            {gid, seq, v, at, data}    the game (by transaction only; data = the Doc as JSON)
 rooms/{code}/driver           {pid, until}    the chore lease
@@ -488,7 +513,8 @@ rooms/{code}/kicked/{pid}     true
 ```
 
 `database.rules.json` checks the shapes: room codes match `^[A-Z0-9]{5,8}$`, player ids `^[pdb]_[A-Za-z0-9_-]{6,40}$`,
-names are 16 characters at most, setup values are enums and ranges, and unknown paths are refused. On `state`, `seq`
+names are 16 characters at most, setup values are enums and ranges (every board id and every board's token ids are
+listed), and unknown paths are refused. On `state`, `seq`
 goes up by exactly one (or stays, for a change to the seats only), a new game id only at `seq` 0 while the room is
 waiting, `data` is a string of 64 KB at most, and `at` is never in the future (5 s of slack) or earlier than before.
 Log entries are write-once. Clients can't set the rules' `debug` flag (dice rigging for tests); only admin seeding can.
@@ -813,7 +839,7 @@ src/
       JailBars.tsx        bars round the jail cell
       uncleTarget.ts      the space Tuk-Tuk Uncle is heading for
     tokens/
-      shapes.ts           the eight Sri Lankan tokens, from primitives
+      shapes.ts           every board's tokens, from primitives
       Tokens.tsx          tokens at rest and on the move
       hop.ts              walk, back and jump paths
     dice/
@@ -838,7 +864,8 @@ src/
     __tests__/            layout, dice remap, framing, tokens, card hold, Tuk-Tuk Uncle's target, drei allowlist
   shared/
     timing.ts             animation lengths, animBudget, the timers (shared by net and view)
-    tokens.ts             the eight tokens and the seat colours
+    tokens.ts             every board's tokens, slot mapping between sets (tokenOn, tokensOn), the seat colours
+    boardThemes.ts        each board's tokens, bot names and sound folder
   state/
     store.ts              the small external stores and useSelector
     session.ts            sessionStore: the running game session
@@ -875,10 +902,10 @@ src/
       LocalWizard.tsx     a local game: Rules, Seats, Start
       CreateWizard.tsx    an online room: Rules, Seats, Launch
       Wizard.tsx          the step-by-step frame both use
-      RulesForm.tsx       the house rules form, and its summary
+      RulesForm.tsx       the house rules form, and its summary (the options a board hides: rulesText.ts)
       SeatsEditor.tsx     the local table: you, hot-seat players, bots
       seats.ts            seat drafts, bot names and levels
-      TokenPicker.tsx     the eight tokens as a radio group
+      TokenPicker.tsx     the board's tokens as a radio group (Hero League: each hero's superpower)
       Choices.tsx         option rows and switches
       SettingsView.tsx    the lobby's Settings
       RoomBrowser.tsx     open rooms (Join, Watch, Rejoin), search, join by code
@@ -960,7 +987,9 @@ The rules logic never hard-codes any of them. `src/boards/README.md` lists what 
 
 The game's credits page is `public/credits.html` (linked from the lobby as **Credits**): three.js, React Three Fiber
 and drei, camera-controls, Rapier, React, the Firebase JavaScript SDK and the Discord Embedded App SDK, with their
-licenses. Every texture, model and icon is generated in code, and text uses the system's fonts.
+licenses. Every texture, model and icon is generated in code, and text uses the system's fonts. The Hero League board,
+its heroes, villains, places, cards and rules text are original to this game (a parody of a superhero edition's
+rules, with every name our own); it has no sounds of its own and plays All Island's.
 
 ### Assets: sounds and music
 

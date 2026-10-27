@@ -1,5 +1,6 @@
 // DEV TOOL: drives the scene harness (scene.html) in headless Chromium and prints behaviour checks, saving
-// screenshots to <outDir>. Run: node src/dev/shots.mjs <outDir> [query, default "quality=high"]
+// screenshots to <outDir>. Run: node src/dev/shots.mjs <outDir> [query, default "quality=high"]; with board=heroes
+// it also checks the Hero die's faces and plays a Titan Smash.
 import { createServer } from 'vite';
 import { chromium } from '@playwright/test';
 
@@ -57,20 +58,47 @@ await page.waitForTimeout(2500);
 await shot('5-picker');
 await page.evaluate(() => window.harness.ui.update({ picker: null }));
 
-// Every throw shows the engine's values
+// Every throw shows the engine's values (the last throw of each step: the dice, or on Hero League the Hero die)
 const rolls = await page.evaluate(async () => {
   const h = window.harness;
   const res = [];
+  const lastThrow = () => h.director.view.get().log.findLast((e) => (e.ev.t === 'dice' && e.ev.purpose !== 'order') || e.ev.t === 'heroDie');
   for (let i = 0; i < 30; i++) {
-    const roll = h.state().phase.k === 'preRoll';
+    const before = lastThrow();
     h.step();
     await new Promise((r) => { const t = setInterval(() => h.director.idle.get() && (clearInterval(t), r()), 50); });
-    const d = h.director.view.get().dice;
-    if (roll && d) res.push({ want: [...d.w, ...(d.s === undefined ? [] : [d.s])].join(), shown: h.dice().join() });
+    const last = lastThrow();
+    if (!last || last === before) continue;
+    const d = last.ev;
+    const want = d.t === 'heroDie' ? [d.hero] : [...d.w, ...(d.s === undefined ? [] : [d.s])];
+    res.push({ want: want.join(), shown: h.dice().join() });
   }
   return res;
 });
 console.log('rolls checked:', rolls.length, 'mismatches:', JSON.stringify(rolls.filter((r) => r.want !== r.shown)));
+
+if (query.includes('board=heroes')) {
+  // Every Hero-die face lands on its hero, and a Titan Smash leaps two heroes across the board
+  const faces = await page.evaluate(async () => {
+    const h = window.harness;
+    const out = [];
+    for (let f = 1; f <= 6; f++) {
+      await h.heroDie(f);
+      out.push(h.dice().join());
+    }
+    return out;
+  });
+  console.log('hero die faces:', faces.join(' '));
+  await page.evaluate(() => window.harness.director.fastForward());
+  const smashed = await page.evaluate(() => {
+    const h = window.harness;
+    for (let i = 0; i < 200 && !(h.state().phase.k === 'preRoll' && !h.state().turn.roll && h.state().turn.seat === 's0'); i++) h.step();
+    return h.smash();
+  });
+  await page.waitForTimeout(700);
+  await shot('7-smash');
+  console.log('titan smash:', smashed);
+}
 
 const lost = await page.evaluate(async () => {
   const ext = document.querySelector('canvas').getContext('webgl2').getExtension('WEBGL_lose_context');

@@ -16,9 +16,20 @@ import {
 } from './ctx';
 import type { Handler } from './handler';
 import { HANDLERS } from './handlers';
+import {
+  heroDef,
+  heroesOf as boardHeroes,
+  holderOf,
+  powerSource,
+  ready as heroReady,
+  scoreOf,
+  smashPairs as pairs,
+} from './heroes';
+import { legalActions } from './legal';
 import { maxRaise as raise, netWorth as net, worth as taxWorth } from './money';
 import { saleValue, unmortgageCost as liftCost, xferCost as settleCost } from './mortgage';
 import { ranking as rank } from './over';
+import { aimedAtDrawer } from './react';
 import { type RentOpts, ownsGroup as owns, rentFor as rent } from './rent';
 import { tradeProblems as problems } from './trade';
 import type {
@@ -26,9 +37,12 @@ import type {
   BoardDef,
   BuildKind,
   CardDef,
+  CardFx,
   GameState,
   GroupDef,
+  HeroDef,
   Level,
+  PowerId,
   PropState,
   RuleError,
   SeatId,
@@ -110,9 +124,10 @@ export interface BuildOption {
   reason?: string;
 }
 
-/** Build and sell choices for every colour group the seat owns part of, with reasons when blocked */
+/** Build and sell choices for every colour group the seat owns part of, with reasons when blocked (none on Hero League) */
 export function buildOptions(s: GameState, seat: SeatId): BuildOption[] {
   const b = boardOf(s);
+  if (b.heroes) return [];
   const complete = new Set(buildableGroups(s, b, seat).map((g) => g.id));
   const out: BuildOption[] = [];
   for (const g of b.groups) {
@@ -159,3 +174,57 @@ export function incomeTaxAmounts(s: GameState, seat: SeatId): { flat: number; pe
 
 /** Seats still in, for UIs that list opponents */
 export const opponents = (s: GameState, seat: SeatId): SeatId[] => active(s).filter((x) => x !== seat);
+
+// ---------------------------------------------------------------------------------------------------------------
+// Hero League (boards with a `heroes` block; docs/heroes.md)
+
+/** A board's heroes in Hero-die face order (face 1 = [0]); empty off a heroes board */
+export const heroesOf = (b: BoardDef): HeroDef[] => boardHeroes(b);
+/** The hero a seat plays (undefined off a heroes board) */
+export const heroOf = (s: GameState, seat: SeatId): HeroDef | undefined => heroDef(boardOf(s), s, seat);
+/** The seat is in and its superpower is ready (not used since its last Rally Point salary or Recharge) */
+export const powerReady = (s: GameState, seat: SeatId): boolean => heroReady(s, seat);
+/**
+ * The seat could use `power` now, phases aside: its own hero's, or Steel Ace's Suit Up copying another active hero
+ * who has it ready (whether an action offers it now is legalActions')
+ */
+export const canUsePower = (s: GameState, seat: SeatId, power: PowerId): boolean =>
+  powerSource(boardOf(s), s, seat, power) !== undefined;
+/** A Villain Strike card's effect is aimed at its drawer, so Star Shield can say no to it */
+export const shieldableByDrawer = (fx: CardFx): boolean => aimedAtDrawer(fx);
+
+/** A superpower the seat could use now by one of its own actions: `hero` is whose power it is (Steel Ace's copy: the copied hero) */
+export interface UsablePower {
+  power: PowerId;
+  copied: boolean;
+  hero: string;
+}
+
+/** The superpower each of these actions uses */
+const POWER_OF: Partial<Record<Action['k'], PowerId>> = {
+  reroll: 'thunder',
+  shield: 'shield',
+  sting: 'sting',
+  smash: 'smash',
+  aim: 'aim',
+};
+
+/** Superpowers the seat could use right now (each at most once), by the actions legalActions offers it */
+export function usablePowers(s: GameState, seat: SeatId): UsablePower[] {
+  const b = boardOf(s);
+  if (!b.heroes) return [];
+  const out: UsablePower[] = [];
+  for (const a of legalActions(s, seat)) {
+    const power = POWER_OF[a.k];
+    if (!power || out.some((u) => u.power === power)) continue;
+    const copied = powerSource(b, s, seat, power) === 'copy';
+    const whose = copied ? holderOf(b, s, power, seat) : seat;
+    out.push({ power, copied, hero: (whose && heroDef(b, s, whose)?.id) ?? '' });
+  }
+  return out;
+}
+
+/** The Titan Smash pairs the seat may swap now (unordered, turn order; 15 at most); empty when it cannot smash */
+export const smashPairs = (s: GameState, seat: SeatId): { a: SeatId; b: SeatId }[] => pairs(boardOf(s), s, seat);
+/** Hero League's score: cash + locationPoints (100) for each location owned */
+export const score = (s: GameState, seat: SeatId): number => scoreOf(boardOf(s), s, seat);

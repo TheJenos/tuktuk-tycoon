@@ -5,6 +5,7 @@ import { createStore } from '../../state/store';
 import { sessionStore } from '../../state/session';
 import type { AnimSpeed } from '../../ui/settings';
 import { connectDirector, createDirector, director, playSpeed } from '../director';
+import type { MoveMode } from '../types';
 
 /** A short game: the opening snap, then `n` batches of default moves */
 function batches(n: number, seed = 3): { first: Batch; rest: Batch[] } {
@@ -32,7 +33,7 @@ function fakeTokens() {
   return {
     calls,
     api: {
-      move(seat: SeatId, _path: number[], _mode: 'walk' | 'back' | 'jump', signal: AbortSignal, speed: number) {
+      move(seat: SeatId, _path: number[], _mode: MoveMode, signal: AbortSignal, speed: number) {
         return new Promise<void>((resolve) => {
           calls.push({ seat, speed, signal, done: resolve });
           signal.addEventListener('abort', () => resolve());
@@ -231,6 +232,36 @@ describe('director', () => {
     expect(d.view.get().card?.text).toBe('Advance to Start.');
     d.enqueue({ seq: state.seq + 2, events: [{ t: 'turn', seat: 's1', no: 2 }], state });
     expect(d.view.get().card).toBeNull();
+  });
+
+  it('sets the Hero die once it lands, keeps it over a snap and drops it with a new game', async () => {
+    const d = createDirector({ animSpeed: () => 'normal', hidden: () => false });
+    let land: () => void = () => {};
+    const thrown: number[] = [];
+    d.register('dice', {
+      roll: () => Promise.resolve(),
+      hero: (ev) => new Promise<void>((r) => { thrown.push(ev.face); land = r; }),
+    });
+    const state = batches(0).first.state;
+    d.snap(state, state.seq);
+    const first: GameEvent = { t: 'heroDie', seat: 's0', face: 2, hero: 'starCaptain', purpose: 'card', card: 'ch-swarm' };
+    const again: GameEvent = { ...first, face: 5, hero: 'velvetViper' };
+    d.enqueue({ seq: state.seq + 1, events: [first, { t: 'power', seat: 's1', power: 'thunder', target: 's0' }, again], state });
+    expect(thrown).toEqual([2]);
+    expect(d.view.get().heroDie).toBeNull();
+    land();
+    await tick();
+    expect(d.view.get().heroDie).toBe(first);
+    // The re-roll throws again
+    expect(thrown).toEqual([2, 5]);
+    land();
+    await tick();
+    expect(d.view.get().heroDie).toBe(again);
+    expect(d.idle.get()).toBe(true);
+    d.snap(state, state.seq + 10);
+    expect(d.view.get().heroDie).toBe(again);
+    d.enqueue({ seq: state.seq, events: [], state, snap: true, fresh: true });
+    expect(d.view.get().heroDie).toBeNull();
   });
 });
 

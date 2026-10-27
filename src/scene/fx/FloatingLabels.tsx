@@ -1,21 +1,25 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo } from 'react';
 import { CanvasTexture, Sprite, SpriteMaterial, SRGBColorSpace } from 'three';
-import { formatMoney, type SeatId } from '../../rules';
+import { boardMoney, type SeatId } from '../../rules';
 import { settings } from '../../ui/settings';
 import { director } from '../../view';
 import { fitText, makeCanvas } from '../textures/canvas';
 import { tokenPositions } from '../tokens/Tokens';
 
 /*
- * "+Rs. 20,000" / "−Rs. 35,000" (shown rupees: engine units x 100) rising above a token when its cash changes (the
- * 'fx' scene API, fed by the director's cash handler). A pool of 8 sprites, each with its own small canvas; the
- * oldest is reused when all are busy.
+ * "+Rs. 20,000" / "−Rs. 35,000" (the board's money: on All Island engine units x 100, on Hero League "+40 Power")
+ * rising above a token when its cash changes, and a few words in gold for Hero League's superpowers ("Re-roll!",
+ * "Thunder Call ready"): the 'fx' scene API, fed by the director's handlers. A pool of 8 sprites, each with its own
+ * small canvas; the oldest is reused when all are busy.
  */
 
 const POOL = 8;
 const LIFE_MS = 1400;
 const RISE = 0.9;
+const GAIN = '#5ce08a';
+const LOSS = '#ff7070';
+const WORDS = '#ffd43b';
 
 interface Label {
   sprite: Sprite;
@@ -26,14 +30,12 @@ interface Label {
   baseY: number;
 }
 
-function paint(l: Label, delta: number): void {
+function paint(l: Label, text: string, color: string): void {
   const ctx = l.canvas.getContext('2d');
   if (!ctx) return;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, l.canvas.width, l.canvas.height);
   ctx.scale(l.canvas.width, l.canvas.width);
-  const text = `${delta >= 0 ? '+' : '−'}${formatMoney(Math.abs(delta))}`;
-  const color = delta >= 0 ? '#5ce08a' : '#ff7070';
   ctx.lineJoin = 'round';
   ctx.save();
   // A dark outline keeps the amount readable on any tile
@@ -61,26 +63,30 @@ export function FloatingLabels() {
     [],
   );
 
-  useEffect(
-    () =>
-      director.register('fx', {
-        money(seat, delta) {
-          const at = tokenPositions.get(seat);
-          if (!at || delta === 0) return;
-          const l = labels.reduce((a, b) => (b.start < a.start ? b : a));
-          // Two labels for one token at once (rent paid, then salary) stack instead of overlapping
-          const stacked = labels.filter((x) => x.seat === seat && performance.now() - x.start < LIFE_MS * 0.5).length;
-          l.start = performance.now();
-          l.seat = seat;
-          l.baseY = at.y + 0.75 + stacked * 0.32;
-          l.sprite.position.set(at.x, l.baseY, at.z);
-          l.sprite.visible = true;
-          paint(l, delta);
-          invalidate();
-        },
-      }),
-    [labels, invalidate],
-  );
+  useEffect(() => {
+    const show = (seat: SeatId, text: string, color: string) => {
+      const at = tokenPositions.get(seat);
+      if (!at) return;
+      const l = labels.reduce((a, b) => (b.start < a.start ? b : a));
+      // Two labels for one token at once (rent paid, then salary) stack instead of overlapping
+      const stacked = labels.filter((x) => x.seat === seat && performance.now() - x.start < LIFE_MS * 0.5).length;
+      l.start = performance.now();
+      l.seat = seat;
+      l.baseY = at.y + 0.75 + stacked * 0.32;
+      l.sprite.position.set(at.x, l.baseY, at.z);
+      l.sprite.visible = true;
+      paint(l, text, color);
+      invalidate();
+    };
+    return director.register('fx', {
+      money(seat, delta) {
+        if (delta === 0) return;
+        const board = director.view.get().game?.cfg.board ?? 'lanka';
+        show(seat, boardMoney(board, delta, { signed: true }), delta > 0 ? GAIN : LOSS);
+      },
+      say: (seat, text) => show(seat, text, WORDS),
+    });
+  }, [labels, invalidate]);
 
   useFrame(() => {
     const now = performance.now();
