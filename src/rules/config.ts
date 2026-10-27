@@ -2,16 +2,19 @@ import { hasBoard } from './board';
 import type { RulesConfig } from './types';
 
 /** Bumped whenever the state shape or a rule changes, so old saves and rooms are recognised */
-export const RULES_VERSION = 5;
+export const RULES_VERSION = 6;
 /**
  * Older versions whose states decode() upgrades as they are: version 3 has the same state shape (4 changed rules
  * only: offers no longer expire, fixed auction countdowns, selling property to the bank, bankruptcy to a player);
  * version 4 too, but every board then had All Island's 40 spaces (5 gave Colombo, Hill Country and Down South their
- * own sizes), so only a game on a board still that size carries on (LEGACY_SPACES).
+ * own sizes), so only a game on a board still that size carries on (LEGACY_SPACES); version 5 as it is (6 moved
+ * mortgages to 60% of the price and sales to the bank to 80%: a loan taken before is lifted at the new value).
  */
-export const UPGRADABLE_VERSIONS: readonly number[] = [3, 4];
+export const UPGRADABLE_VERSIONS: readonly number[] = [3, 4, 5];
 /** The one board size before version 5 */
 export const LEGACY_SPACES = 40;
+/** The versions laid out on LEGACY_SPACES only */
+export const LEGACY_VERSIONS: readonly number[] = [3, 4];
 
 export const DEFAULT_RULES: RulesConfig = {
   board: 'lanka',

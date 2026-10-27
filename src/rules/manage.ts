@@ -62,7 +62,7 @@ export const unmortgage: Handler<'unmortgage'> = seatAction(
   (c, seat, a) => unmortgageNow(c, seat, a.space, unmortgageCost(c.s, c.b, a.space)),
 );
 
-/** Sell an unimproved property back to the bank: it pays the mortgage value (nothing when mortgaged) */
+/** Sell an unimproved property back to the bank: it pays 80% of the price, less the loan when mortgaged (saleValue) */
 export const sellProperty: Handler<'sellProperty'> = seatAction(
   (s, b, seat, a) =>
     RAISE_PHASES.has(s.phase.k) ? saleProblem(s, b, seat, a.space) : err('phase', 'You cannot sell property now'),

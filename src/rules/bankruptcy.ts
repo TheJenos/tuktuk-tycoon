@@ -4,31 +4,40 @@ import { applySell, clearBuildings, groupLevels, planSell } from './buildings';
 import { type Ctx, emit, err, levelOf, ownedBy, phaseChain, player, prop, propBidders, setPhase } from './ctx';
 import { type Handler, seatAction } from './handler';
 import { cleanOwed, creditors, maxRaise, owedTotal, payAll, transfer } from './money';
-import { mortgageNow, mortgageProblem, sellToBank } from './mortgage';
+import { mortgageNow, mortgageProblem, saleProblem, sellToBank } from './mortgage';
 import { checkOver } from './over';
 import { clearTrades } from './trade';
 import type { CashWhy, Creditor, DebtPhase, Owed, Phase, SeatId, Step } from './types';
 
 /*
- * Raising cash, bankruptcy and resigning. A debtor is bankrupt only when even selling every building and
- * mortgaging everything (maxRaise) would not cover the debt.
+ * Raising cash, bankruptcy and resigning. A debtor is bankrupt only when even selling every building and every
+ * property back to the bank (maxRaise) would not cover the debt.
  * - Owing a player (alone or with others): everything is sold to the bank. Buildings go back for half price, every
- *   property for its mortgage value (nothing when mortgaged) and returns to the bank unowned and unmortgaged, and
+ *   property for its sale value (80% of its price, less its loan when mortgaged) and returns to the bank unowned and
+ *   unmortgaged, and
  *   Get Out of Jail Free cards go back to their decks. The cash is paid to the creditors in order, each at most its
  *   share; what is left goes to the bank. No property or card passes to a creditor.
  * - Owing only the bank: everything goes to the bank, mortgages are cleared, and the bank auctions the property at
  *   once (with cfg.auctions off it simply keeps it).
  */
 
-/** The deterministic raise-cash plan: sell buildings evenly (highest first), then mortgage cheapest first */
+/**
+ * The deterministic raise-cash plan, keeping the deeds as long as it can: sell buildings evenly (highest first),
+ * then mortgage cheapest first, and only then sell mortgaged property back to the bank, cheapest first
+ */
 export function raiseCash(c: Ctx, seat: SeatId, target: number): void {
+  const cheapest = (spaces: number[]): number | undefined =>
+    spaces.sort((x, y) => (propertyAt(c.b, x)?.price ?? 0) - (propertyAt(c.b, y)?.price ?? 0) || x - y)[0];
   for (let guard = 0; guard < 500 && player(c.s, seat).cash < target; guard++) {
     if (sellOne(c, seat)) continue;
-    const m = ownedBy(c.s, seat)
-      .filter((space) => mortgageProblem(c.s, c.b, seat, space) === null)
-      .sort((x, y) => (propertyAt(c.b, x)?.mortgage ?? 0) - (propertyAt(c.b, y)?.mortgage ?? 0) || x - y)[0];
-    if (m === undefined) return;
-    mortgageNow(c, seat, m);
+    const m = cheapest(ownedBy(c.s, seat).filter((space) => mortgageProblem(c.s, c.b, seat, space) === null));
+    if (m !== undefined) {
+      mortgageNow(c, seat, m);
+      continue;
+    }
+    const sale = cheapest(ownedBy(c.s, seat).filter((space) => saleProblem(c.s, c.b, seat, space) === null));
+    if (sale === undefined) return;
+    sellToBank(c, seat, sale, 'sold');
   }
 }
 
@@ -210,7 +219,7 @@ export const bankrupt: Handler<'bankrupt'> = seatAction(
     const debt = currentDebt({ s }, seat);
     if (!debt) return err('noDebt', 'You are not in debt');
     if (maxRaise(s, b, seat) >= owedTotal(cleanOwed(s, seat, debt.owed))) {
-      return err('canPay', 'You can still raise enough: sell buildings or mortgage');
+      return err('canPay', 'You can still raise enough: sell buildings, mortgage or sell property');
     }
     return null;
   },

@@ -2,6 +2,7 @@ import { groupOf, propertyAt, siblings } from './board';
 import { type Ctx, emit, err, interest, levelOf, phaseChain, player, prop, propKey, setPhase } from './ctx';
 import { type Handler, isInt, seatAction } from './handler';
 import { pay, transfer } from './money';
+import { saleOf } from './rates';
 import type { BoardDef, GameState, OwnerVia, RuleError, SeatId } from './types';
 
 /** What lifting a mortgage costs: the mortgage value + interest (rounded up: Power Cut Board 83) */
@@ -20,9 +21,14 @@ export function mortgageProblem(s: GameState, b: BoardDef, seat: SeatId, space: 
   return null;
 }
 
-/** What the bank pays for a property sold back to it: its mortgage value, or nothing when it is mortgaged */
+/**
+ * What the bank pays for a property sold back to it: 80% of its price (rates.ts), less the mortgage loan when it is
+ * mortgaged (the bank clears the loan out of the price; no interest)
+ */
 export function saleValue(s: GameState, b: BoardDef, space: number): number {
-  return prop(s, space)?.mortgaged ? 0 : (propertyAt(b, space)?.mortgage ?? 0);
+  const sp = propertyAt(b, space);
+  if (!sp) return 0;
+  return saleOf(sp.price) - (prop(s, space)?.mortgaged ? sp.mortgage : 0);
 }
 
 /** Why this seat cannot sell the space back to the bank now (null = it can); phases are checked by the caller */
@@ -41,8 +47,8 @@ export function saleProblem(s: GameState, b: BoardDef, seat: SeatId, space: unkn
 }
 
 /**
- * The property goes back to the bank (unowned, unbuilt, unmortgaged) and the bank pays its sale value: the mortgage
- * value, or nothing for a mortgaged one (the owner already has that loan). The caller has cleared the buildings.
+ * The property goes back to the bank (unowned, unbuilt, unmortgaged) and the bank pays its sale value (saleValue: a
+ * mortgaged one's loan comes out of it). The caller has cleared the buildings.
  */
 export function sellToBank(c: Ctx, seat: SeatId, space: number, via: OwnerVia): void {
   const ps = prop(c.s, space);

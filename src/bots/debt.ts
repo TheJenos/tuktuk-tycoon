@@ -7,8 +7,8 @@ import { type GroupInfo, groupBuilt, landOf, ownedBy, ownsGroup, propAt, rentAt 
  * houses evenly from the weakest set, then mortgage the streets of sets (Expert also plays out two other orders and
  * keeps the best, see RaiseOpts.order). Bankrupt only when even everything sold and mortgaged (maxRaise) cannot
  * cover the debt. A debt settles by itself once cash covers it.
- * Bots never sell property back to the bank (sellProperty): it brings exactly what mortgaging it does (nothing for
- * a mortgaged one) and loses the deed, so once nothing is left to mortgage, selling could not raise anything more.
+ * Bots mortgage before they sell property back to the bank (sellProperty) to keep their deeds; once nothing is left
+ * to mortgage, the engine's own plan (autoRaise) sells mortgaged property, cheapest first, for what it still brings.
  */
 
 export interface RaiseOpts {

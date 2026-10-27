@@ -1,5 +1,6 @@
 import { propertyAt, isStreet, stepCost } from './board';
 import { type Ctx, emit, isActive, ownedBy, player, prop, seatsAfter, setPhase, interest } from './ctx';
+import { saleOf } from './rates';
 import type { BoardDef, CashWhy, Creditor, GameState, Owed, SeatId, StreetDef } from './types';
 
 /** What a street's buildings cost to put up (a hotel = 4 houses + the hotel step) */
@@ -44,7 +45,10 @@ export function netWorth(s: GameState, b: BoardDef, seat: SeatId): number {
   return total;
 }
 
-/** The most cash a seat could have right now: cash + every building sold + every property mortgaged */
+/**
+ * The most cash a seat could have right now: cash + every building sold + every property sold back to the bank
+ * (selling beats mortgaging: 80% of the price against 60%)
+ */
 export function maxRaise(s: GameState, b: BoardDef, seat: SeatId): number {
   let total = player(s, seat).cash;
   for (const space of ownedBy(s, seat)) {
@@ -52,7 +56,8 @@ export function maxRaise(s: GameState, b: BoardDef, seat: SeatId): number {
     const ps = prop(s, space);
     if (!sp || !ps) continue;
     if (isStreet(sp)) total += buildingRefund(sp, ps.level);
-    if (!ps.mortgaged) total += sp.mortgage;
+    // Its sale value (mortgage.ts saleValue): a mortgaged one's loan comes out of it
+    total += saleOf(sp.price) - (ps.mortgaged ? sp.mortgage : 0);
   }
   return total;
 }

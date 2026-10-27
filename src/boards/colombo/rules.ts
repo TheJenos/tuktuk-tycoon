@@ -1,3 +1,4 @@
+import { mortgageOf } from '../../rules/rates';
 import type { BoardDef, CardDef, SpaceDef } from '../../rules/types';
 
 /*
@@ -12,10 +13,10 @@ const street = (
   price: number,
   rent: number[],
   house: number,
-): SpaceDef => ({ k: 'street', name, group, price, rent, house, mortgage: price / 2 });
+): SpaceDef => ({ k: 'street', name, group, price, rent, house, mortgage: mortgageOf(price) });
 
-const rail = (name: string): SpaceDef => ({ k: 'rail', name, price: 200, mortgage: 100 });
-const utility = (name: string): SpaceDef => ({ k: 'utility', name, price: 150, mortgage: 75 });
+const rail = (name: string): SpaceDef => ({ k: 'rail', name, price: 200, mortgage: mortgageOf(200) });
+const utility = (name: string): SpaceDef => ({ k: 'utility', name, price: 150, mortgage: mortgageOf(150) });
 
 const CHANCE_NAME = 'Rush Hour';
 const CHEST_NAME = 'Office Seettu';
