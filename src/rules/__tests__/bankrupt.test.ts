@@ -31,15 +31,16 @@ function bankDebt(): GameState {
 }
 
 describe('bankruptcy', () => {
-  it('only when even selling and mortgaging everything would not cover the debt', () => {
+  it('only when even selling everything back to the bank would not cover the debt', () => {
     const s = scenario();
     own(s, 's1', [39], { level: 1 });
     own(s, 's1', [37], { level: 1 });
-    setCash(s, 's0', 100);
+    setCash(s, 's0', 40);
     own(s, 's0', [5]);
     setPos(s, 's0', 35);
     rig(s, [1, 3]);
     const debt = act(s, 's0', { k: 'roll' }).state;
+    // Exactly the 200 rent: cash 40 + the station's sale value 160 (80% of 200)
     expect(maxRaise(debt, 's0')).toBe(200);
     expect(refused(debt, 's0', { k: 'bankrupt' })).toBe('canPay');
     expect(legalActions(debt, 's0')).not.toContainEqual({ k: 'bankrupt' });
@@ -49,11 +50,12 @@ describe('bankruptcy', () => {
   it('to a player: everything is sold to the bank and the creditor gets the cash; no property or card passes to it', () => {
     const s = hotelDebt();
     expect(s.phase).toMatchObject({ k: 'debt', debtor: 's0', owed: { s1: 2000 } });
-    expect(maxRaise(s, 's0')).toBe(100 + 25 + 25 + 30 + 30);
+    expect(maxRaise(s, 's0')).toBe(100 + 25 + 25 + 48 + 48 + 30);
     const { state, events } = act(s, 's0', { k: 'bankrupt' });
     expect(state.players.s0).toMatchObject({ out: 'bankrupt', cash: 0, goojf: [] });
-    // cash 100 + two houses at half price 50 + the browns' mortgage values 60; the mortgaged utility brings nothing
-    expect(cash(state, 's1')).toBe(1500 + 100 + 50 + 60);
+    // cash 100 + two houses at half price 50 + the browns' sale values 96 (80% of 60 each) + the mortgaged utility's
+    // 30 (80% of 150, less its 90 loan)
+    expect(cash(state, 's1')).toBe(1500 + 100 + 50 + 96 + 30);
     expect([1, 3, 12].map((x) => state.props[`p${x}`])).toEqual([undefined, undefined, undefined]);
     expect(state.bank.houses).toBe(32);
     expect(state.players.s1?.goojf).toEqual([]);
@@ -67,7 +69,7 @@ describe('bankruptcy', () => {
     ]);
     // The whole proceeds reach the creditor as the debt's payment (rent), in one transfer
     expect(ofType(events, 'cash').filter((e) => e.to === 's1')).toEqual([
-      { t: 'cash', from: 's0', to: 's1', amount: 210, why: 'rent', after: { s0: 0, s1: 1710 }, space: 39 },
+      { t: 'cash', from: 's0', to: 's1', amount: 276, why: 'rent', after: { s0: 0, s1: 1776 }, space: 39 },
     ]);
     // No mortgages change hands, so nothing to settle: the next seat plays
     expect(ofType(events, 'xferStart')).toEqual([]);
@@ -136,8 +138,39 @@ describe('bankruptcy', () => {
       [3, 0],
       [1, 0],
     ]);
+    // 4 houses bring 100, then the browns' mortgages 36 each: 172 - 150
     expect(ofType(events, 'mortgage').map((e) => e.space)).toEqual([1, 3]);
-    expect(cash(state, 's0')).toBe(10);
+    expect(cash(state, 's0')).toBe(22);
+    expect(state.phase.k).toBe('postRoll');
+  });
+
+  it('autoRaise, with nothing left to mortgage, sells mortgaged property back to the bank, cheapest first', () => {
+    const s = scenario();
+    setCash(s, 's0', 10);
+    own(s, 's0', [1, 3], { mortgaged: true });
+    own(s, 's0', [5]);
+    setPos(s, 's0', 14);
+    stack(s, 'chest', 'cc-school');
+    rig(s, [1, 2]);
+    const debt = act(s, 's0', { k: 'roll' }).state;
+    expect(debt.phase).toMatchObject({ k: 'debt', debtor: 's0', owed: { bank: 150 } });
+    const { state, events } = act(debt, 's0', { k: 'autoRaise' });
+    // The station is mortgaged first (120: 130), then the browns go back to the bank for 12 each (48 less 36)
+    expect(ofType(events, 'mortgage')).toEqual([
+      { t: 'mortgage', space: 5, on: true },
+      { t: 'mortgage', space: 1, on: false },
+      { t: 'mortgage', space: 3, on: false },
+    ]);
+    expect(ofType(events, 'owner')).toEqual([
+      { t: 'owner', space: 1, from: 's0', via: 'sold' },
+      { t: 'owner', space: 3, from: 's0', via: 'sold' },
+    ]);
+    expect(ofType(events, 'cash').filter((e) => e.why === 'sale').map((e) => [e.space, e.amount])).toEqual([
+      [1, 12],
+      [3, 12],
+    ]);
+    expect(state.props).toEqual({ p5: { owner: 's0', level: 0, mortgaged: true } });
+    expect(cash(state, 's0')).toBe(10 + 120 + 12 + 12 - 150);
     expect(state.phase.k).toBe('postRoll');
   });
 
@@ -183,7 +216,7 @@ describe('resigning', () => {
     const { state } = act(hotelDebt(), 's0', { k: 'resign' });
     expect(state.players.s0?.out).toBe('resigned');
     expect(state.props.p1).toBeUndefined();
-    expect(cash(state, 's1')).toBe(1710);
+    expect(cash(state, 's1')).toBe(1776);
   });
 
   it('a high bidder who resigns loses the bid; the auction goes on', () => {
@@ -229,7 +262,7 @@ describe('resigning', () => {
     const debt = act(s, 's0', { k: 'roll' }).state;
     expect(debt.phase).toMatchObject({ k: 'debt', debtor: 's1', owed: { s0: 50 } });
     expect(awaiting(debt)).toEqual(['s1']);
-    // It can cover the 50 (20 + 30 for the street): the debt is paid, the rest goes to the bank, which auctions it
+    // It can cover the 50 (20 + 36 for mortgaging the street): the debt is paid, the rest goes to the bank, which auctions it
     const { state } = act(debt, 's1', { k: 'resign' });
     expect(state.phase).toMatchObject({ k: 'auction', lot: { k: 'prop', space: 3 }, eligible: ['s0', 's2'] });
     const after = run(state, ['s0', { k: 'pass' }], ['s2', { k: 'pass' }]).state;
@@ -239,7 +272,7 @@ describe('resigning', () => {
 });
 
 describe('a debt settled later names what it was for', () => {
-  /** s0 lands on s1's Galle Face Penthouse with the set (Rs. 100) holding Rs. 40 and Colombo Fort Station (mortgage Rs. 100) */
+  /** s0 lands on s1's Galle Face Penthouse with the set (Rs. 100) holding Rs. 40 and Colombo Fort Station (mortgage Rs. 120) */
   function rentDebt(): GameState {
     const s = scenario({ n: 3 });
     own(s, 's1', [37, 39]);
@@ -255,7 +288,7 @@ describe('a debt settled later names what it was for', () => {
     expect(debt.phase).toMatchObject({ k: 'debt', debtor: 's0', owed: { s1: 100 }, why: 'rent', space: 39 });
     const { state, events } = act(debt, 's0', { k: 'mortgage', space: 5 });
     expect(ofType(events, 'cash').filter((e) => e.why === 'rent')).toEqual([
-      { t: 'cash', from: 's0', to: 's1', amount: 100, why: 'rent', after: { s0: 40, s1: 1600 }, space: 39 },
+      { t: 'cash', from: 's0', to: 's1', amount: 100, why: 'rent', after: { s0: 60, s1: 1600 }, space: 39 },
     ]);
     expect(ofType(events, 'debtPaid')).toEqual([{ t: 'debtPaid', debtor: 's0' }]);
     expect(state.phase.k).toBe('postRoll');

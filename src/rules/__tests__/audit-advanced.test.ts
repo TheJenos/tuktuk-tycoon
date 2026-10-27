@@ -558,7 +558,8 @@ describe('audit: timed open auctions', () => {
     const m = act(a, 's1', { k: 'mortgage', space: 39 }).state;
     expect(m.phase.k).toBe('auction');
     expect(timer(m)?.key).toBe(key);
-    const { state } = run(m, ['s1', { k: 'bid', amount: 250 }], ['s0', { k: 'pass' }], ['s2', { k: 'pass' }]);
+    // All of it: 50 + 240 for the mortgage
+    const { state } = run(m, ['s1', { k: 'bid', amount: 290 }], ['s0', { k: 'pass' }], ['s2', { k: 'pass' }]);
     expect(state.props.p3?.owner).toBe('s1');
     expect(cash(state, 's1')).toBe(0);
   });
@@ -667,7 +668,7 @@ describe('audit: houses and hotels', () => {
     t.props.p6!.mortgaged = true;
     expect(refused(t, 's0', { k: 'build', group: 'lightBlue', levels: [1, 1, 1] })).toBe('mortgaged');
     const lifted = act(t, 's0', { k: 'unmortgage', space: 6 });
-    expect(cashDelta(lifted.events, 's0')).toBe(-55);
+    expect(cashDelta(lifted.events, 's0')).toBe(-66);
     const built = act(lifted.state, 's0', { k: 'build', group: 'lightBlue', levels: [1, 1, 1] });
     expect(cashDelta(built.events, 's0')).toBe(-150);
   });
@@ -743,7 +744,7 @@ describe('audit: houses and hotels', () => {
     const built = act(s, 's0', { k: 'build', group: 'lightBlue', levels: [1, 1, 0] }).state;
     expect(refused(built, 's0', { k: 'mortgage', space: 9 })).toBe('buildings');
     const sold = act(built, 's0', { k: 'sell', group: 'lightBlue', levels: [0, 0, 0] }).state;
-    expect(cashDelta(act(sold, 's0', { k: 'mortgage', space: 9 }).events, 's0')).toBe(60);
+    expect(cashDelta(act(sold, 's0', { k: 'mortgage', space: 9 }).events, 's0')).toBe(72);
   });
 });
 
@@ -830,17 +831,17 @@ describe('audit: building shortage contest', () => {
 // ---------------------------------------------------------------------------------------------------------------
 
 describe('audit: mortgages', () => {
-  it('decision "Unmortgage cost": mortgage + ceil(10%): Power Cut Board Rs. 83, Pettah Pavement Rs. 33, Galle Face Penthouse Rs. 220', () => {
+  it('decision "Unmortgage cost": mortgage + ceil(10%): Power Cut Board Rs. 99, Pettah Pavement Rs. 40, Galle Face Penthouse Rs. 264', () => {
     const s = scenario();
     own(s, 's0', [1, 12, 39], { mortgaged: true });
-    expect([1, 12, 39].map((x) => unmortgageCost(s, x))).toEqual([33, 83, 220]);
+    expect([1, 12, 39].map((x) => unmortgageCost(s, x))).toEqual([40, 99, 264]);
     const { events } = run(
       s,
       ['s0', { k: 'unmortgage', space: 12 }],
       ['s0', { k: 'unmortgage', space: 1 }],
       ['s0', { k: 'unmortgage', space: 39 }],
     );
-    expect(cashDelta(events, 's0')).toBe(-(83 + 33 + 220));
+    expect(cashDelta(events, 's0')).toBe(-(99 + 40 + 264));
   });
 
   it('Mortgages rule: the owner keeps it; nobody else may lift it', () => {
@@ -854,11 +855,11 @@ describe('audit: mortgages', () => {
     expect(xfer.phase).toMatchObject({ k: 'mortgageXfer', seat: 's1', spaces: [5, 12] });
     expect(awaiting(xfer)).toEqual(['s1']);
     const settled = act(xfer, 's1', { k: 'settleMortgages', lift: [5] });
-    expect(cashDelta(settled.events, 's1')).toBe(-(110 + 8));
+    expect(cashDelta(settled.events, 's1')).toBe(-(132 + 9));
     expect(settled.state.props.p5?.mortgaged).toBeUndefined();
     expect(settled.state.props.p12?.mortgaged).toBe(true);
     expect(settled.state.phase.k).toBe('preRoll');
-    expect(cashDelta(act(settled.state, 's1', { k: 'unmortgage', space: 12 }).events, 's1')).toBe(-83);
+    expect(cashDelta(act(settled.state, 's1', { k: 'unmortgage', space: 12 }).events, 's1')).toBe(-99);
   });
 
   it('decision "Mortgaged property changing hands": lifting is refused when the cash does not cover it', () => {
@@ -866,7 +867,7 @@ describe('audit: mortgages', () => {
     setCash(xfer, 's1', 100);
     expect(refused(xfer, 's1', { k: 'settleMortgages', lift: [5] })).toBe('cash');
     expect(refused(xfer, 's1', { k: 'settleMortgages', lift: [39] })).toBe('badLift');
-    expect(cashDelta(act(xfer, 's1', { k: 'settleMortgages', lift: [] }).events, 's1')).toBe(-18);
+    expect(cashDelta(act(xfer, 's1', { k: 'settleMortgages', lift: [] }).events, 's1')).toBe(-(12 + 9));
   });
 
   it('decision "Mortgaged property changing hands": both sides receive mortgages: the proposer settles first, then the receiver', () => {
@@ -880,7 +881,7 @@ describe('audit: mortgages', () => {
     const x2 = act(x1, 's0', { k: 'settleMortgages', lift: [] }).state;
     expect(x2.phase).toMatchObject({ k: 'mortgageXfer', seat: 's1', spaces: [5] });
     const done = act(x2, 's1', { k: 'settleMortgages', lift: [] });
-    expect(cashDelta(done.events, 's1')).toBe(-10);
+    expect(cashDelta(done.events, 's1')).toBe(-12);
     expect(done.state.phase.k).toBe('preRoll');
   });
 });
@@ -975,18 +976,19 @@ describe('audit: bankruptcy to a player', () => {
     return act(s, 's0', { k: 'roll' }).state;
   }
 
-  it('Bankruptcy rule: bankrupt only when owing more than selling and mortgaging everything could raise', () => {
+  it('Bankruptcy rule: bankrupt only when owing more than selling every building and property to the bank could raise', () => {
     const d = broke();
     expect(d.phase).toMatchObject({ k: 'debt', debtor: 's0', owed: { s1: 2000 } });
-    expect(maxRaise(d, 's0')).toBe(100 + 75 + 160);
+    // cash + houses 3 x 25 + the light blues' sale values (80% of the price) + the mortgaged station's 160 less its 120 loan
+    expect(maxRaise(d, 's0')).toBe(100 + 75 + (80 + 80 + 96) + 40);
     const ok = penthouseDebt(10, [37]);
     expect(refused(ok, 's0', { k: 'bankrupt' })).toBe('canPay');
   });
 
-  it('Bankruptcy to a player: everything is sold to the bank (buildings at half price, deeds at the mortgage value) and the creditor gets the cash', () => {
+  it('Bankruptcy to a player: everything is sold to the bank (buildings at half price, deeds at their sale value) and the creditor gets the cash', () => {
     const { state, events } = act(broke(), 's0', { k: 'bankrupt' });
-    // cash 100 + houses 3 x 25 + light blues 50 + 50 + 60 (the mortgaged station brings nothing)
-    expect(cash(state, 's1')).toBe(1500 + 100 + 75 + 160);
+    // cash 100 + houses 3 x 25 + light blues 80 + 80 + 96 + 40 for the mortgaged station (160 less its 120 loan)
+    expect(cash(state, 's1')).toBe(1500 + 100 + 75 + (80 + 80 + 96) + 40);
     expect(state.bank.houses).toBe(32);
     for (const x of [5, 6, 8, 9]) expect(state.props[`p${x}`]).toBeUndefined();
     expect(state.players.s1?.goojf).toEqual([]);
@@ -1089,9 +1091,9 @@ describe('audit: several creditors', () => {
     const d = chairman(20, [1]);
     expect(d.phase).toMatchObject({ k: 'debt', debtor: 's0', owed: { s1: 50, s2: 50 } });
     const { state, events } = act(d, 's0', { k: 'bankrupt' });
-    // 20 cash + 30 for the brown street: s1 gets its 50 in full, s2 nothing
+    // 20 cash + 48 for the brown street: s1 gets its 50 in full, s2 the 18 left
     expect(cash(state, 's1')).toBe(1550);
-    expect(cash(state, 's2')).toBe(1500);
+    expect(cash(state, 's2')).toBe(1518);
     expect(ofType(events, 'bankrupt')).toEqual([{ t: 'bankrupt', seat: 's0', to: 'bank', resigned: false }]);
     // The property went back to the bank unowned: no auction
     expect(state.props.p1).toBeUndefined();
@@ -1101,21 +1103,21 @@ describe('audit: several creditors', () => {
   });
 
   it('decision "Several creditors": each is paid at most its share; what is left goes to the bank', () => {
-    // s0 has 20 + 200 for Galle Face Penthouse = 220 at most; it owes s1 100, s2 60 and the bank 100
-    const d = structuredClone(chairman(20, [39]));
+    // s0 has 20 + 192 for Galle Fort Ramparts = 212 at most; it owes s1 100, s2 60 and the bank 100
+    const d = structuredClone(chairman(20, [24]));
     if (d.phase.k === 'debt') d.phase.owed = { s1: 100, s2: 60, bank: 100 };
     const { state, events } = act(d, 's0', { k: 'bankrupt' });
     expect(cash(state, 's1')).toBe(1600);
     expect(cash(state, 's2')).toBe(1560);
-    expect(ofType(events, 'cash').filter((e) => e.to === 'bank').map((e) => e.amount)).toEqual([60]);
-    expect(state.props.p39).toBeUndefined();
+    expect(ofType(events, 'cash').filter((e) => e.to === 'bank').map((e) => e.amount)).toEqual([52]);
+    expect(state.props.p24).toBeUndefined();
   });
 
   it('decision "Several creditors": when selling and mortgaging covers it, bankruptcy is refused and autoRaise pays all', () => {
     const d = chairman(20, [39]);
     expect(refused(d, 's0', { k: 'bankrupt' })).toBe('canPay');
     const { state } = act(d, 's0', { k: 'autoRaise' });
-    expect([cash(state, 's0'), cash(state, 's1'), cash(state, 's2')]).toEqual([120, 1550, 1550]);
+    expect([cash(state, 's0'), cash(state, 's1'), cash(state, 's2')]).toEqual([20 + 240 - 100, 1550, 1550]);
     expect(state.props.p39?.mortgaged).toBe(true);
     expect(state.phase.k).toBe('postRoll');
   });
@@ -1136,17 +1138,19 @@ describe('audit: resigning', () => {
   });
 
   it('README resign decision: in a debt the assets cannot cover, it is a bankruptcy to the creditor', () => {
-    const d = penthouseDebt(10, [1]);
+    // 1 cash + 48 for the brown street: 49 of the 50 rent
+    const d = penthouseDebt(1, [1]);
     const { state, events } = act(d, 's0', { k: 'resign' });
     expect(ofType(events, 'bankrupt')).toEqual([{ t: 'bankrupt', seat: 's0', to: 's1', resigned: true }]);
-    // Everything sold to the bank: 10 cash + 30 for the brown street go to s1; the deed goes back to the bank
+    // Everything sold to the bank: 1 cash + 48 for the brown street go to s1; the deed goes back to the bank
     expect(state.props.p1).toBeUndefined();
-    expect(cash(state, 's1')).toBe(1540);
+    expect(cash(state, 's1')).toBe(1549);
     expect(state.turn.seat).toBe('s1');
   });
 
   it('README bankruptcy: a creditor who resigns mid-debt leaves its share to the bank, so the debtor then goes bankrupt to the bank', () => {
-    const d = penthouseDebt(10, [1]);
+    // 1 cash + 48 for the brown street cannot cover the 50
+    const d = penthouseDebt(1, [1]);
     const resigned = act(d, 's1', { k: 'resign' }).state;
     // s1's Galle Face Penthouse is auctioned first, then the debt resumes.
     expect(resigned.phase).toMatchObject({ k: 'auction', lot: { k: 'prop', space: 39 }, resume: { k: 'debt' } });
@@ -1178,7 +1182,8 @@ describe('audit: end of the game', () => {
     const s = scenario();
     own(s, 's1', [39]);
     own(s, 's0', [5], { mortgaged: true });
-    setCash(s, 's0', 10);
+    // 5 cash + 40 for the mortgaged station (160 less its 120 loan) cannot cover the 50 rent
+    setCash(s, 's0', 5);
     setPos(s, 's0', 35);
     rig(s, [1, 3]);
     const d = act(s, 's0', { k: 'roll' }).state;

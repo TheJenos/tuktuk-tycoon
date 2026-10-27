@@ -101,7 +101,7 @@ interface Command { by: SeatId | 'system'; a: Action; basis?: number }
 | `build {group, levels}` | owner | `preRoll`/`postRoll`/`buy`; target levels per `GroupDef.spaces`, raises only |
 | `sell {group, levels}` | owner | those plus `auction`, `debt`, `incomeTax`, `mortgageXfer`; lowers only |
 | `mortgage {space}` | owner | same phases as `sell`; no buildings in the group |
-| `sellProperty {space}` | owner | same phases as `mortgage`; no buildings in the group; not while it waits in `mortgageXfer`. The bank pays the mortgage value (nothing when mortgaged; the mortgage is cleared) and the property is the bank's again |
+| `sellProperty {space}` | owner | same phases as `mortgage`; no buildings in the group; not while it waits in `mortgageXfer`. The bank pays `saleValue`: 80% of the price, less the mortgage value when mortgaged (the mortgage is cleared), and the property is the bank's again |
 | `unmortgage {space}` | owner | `preRoll`/`postRoll`/`buy`; cash >= `unmortgageCost` |
 | `settleMortgages {lift}` | the receiving seat | `mortgageXfer`; `lift` subset of `phase.spaces` |
 | `propose {to, give, get}` | any | any phase; one open offer per proposer, 8 in total; the `trading` rule allows it. Offers never expire |
@@ -330,11 +330,12 @@ Dev only (not exported from `index.ts`): `randomPlayer.ts` (`randFrom`, `randomC
   re-validated at accept time; the receiver of mortgaged property must be able to pay the 10% from cash after the
   trade; a gift of property is allowed.
 - **Selling property to the bank** (`sellProperty`): in the phases mortgaging is open, with no buildings in the colour
-  group; the bank pays the mortgage value, or nothing for a mortgaged property (the loan already taken is kept) and
-  clears its mortgage. The property is unowned again (level 0, unmortgaged): anyone may buy it on landing there, and
-  Tuk-Tuk Uncle counts it as the bank's. It brings exactly what mortgaging would, so `maxRaise` is unchanged.
+  group; the bank pays 80% of the price (`rates.ts`), less the mortgage value for a mortgaged property, and clears its
+  mortgage. The property is unowned again (level 0, unmortgaged): anyone may buy it on landing there, and Tuk-Tuk
+  Uncle counts it as the bank's. Mortgages pay 60%, so selling raises more: `maxRaise` counts every property's sale
+  value.
 - **Bankruptcy**: owing a player (alone or with others), everything is sold to the bank: buildings at half price,
-  every property at its mortgage value (nothing when mortgaged) and back to the bank unowned and unmortgaged (no
+  every property at its sale value (80% of the price, less the loan when mortgaged) and back to the bank unowned and unmortgaged (no
   auction), Get Out of Jail Free cards back to their decks. The creditors are paid from that cash in seat order from
   the debtor's left (players), then the bank, each at most its share (the payments carry the debt's `why`); what is
   left goes to the bank (`why:'bankrupt'`). No property or card passes to a creditor, so there is no `mortgageXfer`
@@ -343,8 +344,9 @@ Dev only (not exported from `index.ts`): `randomPlayer.ts` (`randFrom`, `randomC
   debts go to the bank. A resignation in debt pays the creditors in full when `maxRaise` covers it (the rest goes to
   the bank), otherwise it is a bankruptcy to the creditor.
 - **autoRaise** plan: sell one building level at a time from the highest-standing street (ties: higher board index),
-  whole groups when a hotel cannot be broken up; then mortgage the cheapest mortgage value first (ties: lower index);
-  goes bankrupt straight away when `maxRaise` cannot cover the debt.
+  whole groups when a hotel cannot be broken up; then mortgage the cheapest property first (ties: lower index); then
+  sell mortgaged property back to the bank, cheapest first; goes bankrupt straight away when `maxRaise` cannot cover
+  the debt.
 - **Turn limit** counts every player's turn (`turn.no`); the game ends when turn `turnLimit` ends. Rankings (turn
   limit, `endGame`) order active seats by `netWorth` (ties: turn order), then the others, last out first.
 - **Money rounding**: income tax percent rounds down; mortgage interest rounds up; building refunds are half each

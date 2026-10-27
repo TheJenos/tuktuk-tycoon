@@ -76,7 +76,7 @@ describe('jail', () => {
     const after = act(state, 's0', { k: 'mortgage', space: 39 });
     expect(pos(after.state, 's0')).toBe(14);
     expect(after.state.players.s0?.jail).toBeUndefined();
-    expect(cash(after.state, 's0')).toBe(20 + 200 - 50);
+    expect(cash(after.state, 's0')).toBe(20 + 240 - 50);
   });
 
   it('a Get Out of Jail Free card frees you and returns to the bottom of its deck', () => {

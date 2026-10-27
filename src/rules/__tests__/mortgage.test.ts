@@ -25,7 +25,7 @@ describe('mortgages', () => {
     expect(canMortgage(s, 's0', 39)?.code).toBe('buildings');
     expect(refused(s, 's1', { k: 'mortgage', space: 5 })).toBe('notOwner');
     const { state, events } = act(s, 's0', { k: 'mortgage', space: 5 });
-    expect(cash(state, 's0')).toBe(1600);
+    expect(cash(state, 's0')).toBe(1620);
     expect(ofType(events, 'mortgage')).toEqual([{ t: 'mortgage', space: 5, on: true }]);
     expect(refused(state, 's0', { k: 'mortgage', space: 5 })).toBe('mortgaged');
   });
@@ -33,10 +33,10 @@ describe('mortgages', () => {
   it('lifting costs the mortgage + 10% rounded up', () => {
     const s = scenario();
     own(s, 's0', [12, 37], { mortgaged: true });
-    expect(unmortgageCost(s, 12)).toBe(83);
-    expect(unmortgageCost(s, 37)).toBe(193);
+    expect(unmortgageCost(s, 12)).toBe(99);
+    expect(unmortgageCost(s, 37)).toBe(231);
     const { state } = act(s, 's0', { k: 'unmortgage', space: 12 });
-    expect(cash(state, 's0')).toBe(1500 - 83);
+    expect(cash(state, 's0')).toBe(1500 - 99);
     expect(state.props.p12?.mortgaged).toBeUndefined();
     setCash(state, 's0', 100);
     expect(refused(state, 's0', { k: 'unmortgage', space: 37 })).toBe('cash');
@@ -48,7 +48,7 @@ describe('mortgages', () => {
     expect(awaiting(s)).toEqual(['s0']);
     expect(timer(s)?.kind).toBe('decision');
     expect(defaultAction(s, 's0')).toEqual({ k: 'settleMortgages', lift: [] });
-    expect(xferCost(s, [12, 39], [39])).toBe(8 + 20 + 200);
+    expect(xferCost(s, [12, 39], [39])).toBe(9 + 24 + 240);
     expect(refused(s, 's1', { k: 'settleMortgages', lift: [] })).toBe('notYou');
     expect(refused(s, 's0', { k: 'settleMortgages', lift: [5] })).toBe('badLift');
 
@@ -56,16 +56,16 @@ describe('mortgages', () => {
     expect(state.phase.k).toBe('preRoll');
     expect(state.props.p39?.mortgaged).toBeUndefined();
     expect(state.props.p12?.mortgaged).toBe(true);
-    expect(cash(state, 's0')).toBe(1500 - 10 - 220 - 8);
+    expect(cash(state, 's0')).toBe(1500 - 10 - 264 - 9);
     expect(ofType(events, 'mortgage')).toEqual([{ t: 'mortgage', space: 39, on: false }]);
     // Kept mortgages cost the full mortgage + 10% again when lifted later.
-    expect(unmortgageCost(state, 12)).toBe(83);
+    expect(unmortgageCost(state, 12)).toBe(99);
   });
 
   it('refuses a lift the new owner cannot afford', () => {
     const s = received();
     setCash(s, 's0', 100);
     expect(refused(s, 's0', { k: 'settleMortgages', lift: [39] })).toBe('cash');
-    expect(cash(act(s, 's0', { k: 'settleMortgages', lift: [] }).state, 's0')).toBe(100 - 8 - 20);
+    expect(cash(act(s, 's0', { k: 'settleMortgages', lift: [] }).state, 's0')).toBe(100 - 9 - 24);
   });
 });

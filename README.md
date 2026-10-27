@@ -223,8 +223,8 @@ its buildings, whether it is mortgaged and who is standing there. Other spaces s
 **Manage** (`M`) lists your property by colour group, stations and boards at the end. Stage changes, then press
 **Apply** once: **+ / −** per street (even building is enforced, and a hint names the street to change first),
 **Mortgage for Rs. X** / **Lift for Rs. X** per property, with the bank's houses and hotels left and the total cash change.
-**Sell to bank +Rs. X** sells a property back to the bank at once (after a second press): the bank pays its mortgage
-value (nothing for a mortgaged one, whose loan you keep) and the property is for sale again to whoever lands on it.
+**Sell to bank +Rs. X** sells a property back to the bank at once (after a second press): the bank pays 80% of its
+price (less the loan on a mortgaged one) and the property is for sale again to whoever lands on it.
 It needs no buildings anywhere in its colour group, like mortgaging. The deed's card (click a space) has the same
 **Build**, **Sell**, **Mortgage** / **Lift mortgage** and **Sell to bank** buttons for one property.
 You don't have to wait for your own turn: building and lifting mortgages work whenever the game is calm (before or
@@ -315,18 +315,18 @@ choice made is in that file's [Rules decisions](docs/rules.md#rules-decisions) t
   dropped.
 - **Auctions are timed open bidding**, from Rs. 100, with a fixed countdown from the start (bids don't add time).
 - **Triples** (Speed Die): move to any of the other 39 spaces, then roll again (a setting).
-- **Unmortgaging** costs the mortgage value plus 10% rounded up (Power Cut Board: Rs. 8,300). Mortgaged stations and
+- **Mortgages** pay 60% of the price; **unmortgaging** costs that plus 10% rounded up (Power Cut Board: Rs. 9,900). Mortgaged stations and
   boards still count toward the number owned for rent.
 - **Mortgaged property changing hands**: the new owner chooses per property, at once, to lift it or pay 10% and keep
   it mortgaged.
 - **Building shortage**: every eligible builder may say how many they want; if it all fits it is granted, otherwise
   units are auctioned one at a time.
-- **Bankruptcy to a player** sells everything to the bank (buildings at half price, each property at its mortgage
-  value, nothing for a mortgaged one; the property becomes the bank's again) and the creditor gets the cash, at most
+- **Bankruptcy to a player** sells everything to the bank (buildings at half price, each property at its sale value,
+  80% of the price less the loan on a mortgaged one; the property becomes the bank's again) and the creditor gets the cash, at most
   what it is owed; several creditors are paid in seat order. No property or card passes to a creditor.
 - **Bankruptcy to the bank** clears the mortgages before the bank auctions the property.
-- **Selling property to the bank**: an owner may sell an unimproved property back to the bank for its mortgage value
-  (nothing when it is mortgaged).
+- **Selling property to the bank**: an owner may sell an unimproved property back to the bank for 80% of its price
+  (less the mortgage value when it is mortgaged): more than a mortgage brings, but the deed is gone.
 - **The Speed Die** takes effect from the roll after the first Start salary; the nearest-Board card's throw includes it
   when active; its faces are 1, 2, 3, Bus, Tuk-Tuk Uncle, Tuk-Tuk Uncle.
 - **Cards** have the standard effects of this era's decks (the rulebook lists none), with Sri Lankan texts.

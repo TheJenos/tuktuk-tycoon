@@ -129,11 +129,11 @@ describe('Chance and Community Chest', () => {
     const { state, events } = drawFrom(s, 4, [1, 2], 'chance', 'ch-chairman');
     expect(state.phase).toMatchObject({ k: 'debt', debtor: 's0', owed: { s1: 50, s2: 50 }, why: 'card' });
     expect(ofType(events, 'debt')[0]?.total).toBe(100);
-    // Mortgaging Pettah Pavement (+Rs. 30) covers it: the debt settles by itself and the turn goes on.
+    // Mortgaging Pettah Pavement (+Rs. 36) covers it: the debt settles by itself and the turn goes on.
     const after = act(state, 's0', { k: 'mortgage', space: 1 });
     expect(after.state.phase.k).toBe('postRoll');
     expect(ofType(after.events, 'debtPaid')).toHaveLength(1);
-    expect([cash(after.state, 's0'), cash(after.state, 's1'), cash(after.state, 's2')]).toEqual([10, 1550, 1550]);
+    expect([cash(after.state, 's0'), cash(after.state, 's1'), cash(after.state, 's2')]).toEqual([80 + 36 - 100, 1550, 1550]);
   });
 
   it('Wedding Gifts: a poor non-turn player becomes the debtor, the others pay in turn, then play goes on', () => {
@@ -146,6 +146,6 @@ describe('Chance and Community Chest', () => {
     expect(state.pending.map((st) => st.k)).toEqual(['pay', 'afterRoll']);
     const { state: done } = run(state, ['s1', { k: 'mortgage', space: 3 }]);
     expect(done.phase.k).toBe('postRoll');
-    expect([cash(done, 's0'), cash(done, 's1'), cash(done, 's2')]).toEqual([1600, 0, 1450]);
+    expect([cash(done, 's0'), cash(done, 's1'), cash(done, 's2')]).toEqual([1600, 20 + 36 - 50, 1450]);
   });
 });

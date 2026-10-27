@@ -77,7 +77,7 @@ export const canUnmortgage = (s: GameState, seat: SeatId, space: number): RuleEr
 /** null = the seat may sell the space back to the bank now (sellProperty); otherwise why not */
 export const canSellProperty = (s: GameState, seat: SeatId, space: number): RuleError | null =>
   check(s, seat, { k: 'sellProperty', space });
-/** What the bank pays for the space if it is sold back now: the mortgage value, 0 when it is mortgaged */
+/** What the bank pays for the space if it is sold back now: 80% of the price, less the loan when it is mortgaged */
 export const sellPropertyValue = (s: GameState, space: number): number => saleValue(s, boardOf(s), space);
 /** The lowest legal bid in the current auction */
 export const minBid = (s: GameState): number | undefined =>

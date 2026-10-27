@@ -416,7 +416,7 @@ export type Action =
   | { k: 'sell'; group: string; levels: number[] }
   | { k: 'mortgage'; space: number }
   | { k: 'unmortgage'; space: number }
-  /** Sell an unimproved property back to the bank (mortgage value; nothing when mortgaged) */
+  /** Sell an unimproved property back to the bank (80% of the price, less the loan when mortgaged) */
   | { k: 'sellProperty'; space: number }
   | { k: 'settleMortgages'; lift: number[] }
   // Trades

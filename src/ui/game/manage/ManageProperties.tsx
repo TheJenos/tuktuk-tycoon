@@ -208,7 +208,7 @@ function SpaceRow({ s, seat, plan, space, names, onPlan, buildable, onSell }: {
       <ConfirmButton
         className="chip sell-deed"
         disabled={!!saleProblem}
-        title={saleProblem ?? (ps.mortgaged ? 'Back to the bank for nothing: it is mortgaged' : 'Back to the bank for its mortgage value')}
+        title={saleProblem ?? (ps.mortgaged ? 'Back to the bank for 80% of its price, less its loan' : 'Back to the bank for 80% of its price')}
         aria-label={`Sell ${sp.name} to the bank for ${money(saleValue)}${saleProblem ? `: ${saleProblem}` : ''}`}
         question={`Sell ${sp.name}?`}
         yes="Sell"

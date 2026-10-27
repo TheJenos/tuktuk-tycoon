@@ -11,7 +11,7 @@ describe('deedFor', () => {
     expect(d.kind).toBe('street');
     expect(d.colour).toBe(LANKA.display.groupColours.darkBlue);
     expect(d.rent.map((r) => r.value)).toEqual(['Rs. 5,000', 'Rs. 10,000', 'Rs. 20,000', 'Rs. 60,000', 'Rs. 140,000', 'Rs. 170,000', 'Rs. 200,000']);
-    expect(d.costs.map((r) => r.value)).toEqual(['Rs. 20,000 each', 'Rs. 20,000 plus 4 houses', 'Rs. 20,000', 'Rs. 22,000']);
+    expect(d.costs.map((r) => r.value)).toEqual(['Rs. 20,000 each', 'Rs. 20,000 plus 4 houses', 'Rs. 24,000', 'Rs. 26,400']);
     expect(active(d.rent)).toEqual([]);
   });
 
@@ -39,7 +39,7 @@ describe('deedFor', () => {
     const util = deedFor(LANKA, 12, s)!;
     expect(active(util.rent)).toEqual(['If one board is owned']);
     expect(util.note).toMatch(/all three/);
-    expect(util.costs.map((r) => r.value)).toEqual(['Rs. 7,500', 'Rs. 8,300']);
+    expect(util.costs.map((r) => r.value)).toEqual(['Rs. 9,000', 'Rs. 9,900']);
     expect(deedFor(LANKA, 12, game())!.note).toBeUndefined();
   });
 

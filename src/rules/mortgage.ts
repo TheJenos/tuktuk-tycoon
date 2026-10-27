@@ -5,7 +5,7 @@ import { pay, transfer } from './money';
 import { saleOf } from './rates';
 import type { BoardDef, GameState, OwnerVia, RuleError, SeatId } from './types';
 
-/** What lifting a mortgage costs: the mortgage value + interest (rounded up: Power Cut Board 83) */
+/** What lifting a mortgage costs: the mortgage value + interest (rounded up: Power Cut Board 99) */
 export function unmortgageCost(s: GameState, b: BoardDef, space: number): number {
   const m = propertyAt(b, space)?.mortgage ?? 0;
   return m + interest(s, m);

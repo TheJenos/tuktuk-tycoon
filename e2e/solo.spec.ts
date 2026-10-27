@@ -189,15 +189,15 @@ test('Manage: a rigged landing completes Brown, then houses after setCash, a mor
 
   // Mortgage the railroad, then lift it again (mortgage + 10%)
   const rails = manage.getByRole('region', { name: 'Stations and boards' });
-  await rails.getByRole('button', { name: 'Mortgage for Rs. 10,000' }).click();
-  await manage.getByRole('button', { name: 'Apply (+Rs. 10,000)' }).click();
+  await rails.getByRole('button', { name: 'Mortgage for Rs. 12,000' }).click();
+  await manage.getByRole('button', { name: 'Apply (+Rs. 12,000)' }).click();
   await expect(rails.locator('.badge', { hasText: 'Mortgaged' })).toBeVisible();
-  await expect(cashOn(page, 'Rita')).toHaveText('Rs. 90,000');
+  await expect(cashOn(page, 'Rita')).toHaveText('Rs. 92,000');
   await expect(swatch(page, 'Rita', 'Colombo Fort Station, mortgaged')).toBeAttached();
-  await rails.getByRole('button', { name: 'Lift for Rs. 11,000' }).click();
-  await manage.getByRole('button', { name: 'Apply (−Rs. 11,000)' }).click();
+  await rails.getByRole('button', { name: 'Lift for Rs. 13,200' }).click();
+  await manage.getByRole('button', { name: 'Apply (−Rs. 13,200)' }).click();
   await expect(rails.locator('.badge', { hasText: 'Mortgaged' })).toHaveCount(0);
-  await expect(cashOn(page, 'Rita')).toHaveText('Rs. 79,000');
+  await expect(cashOn(page, 'Rita')).toHaveText('Rs. 78,800');
 
   await manage.getByRole('button', { name: 'Close' }).click();
   await expect(manage).toBeHidden();

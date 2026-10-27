@@ -146,7 +146,7 @@ function returnCards(c: Ctx, seat: SeatId): void {
 
 /**
  * Bankruptcy owing at least one player: everything is sold to the bank (buildings at half price, property at its
- * mortgage value or nothing when mortgaged; it returns to the bank unowned), the cards go back to their decks, and
+ * sale value, 80% of the price less the loan when mortgaged; it returns to the bank unowned), the cards go back to their decks, and
  * the cash goes to the creditors in order, each at most its share. Whatever is left goes to the bank.
  */
 function toCreditors(c: Ctx, seat: SeatId, owed: Owed, list: Creditor[], why: CashWhy, resigned: boolean, space?: number): void {

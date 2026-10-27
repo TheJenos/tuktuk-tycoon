@@ -4,34 +4,35 @@ import type { GameState } from '../types';
 import { act, cash, cashDelta, ofType, own, refused, rig, run, scenario, setCash, setPos } from './helpers';
 
 /*
- * Selling a property back to the bank (sellProperty): the bank pays the mortgage value (nothing for a mortgaged one,
- * whose loan the owner keeps), the property becomes the bank's again (unowned, unbuilt, unmortgaged) and anyone may
- * buy it when they land there. Open in the phases mortgaging is, and only with no buildings in the colour group.
+ * Selling a property back to the bank (sellProperty): the bank pays 80% of the price (less the mortgage value for a
+ * mortgaged one: the loan comes out of it), the property becomes the bank's again (unowned, unbuilt, unmortgaged) and
+ * anyone may buy it when they land there. Open in the phases mortgaging is, and only with no buildings in the colour group.
  */
 
 describe('sellProperty', () => {
-  it('unmortgaged: the bank pays the mortgage value and the property is the bank’s again', () => {
+  it('unmortgaged: the bank pays 80% of the price and the property is the bank’s again', () => {
     const s = scenario();
     own(s, 's0', [39]);
-    expect(sellPropertyValue(s, 39)).toBe(200);
+    expect(sellPropertyValue(s, 39)).toBe(320);
     expect(canSellProperty(s, 's0', 39)).toBeNull();
     const { state, events } = act(s, 's0', { k: 'sellProperty', space: 39 });
     expect(state.props.p39).toBeUndefined();
-    expect(cash(state, 's0')).toBe(1700);
+    expect(cash(state, 's0')).toBe(1820);
     expect(ofType(events, 'owner')).toEqual([{ t: 'owner', space: 39, from: 's0', via: 'sold' }]);
     expect(ofType(events, 'cash')).toEqual([
-      { t: 'cash', from: 'bank', to: 's0', amount: 200, why: 'sale', after: { s0: 1700 }, space: 39 },
+      { t: 'cash', from: 'bank', to: 's0', amount: 320, why: 'sale', after: { s0: 1820 }, space: 39 },
     ]);
     expect(ofType(events, 'mortgage')).toEqual([]);
   });
 
-  it('mortgaged: the bank pays nothing (the loan is kept) and clears the mortgage', () => {
+  it('mortgaged: the bank pays 80% of the price less the loan (the owner keeps it) and clears the mortgage', () => {
     const s = scenario();
     own(s, 's0', [5], { mortgaged: true });
-    expect(sellPropertyValue(s, 5)).toBe(0);
+    // Colombo Fort Station: 160 (80% of 200) less its 120 mortgage
+    expect(sellPropertyValue(s, 5)).toBe(40);
     const { state, events } = act(s, 's0', { k: 'sellProperty', space: 5 });
     expect(state.props.p5).toBeUndefined();
-    expect(cashDelta(events, 's0')).toBe(0);
+    expect(cashDelta(events, 's0')).toBe(40);
     expect(ofType(events, 'mortgage')).toEqual([{ t: 'mortgage', space: 5, on: false }]);
     expect(ofType(events, 'owner')).toEqual([{ t: 'owner', space: 5, from: 's0', via: 'sold' }]);
   });
@@ -56,7 +57,7 @@ describe('sellProperty', () => {
     own(s, 's1', [37, 39], { level: 1 });
     const sales = legalActions(s, 's1').filter((a) => a.k === 'sellProperty');
     expect(sales).toEqual([{ k: 'sellProperty', space: 5 }, { k: 'sellProperty', space: 12 }]);
-    expect(cash(act(s, 's1', { k: 'sellProperty', space: 12 }).state, 's1')).toBe(1575);
+    expect(cash(act(s, 's1', { k: 'sellProperty', space: 12 }).state, 's1')).toBe(1620);
   });
 
   it('raises cash in a debt: the debt settles by itself', () => {
@@ -71,7 +72,8 @@ describe('sellProperty', () => {
     expect(legalActions(debt, 's0')).toContainEqual({ k: 'sellProperty', space: 5 });
     const { state, events } = act(debt, 's0', { k: 'sellProperty', space: 5 });
     expect(ofType(events, 'debtPaid')).toEqual([{ t: 'debtPaid', debtor: 's0' }]);
-    expect(cash(state, 's0')).toBe(40);
+    // 40 + 160 for the station - 100 rent
+    expect(cash(state, 's0')).toBe(100);
     expect(state.phase.k).toBe('postRoll');
   });
 

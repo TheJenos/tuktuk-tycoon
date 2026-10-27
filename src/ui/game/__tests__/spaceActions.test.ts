@@ -14,18 +14,18 @@ function run(s: GameState, a: Action | null | undefined): GameState {
 }
 
 describe('spaceActions', () => {
-  it('sells a property back to the bank: the mortgage value, nothing when mortgaged; not with buildings in the group', () => {
+  it('sells a property back to the bank: 80% of the price, less the loan when mortgaged; not with buildings in the group', () => {
     let s = game();
     own(s, 's0', [READING]);
     own(s, 's0', [ELECTRIC], 0, true);
     own(s, 's0', LIGHT_BLUE, 1);
-    expect(spaceActions(s, 's0', READING)!.sale).toEqual({ mortgaged: false, amount: 100, reason: null, action: { k: 'sellProperty', space: READING } });
-    expect(spaceActions(s, 's0', ELECTRIC)!.sale).toMatchObject({ mortgaged: true, amount: 0, action: { k: 'sellProperty', space: ELECTRIC } });
+    expect(spaceActions(s, 's0', READING)!.sale).toEqual({ mortgaged: false, amount: 160, reason: null, action: { k: 'sellProperty', space: READING } });
+    expect(spaceActions(s, 's0', ELECTRIC)!.sale).toMatchObject({ mortgaged: true, amount: 120 - 90, action: { k: 'sellProperty', space: ELECTRIC } });
     expect(spaceActions(s, 's0', 8)!.sale).toMatchObject({ action: null, reason: 'Sell the buildings in the Light Blue group first' });
     const cash = s.players.s0!.cash;
     s = run(s, spaceActions(s, 's0', READING)!.sale.action);
     expect(s.props[`p${READING}`]).toBeUndefined();
-    expect(s.players.s0!.cash).toBe(cash + 100);
+    expect(s.players.s0!.cash).toBe(cash + 160);
     expect(spaceActions(s, 's0', READING)).toBeNull();
   });
 
@@ -88,11 +88,11 @@ describe('spaceActions', () => {
     own(s, 's0', [READING, ELECTRIC]);
     const m = spaceActions(s, 's0', READING)!;
     expect(m.build).toBeUndefined();
-    expect(m.mortgage).toMatchObject({ kind: 'mortgage', amount: 100, action: { k: 'mortgage', space: READING } });
+    expect(m.mortgage).toMatchObject({ kind: 'mortgage', amount: 120, action: { k: 'mortgage', space: READING } });
     s = run(s, m.mortgage.action);
     expect(s.props[`p${READING}`]?.mortgaged).toBe(true);
     const u = spaceActions(s, 's0', READING)!;
-    expect(u.mortgage).toMatchObject({ kind: 'unmortgage', amount: 110, action: { k: 'unmortgage', space: READING } });
+    expect(u.mortgage).toMatchObject({ kind: 'unmortgage', amount: 132, action: { k: 'unmortgage', space: READING } });
     s = run(s, u.mortgage.action);
     expect(s.props[`p${READING}`]?.mortgaged).toBeUndefined();
     // Not under buildings

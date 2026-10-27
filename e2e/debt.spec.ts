@@ -33,14 +33,14 @@ test('rent Alice can only pay by mortgaging: Manage from the debt panel, and the
 
   await debt.getByRole('button', { name: 'Sell or mortgage' }).click();
   const manage = manageDialog(alice.page);
-  await manage.getByRole('region', { name: 'Stations and boards' }).getByRole('button', { name: 'Mortgage for Rs. 10,000' }).click();
-  await manage.getByRole('button', { name: 'Apply (+Rs. 10,000)' }).click();
+  await manage.getByRole('region', { name: 'Stations and boards' }).getByRole('button', { name: 'Mortgage for Rs. 12,000' }).click();
+  await manage.getByRole('button', { name: 'Apply (+Rs. 12,000)' }).click();
   await expect(debt).toHaveCount(0);
   await manage.getByRole('button', { name: 'Close' }).click();
 
   await expect(endTurnButton(alice.page)).toBeVisible();
   for (const p of [alice, bob]) {
-    await expect(cashOn(p.page, alice.name)).toHaveText('Rs. 4,000');
+    await expect(cashOn(p.page, alice.name)).toHaveText('Rs. 6,000');
     await expect(cashOn(p.page, bob.name)).toHaveText('Rs. 160,000');
     await expect(swatch(p.page, alice.name, 'Colombo Fort Station, mortgaged')).toBeAttached();
     await expect(gameLog(p.page)).toContainText(`${alice.name} pays ${bob.name} Rs. 10,000 rent for Galle Face Penthouse`);
@@ -62,10 +62,10 @@ test('a debt nothing can cover: bankruptcy sells everything to the bank, the cre
   });
   await alice.rig([1, 3]);
   await rollButton(alice.page).click();
-  // A hotel on Galle Face Penthouse: Rs. 200,000, against Rs. 30,000 and a Rs. 3,000 mortgage
+  // A hotel on Galle Face Penthouse: Rs. 200,000, against Rs. 30,000 and Rs. 4,800 for selling Pettah Pavement to the bank
   const debt = alice.page.locator('.debt-panel');
   await expect(debt.getByRole('heading', { level: 2 })).toHaveText('You owe Rs. 200,000');
-  await expect(debt).toContainText('could raise up to Rs. 33,000');
+  await expect(debt).toContainText('could raise up to Rs. 34,800');
   await expect(debt.getByRole('button', { name: 'Auto-raise and pay' })).toHaveCount(0);
   await expect(debt).toContainText(`Bankruptcy: everything you own is sold to the bank and ${bob.name} gets the cash, up to what you owe.`);
   await confirm(debt.getByRole('button', { name: 'Declare bankruptcy' }));
@@ -74,10 +74,10 @@ test('a debt nothing can cover: bankruptcy sells everything to the bank, the cre
     await expect(gameOver(p.page).getByRole('heading', { level: 2 })).toHaveText(`${bob.name} wins!`);
     await expect(gameOver(p.page)).toContainText('Last player standing');
     await expect(gameLog(p.page)).toContainText(`${alice.name} goes bankrupt to ${bob.name}`);
-    // Pettah Pavement was sold to the bank for its Rs. 3,000 mortgage value: Bob gets all Rs. 33,000, not the deed
-    await expect(gameLog(p.page)).toContainText(`${alice.name} pays ${bob.name} Rs. 33,000 rent for Galle Face Penthouse`);
+    // Pettah Pavement was sold to the bank for its Rs. 4,800 sale value (80% of its price): Bob gets all Rs. 34,800, not the deed
+    await expect(gameLog(p.page)).toContainText(`${alice.name} pays ${bob.name} Rs. 34,800 rent for Galle Face Penthouse`);
     await expect(gameLog(p.page)).toContainText('Pettah Pavement goes back to the bank');
-    await expect(cashOn(p.page, bob.name)).toHaveText('Rs. 183,000');
+    await expect(cashOn(p.page, bob.name)).toHaveText('Rs. 184,800');
     await expect(badge(p.page, alice.name, 'Bankrupt')).toBeAttached();
     await expect(swatch(p.page, bob.name, 'Pettah Pavement')).toHaveCount(0);
   }

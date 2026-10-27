@@ -66,7 +66,7 @@ describe('buildPlan', () => {
     expect(stepProblem(s, 's0', p, 6, 1)).toBeNull();
     p = stepLevel(s, 's0', p, 6, 1);
     expect(planActions(s, 's0', p).map((a) => a.k)).toEqual(['unmortgage', 'build']);
-    expect(planSummary(s, 's0', p).cash).toBe(-(66 + 50));
+    expect(planSummary(s, 's0', p).cash).toBe(-(80 + 50));
     const after = applyPlan(s, p);
     expect(after.props.p9?.mortgaged).toBeUndefined();
     expect(after.props.p6?.level).toBe(1);
@@ -94,7 +94,7 @@ describe('buildPlan', () => {
       { k: 'mortgage', space: 6 },
     ]);
     const sum = planSummary(s, 's0', p);
-    expect(sum.cash).toBe(6 * 25 + 50 + 100);
+    expect(sum.cash).toBe(6 * 25 + 60 + 120);
     expect(sum.bankHouses).toBe(32);
     const after = applyPlan(s, p);
     expect(cash(after)).toBe(cash(s) + sum.cash);

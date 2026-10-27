@@ -196,7 +196,7 @@ describe('audit: doubles', () => {
     expect(r.state.phase).toMatchObject({ k: 'debt', debtor: 's0', owed: { s1: 6 } });
     const after = act(r.state, 's0', { k: 'mortgage', space: 39 }).state;
     expect(after.phase.k).toBe('preRoll');
-    expect(cash(after, 's0')).toBe(194);
+    expect(cash(after, 's0')).toBe(240 - 6);
   });
 
   it('Doubles: the three-doubles count is per turn (2 doubles on each of two turns is no jail)', () => {
@@ -608,11 +608,12 @@ describe('audit: every Chance and Community Chest card', () => {
     expect(state.phase).toMatchObject({ k: 'debt', debtor: 's0', owed: { s1: 50, s2: 50, s3: 50 } });
     expect(refused(state, 's0', { k: 'endTurn' })).toBe('phase');
     const broke = act(state, 's0', { k: 'bankrupt' });
-    expect([cash(broke.state, 's1'), cash(broke.state, 's2'), cash(broke.state, 's3')]).toEqual([1550, 1550, 1520]);
+    // 90 cash + 48 for Pettah Pavement = 138 of the 150: s3, last in seat order, gets the 38 left
+    expect([cash(broke.state, 's1'), cash(broke.state, 's2'), cash(broke.state, 's3')]).toEqual([1550, 1550, 1538]);
     expect(broke.state.players.s0?.out).toBe('bankrupt');
     expect(ofType(broke.events, 'bankrupt')[0]).toMatchObject({ seat: 's0', to: 'bank' });
-    // Pettah Pavement was sold to the bank (Rs. 3,000 of the cash paid out): it is the bank's again, not auctioned.
-    expect(ofType(broke.events, 'cash').find((e) => e.why === 'sale')).toMatchObject({ from: 'bank', to: 's0', amount: 30, space: 1 });
+    // Pettah Pavement was sold to the bank (Rs. 4,800 of the cash paid out): it is the bank's again, not auctioned.
+    expect(ofType(broke.events, 'cash').find((e) => e.why === 'sale')).toMatchObject({ from: 'bank', to: 's0', amount: 48, space: 1 });
     expect(broke.state.props.p1).toBeUndefined();
     expect(ofType(broke.events, 'auctionStart')).toEqual([]);
     expect(broke.state.turn.seat).toBe('s1');
@@ -650,7 +651,7 @@ describe('audit: every Chance and Community Chest card', () => {
     expect(state.phase).toMatchObject({ k: 'debt', debtor: 's1', owed: { s0: 50 } });
     const after = act(state, 's1', { k: 'mortgage', space: 3 }).state;
     expect(after.players.s1?.jail).toEqual({ tries: 1 });
-    expect([cash(after, 's0'), cash(after, 's1'), cash(after, 's2')]).toEqual([1600, 0, 1450]);
+    expect([cash(after, 's0'), cash(after, 's1'), cash(after, 's2')]).toEqual([1600, 20 + 36 - 50, 1450]);
     expect(after.phase.k).toBe('postRoll');
   });
 
@@ -714,7 +715,7 @@ describe('audit: every Chance and Community Chest card', () => {
     expect(after.turn.seat).toBe('s0');
   });
 
-  it("Cards / Bankruptcy: a broke Wedding Gifts payer's mortgaged property goes back to the bank (no cash for it); then the rest pay", () => {
+  it("Cards / Bankruptcy: a broke Wedding Gifts payer's mortgaged property goes back to the bank (its sale value less the loan); then the rest pay", () => {
     const s = scenario({ n: 3 });
     setCash(s, 's1', 20);
     own(s, 's1', [3], { mortgaged: true });
@@ -722,7 +723,8 @@ describe('audit: every Chance and Community Chest card', () => {
     const { state: st, events } = act(state, 's1', { k: 'bankrupt' });
     expect(ofType(events, 'xferStart')).toEqual([]);
     expect(st.props.p3).toBeUndefined();
-    expect([cash(st, 's0'), cash(st, 's2')]).toEqual([1500 + 20 + 50, 1450]);
+    // s1's 20 cash + 12 for Maradana Lane (48, less its 36 loan), then s2's 50
+    expect([cash(st, 's0'), cash(st, 's2')]).toEqual([1500 + 20 + 12 + 50, 1450]);
     expect(st.phase.k).toBe('postRoll');
   });
 });
@@ -747,7 +749,7 @@ describe('audit: buying and auctions', () => {
     expect(refused(st, 's0', { k: 'buy' })).toBe('cash');
     const { state } = run(st, ['s0', { k: 'mortgage', space: 5 }], ['s0', { k: 'buy' }]);
     expect(state.props.p6?.owner).toBe('s0');
-    expect(cash(state, 's0')).toBe(50);
+    expect(cash(state, 's0')).toBe(50 + 120 - 100);
   });
 
   it('Buying / Auctions: the player who declined may bid, and Rs. 1 is a valid opening bid', () => {
@@ -861,7 +863,7 @@ describe('audit: rent', () => {
     expect(partly.phase.k).toBe('debt');
     const paid = act(partly, 's0', { k: 'mortgage', space: 24 }).state;
     expect(paid.phase.k).toBe('postRoll');
-    expect([cash(paid, 's0'), cash(paid, 's1')]).toEqual([10 + 30 + 120 - 100, 1600]);
+    expect([cash(paid, 's0'), cash(paid, 's1')]).toEqual([10 + 36 + 144 - 100, 1600]);
   });
 });
 
@@ -1058,7 +1060,7 @@ describe('audit: jail', () => {
     const { state, events } = run(s, ['s0', { k: 'mortgage', space: 3 }], ['s0', { k: 'payFine' }]);
     expect(state.players.s0?.jail).toBeUndefined();
     expect(ofType(events, 'jailExit')).toEqual([{ t: 'jailExit', seat: 's0', how: 'fine' }]);
-    expect(cash(state, 's0')).toBe(0);
+    expect(cash(state, 's0')).toBe(20 + 36 - 50);
     expect(state.phase.k).toBe('preRoll');
   });
 
@@ -1123,7 +1125,7 @@ describe('audit: jail', () => {
     s = act(s, 's1', { k: 'build', group: 'brown', levels: [1, 1] }).state;
     s = act(s, 's1', { k: 'sell', group: 'brown', levels: [1, 0] }).state;
     expect(s.players.s1?.jail).toEqual({ tries: 0 });
-    expect(cash(s, 's1')).toBe(1500 - 50 + 100 - 50 + 25);
+    expect(cash(s, 's1')).toBe(1500 - 50 + 120 - 50 + 25);
   });
 
   it('Jail: after a failed jail roll the player may still build before ending the turn', () => {

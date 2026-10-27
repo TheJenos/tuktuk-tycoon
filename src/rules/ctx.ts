@@ -80,7 +80,7 @@ export function ownedBy(s: GameState, seat: SeatId): number[] {
 
 export const levelOf = (s: GameState, space: number): number => prop(s, space)?.level ?? 0;
 
-/** The interest on a mortgage value (rounded up: Power Cut Board 75 -> 8) */
+/** The interest on a mortgage value (rounded up: Power Cut Board 90 -> 9) */
 export const interest = (s: GameState, m: number): number => Math.ceil((m * s.cfg.mortgagePct) / 100);
 
 export const isOver = (s: GameState): boolean => s.phase.k === 'over';

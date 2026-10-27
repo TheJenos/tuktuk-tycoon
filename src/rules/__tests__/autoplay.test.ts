@@ -56,7 +56,7 @@ describe('awaiting, defaults and timers', () => {
     expect(timeoutCommand(debt)?.a).toEqual({ k: 'forced', seat: 's0', a: { k: 'autoRaise' } });
     const { state } = act(debt, 'system', timeoutCommand(debt)!.a, debt.seq);
     expect(state.props.p5?.mortgaged).toBe(true);
-    expect(cash(state, 's0')).toBe(0);
+    expect(cash(state, 's0')).toBe(100 + 120 - 200);
   });
 
   it('has nothing to wait for once the game is over', () => {

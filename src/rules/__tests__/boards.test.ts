@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { apply, BOARD_IDS, BOARDS, COLOMBO, createGame, getBoard, HILL, LANKA, normalizeConfig, SEAT_IDS, SOUTH, type GameState } from '..';
 import { randFrom, randomCommand } from '../randomPlayer';
+import { mortgageOf } from '../rates';
 import type { CardDef, CardFx } from '../types';
 
 /*
@@ -81,7 +82,7 @@ describe('the boards', () => {
             expect(sp.group).toBe(g.id);
             expect(sp.price).toBeGreaterThanOrEqual(last);
             last = sp.price;
-            expect(sp.mortgage).toBe(sp.price / 2);
+            expect(sp.mortgage).toBe(mortgageOf(sp.price));
             expect(sp.rent).toHaveLength(6);
             for (let k = 1; k < 6; k++) expect(sp.rent[k]!).toBeGreaterThan(sp.rent[k - 1]!);
             expect(sp.house).toBeGreaterThan(0);
@@ -89,6 +90,11 @@ describe('the boards', () => {
         }
         expect(at('rail').length).toBe(b.railRent.length);
         expect(at('utility').length).toBe(b.utilityMul.length);
+        for (const i of [...at('rail'), ...at('utility')]) {
+          const sp = b.spaces[i];
+          if (sp?.k !== 'rail' && sp?.k !== 'utility') throw new Error(`${i} is not a station or utility`);
+          expect(sp.mortgage).toBe(mortgageOf(sp.price));
+        }
         expect(at('tax').length).toBe(2);
         const colours = b.groups.map((g) => b.display.groupColours[g.id]);
         expect(new Set(colours).size).toBe(b.groups.length);

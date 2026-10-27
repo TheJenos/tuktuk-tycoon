@@ -40,7 +40,7 @@ export interface SpaceActions {
   sell?: StepAction & { kind: 'house' | 'hotel' };
   /** Mortgage it, or lift its mortgage */
   mortgage: StepAction & { kind: 'mortgage' | 'unmortgage' };
-  /** Sell it back to the bank: the mortgage value, nothing when it is mortgaged */
+  /** Sell it back to the bank: 80% of the price, less the loan when it is mortgaged */
   sale: StepAction & { mortgaged: boolean };
 }
 

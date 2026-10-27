@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { LANKA, getBoard, isProperty } from '..';
+import { mortgageOf } from '../rates';
 import type { StreetDef } from '../types';
 
 const b = LANKA;
@@ -42,7 +43,7 @@ describe('Tuk-Tuk Tycoon board data', () => {
     for (const sp of b.spaces) {
       if (!isProperty(sp)) continue;
       total += sp.price;
-      expect(sp.mortgage).toBe(sp.price / 2);
+      expect(sp.mortgage).toBe(mortgageOf(sp.price));
       if (sp.k === 'street') {
         expect(sp.rent).toHaveLength(6);
         for (let i = 1; i < 6; i++) expect(sp.rent[i]).toBeGreaterThan(sp.rent[i - 1] as number);
@@ -51,7 +52,10 @@ describe('Tuk-Tuk Tycoon board data', () => {
     expect(total).toBe(5690);
     expect(b.spaces[39]).toMatchObject({ name: 'Galle Face Penthouse', price: 400, rent: [50, 200, 600, 1400, 1700, 2000], house: 200 });
     expect(b.spaces[1]).toMatchObject({ name: 'Pettah Pavement', price: 60, rent: [2, 10, 30, 90, 160, 250], house: 50 });
-    expect(b.spaces[12]).toMatchObject({ k: 'utility', price: 150, mortgage: 75 });
+    expect(b.spaces[12]).toMatchObject({ k: 'utility', price: 150, mortgage: 90 });
+    expect(b.spaces[5]).toMatchObject({ k: 'rail', price: 200, mortgage: 120 });
+    expect(b.spaces[1]).toMatchObject({ mortgage: 36 });
+    expect(b.spaces[39]).toMatchObject({ mortgage: 240 });
     expect(b.railRent).toEqual([25, 50, 100, 200]);
     expect(b.utilityMul).toEqual([4, 10]);
   });

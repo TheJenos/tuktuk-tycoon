@@ -87,7 +87,7 @@ describe('timed open auction', () => {
     own(s, 's1', [37], { mortgaged: true });
     expect(refused(s, 's1', { k: 'bid', amount: 50 })).toBe('cash');
     s = act(s, 's1', { k: 'mortgage', space: 39 }).state;
-    expect(cash(s, 's1')).toBe(210);
+    expect(cash(s, 's1')).toBe(10 + 240);
     s = act(s, 's1', { k: 'bid', amount: 150 }).state;
     expect(refused(s, 's1', { k: 'unmortgage', space: 37 })).toBe('phase');
     expect(refused(s, 's1', { k: 'build', group: 'darkBlue', levels: [1, 1] })).toBe('phase');

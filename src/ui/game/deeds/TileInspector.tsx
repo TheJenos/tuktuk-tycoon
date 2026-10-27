@@ -94,7 +94,7 @@ function SpaceActionRow({ space }: { space: number }) {
         <ConfirmButton
           disabled={!x.sale.action || busy}
           aria-describedby={x.sale.reason ? `why-sale-${space}` : undefined}
-          question={x.sale.mortgaged ? 'Give it back to the bank for nothing (it is mortgaged)?' : `Sell it to the bank for ${money(x.sale.amount)}?`}
+          question={x.sale.mortgaged ? `Sell it to the bank for ${money(x.sale.amount)} (its loan comes out of the price)?` : `Sell it to the bank for ${money(x.sale.amount)}?`}
           yes="Sell"
           no="Keep"
           onConfirm={() => x.sale.action && void send(x.seat, x.sale.action)}
