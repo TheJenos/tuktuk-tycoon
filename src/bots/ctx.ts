@@ -1,4 +1,5 @@
 import { SEAT_IDS, type GameState, type PlayerState, type SeatId } from '../rules';
+import type { BotSkill } from '../net/types';
 import { type Model, modelOf, reserve } from './model';
 import type { Profile } from './profile';
 
@@ -16,9 +17,15 @@ export interface BotCtx {
   rivalShare: number;
   /** Engine commands of search left for this decision (rollout.ts) */
   budget: { left: number };
+  /** The other bot seats' skills (public: the table shows them); humans are absent. Offers to a bot are priced by
+   *  its own acceptance rules (trade.ts) */
+  table: BotTable;
 }
 
-export function makeCtx(s: GameState, seat: SeatId, prof: Profile, rnd: () => number): BotCtx | null {
+/** Bot seats and their skills */
+export type BotTable = Partial<Record<SeatId, BotSkill>>;
+
+export function makeCtx(s: GameState, seat: SeatId, prof: Profile, rnd: () => number, table: BotTable = {}): BotCtx | null {
   const me = s.players[seat];
   if (!me || me.out) return null;
   const m = modelOf(s);
@@ -32,6 +39,7 @@ export function makeCtx(s: GameState, seat: SeatId, prof: Profile, rnd: () => nu
     reserve: reserve(m, seat, me.pos, prof),
     rivalShare: m.active.length <= 2 ? 1 : 0.5,
     budget: { left: prof.search },
+    table,
   };
 }
 

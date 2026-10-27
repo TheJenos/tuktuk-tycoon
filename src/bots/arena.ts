@@ -111,7 +111,7 @@ export function playGame(g: ArenaGame): GameReport {
     for (const seat of seatsToAsk(s)) {
       const skill = skills[seat] ?? 'normal';
       const t0 = performance.now();
-      const d = decideDetailed(s, seat, skill, rnd);
+      const d = decideDetailed(s, seat, skill, rnd, skills);
       const ms = performance.now() - t0;
       const tm = (report.times[skill] ??= { n: 0, ms: 0, max: 0, slow: 0 });
       tm.n++;

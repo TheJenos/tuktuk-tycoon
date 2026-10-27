@@ -19,9 +19,11 @@ import { PROFILES } from './profile';
  * up, and (Normal and up) beat the rival's gain weighted by how zero-sum the table is; Hard never hands anyone a set
  * unless it gains more itself.
  *
- * Proposals (Normal: set-for-set swaps, evened out with cash; Hard: also lone property and cash sweeteners; Expert:
- * the same kinds of deal priced against Normal's and Hard's own acceptance rules, made only when its rollouts say
- * the deal beats no deal, see pricedOffers and search.ts) never block play: the bot rolls on while the receiver
+ * Proposals buy the streets the bot lacks for a set from the one rival holding them: for cash, a lone property and
+ * cash, or a swap that completes a set for the rival too (Normal on a modest cash budget; Expert only when its
+ * rollouts say the deal beats no deal, see search.ts). An offer to another bot is priced by that bot's own acceptance
+ * rules (its skill is public: BotCtx.table), so bots trade among themselves at prices they take instead of offering
+ * what they will refuse; an offer to a human is priced for a typical receiver. They never block play: the bot rolls on while the receiver
  * thinks. Offers never expire, so the bot withdraws its own once it can no longer go through or would now lose it
  * value (staleOffer), which also frees it to propose again. decide() is pure, so there is no memory of rejected
  * offers. Instead, from the state alone:
@@ -29,8 +31,8 @@ import { PROFILES } from './profile';
  *   anything else happened in it (no turn.roll, state.seq === state.since); a rejection moves seq on, so it can
  *   never be followed by another proposal that turn (only a preRoll re-entered before the throw, e.g. after an
  *   accepted trade handed over mortgages, allows one more, and then the holdings have changed);
- * - only offers clearly favourable to the receiver by a typical receiver's own valuation (Expert: that the bots'
- *   rules accept), so rejections are rare;
+ * - only offers the receiving bot's own rules accept, or (to a human) clearly favourable by a typical receiver's
+ *   valuation, so rejections are rare;
  * - only every `tradeEvery`-th round, alternating a standard and a more generous margin, so an offer that was
  *   turned down comes back improved, and the same offer recurs at most every 2 x tradeEvery rounds, and only while
  *   it is still the bot's best.
@@ -178,28 +180,56 @@ function sweeten(c: BotCtx, to: SeatId, give: Bundle, get: Bundle, maxCash: numb
   return null;
 }
 
+/** The receiving bot's own view, when the receiver is a bot (its rules decide whether it takes an offer) */
+function botView(c: BotCtx, to: SeatId): BotCtx | null {
+  const skill = c.table[to];
+  return skill ? makeCtx(c.s, to, PROFILES[skill], c.rnd, c.table) : null;
+}
+
 /** The bot's best offer now, if one is worth making */
 export function bestOffer(c: BotCtx, margin = 0.15): Offer | null {
   const m = c.m;
   const style = c.prof.propose;
   if (style === 'never') return null;
   const spareCash = Math.max(0, cashOf(m, c.seat) - c.reserve - (style === 'swap' ? 200 : 100));
-  const maxCash = style === 'swap' ? Math.min(150, spareCash) : spareCash;
+  const maxCash = Math.min(style === 'swap' ? 150 : c.prof.tradeCashMax, spareCash);
   let best: Offer | null = null;
-  const consider = (to: SeatId, give: Bundle, get: Bundle): void => {
+  /** The deal with the least cash that makes the receiver say yes, and versions asking cash back when it pleases */
+  const priced = (to: SeatId, give: Bundle, get: Bundle): { give: Bundle; asks: Bundle[] } | null => {
+    const view = botView(c, to);
+    if (view) {
+      // A bot: exactly what its own rules accept, and as much cash back as they still accept
+      const sweet = leastCash(c, [view], to, give, get, maxCash);
+      if (!sweet) return null;
+      const asks = [get];
+      if (sweet.cash === 0) {
+        // All it would still pay, or half of it (an even deal scores the rival's gain lower)
+        const extra = mostAsk(c, [view], to, sweet, get);
+        const half = Math.floor(extra / 2 / 25) * 25;
+        if (extra >= 25) asks.push(withCash(get, extra));
+        if (half >= 25) asks.push(withCash(get, half));
+      }
+      return { give: sweet, asks };
+    }
+    // A human: clearly favourable by a typical receiver's valuation
     const sweet = sweeten(c, to, give, get, maxCash, margin);
-    if (!sweet) return;
-    const options: Bundle[] = [get];
+    if (!sweet) return null;
+    const asks = [get];
     if (sweet.cash === 0) {
       // The deal already pleases the receiver: ask for cash on top to even it out
       const room = receiverSurplus(c, to, sweet, get, margin);
       for (const share of [0.5, 0.9]) {
         const ask = Math.min(cashOf(m, to), Math.floor((room * share) / 25) * 25);
-        if (ask >= 25) options.push(withCash(get, ask));
+        if (ask >= 25 && receiverShortfall(c, to, sweet, withCash(get, ask), margin) <= 0) asks.push(withCash(get, ask));
       }
     }
-    for (const ask of options) {
-      if (ask !== get && receiverShortfall(c, to, sweet, ask, margin) > 0) continue;
+    return { give: sweet, asks };
+  };
+  const consider = (to: SeatId, give: Bundle, get: Bundle): void => {
+    const p = priced(to, give, get);
+    if (!p) return;
+    const sweet = p.give;
+    for (const ask of p.asks) {
       if (tradeProblems(c.s, { from: c.seat, to, give: sweet, get: ask }).length > 0) continue;
       const j = judge(c, c.seat, to, sweet, ask, c.seat);
       const score = dealScore(c, j);
@@ -300,8 +330,9 @@ function mostAsk(c: BotCtx, views: BotCtx[], to: SeatId, give: Bundle, get: Bund
 
 /**
  * Expert's candidate offers: the missing streets of a set, held by one rival, for cash, a lone property and cash,
- * or a swap that completes a set for the rival too, each at the price that Normal's and Hard's own rules accept (and
- * Easy's too in a generous round). Best by the bot's own valuation first, at most `max`.
+ * or a swap that completes a set for the rival too, each at the price the receiver accepts: a bot by its own rules, a
+ * human by Normal's and Hard's (and Easy's too in a generous round). Best by the bot's own valuation first, at most
+ * `max`.
  */
 export function pricedOffers(c: BotCtx, generous: boolean, max: number): Proposal[] {
   const m = c.m;
@@ -311,8 +342,10 @@ export function pricedOffers(c: BotCtx, generous: boolean, max: number): Proposa
   const views = (to: SeatId): BotCtx[] => {
     let v = viewsOf.get(to);
     if (!v) {
+      // A bot by its own rules; a human by Normal's and Hard's (and Easy's in a generous round)
+      const own = botView(c, to);
       const profs = generous ? [PROFILES.easy, PROFILES.normal, PROFILES.hard] : [PROFILES.normal, PROFILES.hard];
-      v = profs.flatMap((p) => makeCtx(c.s, to, p, c.rnd) ?? []);
+      v = own ? [own] : profs.flatMap((p) => makeCtx(c.s, to, p, c.rnd) ?? []);
       viewsOf.set(to, v);
     }
     return v;

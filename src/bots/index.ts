@@ -1,11 +1,14 @@
 import { awaiting, type Action, type GameState, type SeatId } from '../rules';
 import type { BotSkill } from '../net/types';
+import type { BotTable } from './ctx';
 import { decideDetailed } from './decide';
+
+export type { BotTable } from './ctx';
 
 /*
  * The bots: a pure heuristic player per skill. No network, no React, no clock; everything comes from the state.
  * - easy: sloppy and greedy (buys most of what it can afford, builds at random, never proposes trades).
- * - normal: sound rules of thumb, a cash reserve, set-for-set swaps.
+ * - normal: sound rules of thumb, a cash reserve; buys the streets it lacks for a set, with a modest cash budget.
  * - hard: values everything by landing probability (landingProb.ts), keeps a reserve sized by the rent around it,
  *   holds at 4 houses to keep the bank short, completes sets through trades with cash sweeteners.
  * - expert: hard plus Monte-Carlo search with the engine (search.ts, rollout.ts): it lays out a few plans for building,
@@ -22,12 +25,12 @@ import { decideDetailed } from './decide';
  */
 
 /**
- * The bot's next action for `seat`, or null when it has nothing to do right now. Pure: the same state, seat, skill
- * and rnd sequence give the same answer. Only returns actions the engine accepts now, and never null for a seat
- * the game is waiting for.
+ * The bot's next action for `seat`, or null when it has nothing to do right now. Pure: the same state, seat, skill,
+ * table and rnd sequence give the same answer. Only returns actions the engine accepts now, and never null for a
+ * seat the game is waiting for. `table`: the other bot seats' skills, so its offers to them are priced to be taken.
  */
-export function decide(state: GameState, seat: SeatId, skill: BotSkill, rnd: () => number): Action | null {
-  return decideDetailed(state, seat, skill, rnd).action;
+export function decide(state: GameState, seat: SeatId, skill: BotSkill, rnd: () => number, table: BotTable = {}): Action | null {
+  return decideDetailed(state, seat, skill, rnd, table).action;
 }
 
 /** "Thinking" delay before a bot acts, in ms at normal speed */

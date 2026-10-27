@@ -10,12 +10,13 @@ import { SEAT_COLORS, TOKENS, DEFAULT_TOKEN } from '../shared/tokens';
 import { sessionStore } from '../state/session';
 import { GameView } from '../ui/game';
 import { settings, type AnimSpeed, type Quality } from '../ui/settings';
+import { fontsReady } from '../ui/fonts';
 
 /*
  * DEV TOOL (not part of the app or its build): the whole game screen (3D stage + GameView) over a local session,
  * for checking the HUD without the lobby.
  *   npx vite, then open /src/dev/game.html?seats=hhbb&speed=1[&board=colombo|hill|south][&quality=low][&anim=fast][&seed=7][&gl=0][&pace=20]
- *   [&scenario=start|buy|tax|bus|triple|auction|jail|debt|xfer|claim|trades|build|over][&presence=1][&reduced=1]
+ *   [&scenario=start|buy|tax|bus|triple|auction|jail|debt|xfer|claim|trades|build|cards|bigtrade|over][&presence=1][&reduced=1]
  *   seats: one letter per seat, h = human (all played from this tab: hot-seat), b = bot. The rules have debug on,
  *   so window.game.test.rig() works. A scenario starts the game mid-way at that decision for s0 (saved as the solo
  *   game, then resumed). `trades` leaves offers open between other seats and to s0: add &pace=500 so the bots
@@ -105,6 +106,26 @@ const SCENARIOS: Record<string, (s: GameState, run: Run) => void> = {
     own(s, 's0', [1, 5, 12]);
     own(s, 's0', [15], 0, true);
   },
+  // s0 and s1 each hold a Get Out of Jail Free card (out of its deck) beside a little property
+  cards: (s) => {
+    own(s, 's0', [1, 5]);
+    own(s, 's1', [6, 8]);
+    const hold = (seat: SeatId, deck: 'chance' | 'chest', id: string) => {
+      s.decks[deck] = s.decks[deck].filter((x) => x !== id);
+      s.players[seat]!.goojf.push(id);
+    };
+    hold('s0', 'chance', 'ch-goojf');
+    hold('s1', 'chest', 'cc-goojf');
+  },
+  // s0 and s1 own most of the board (a long trade builder): some mortgaged, houses on one of s1's sets
+  bigtrade: (s) => {
+    own(s, 's0', [1, 3, 5, 11, 12, 14, 15, 21, 23, 24, 25, 28, 35]);
+    own(s, 's0', [13], 0, true);
+    own(s, 's1', [6, 8, 9, 16, 18, 19, 26, 27, 29, 31, 32, 34]);
+    own(s, 's1', [37, 39], 1);
+    s.decks.chance = s.decks.chance.filter((x) => x !== 'ch-goojf');
+    s.players.s0!.goojf.push('ch-goojf');
+  },
   // One End turn from the game's end: everyone else is out
   over: (s) => {
     for (const seat of ['s1', 's2', 's3'] as const) if (s.players[seat]) s.players[seat].out = 'bankrupt';
@@ -154,9 +175,11 @@ initAudio();
 
 const root = document.getElementById('root');
 if (root)
-  createRoot(root).render(
-    <>
-      <Stage />
-      <GameView session={session} onLeave={() => location.reload()} />
-    </>,
+  void fontsReady().then(() =>
+    createRoot(root).render(
+      <>
+        <Stage />
+        <GameView session={session} onLeave={() => location.reload()} />
+      </>,
+    ),
   );

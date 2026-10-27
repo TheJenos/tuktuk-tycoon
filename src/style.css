@@ -1010,6 +1010,9 @@ html.reduce-motion .spinner { animation: none; border-right-color: currentColor;
 .swatch.empty { background: transparent; border: 1px dashed; opacity: 0.45; }
 .swatch.mortgaged { background-image: repeating-linear-gradient(45deg, rgba(0, 0, 0, 0.55) 0 2px, transparent 2px 5px); opacity: 0.75; }
 .swatch .pips { font-size: 8px; letter-spacing: -1px; color: #063; text-shadow: 0 0 1px #fff; }
+.swatch.jail-card, .band.jail-card { box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.85); }
+.my-prop.card { cursor: default; }
+.my-prop.card:hover { border-color: transparent; background: rgba(255, 255, 255, 0.035); }
 .swatch .pip.hotel { font-size: 9px; font-weight: 900; color: #b00; text-shadow: 0 0 1px #fff; }
 
 /* Dice readout */
@@ -1251,7 +1254,7 @@ button.link:hover { background: none; filter: brightness(1.1); }
 .manage-group { display: flex; flex-direction: column; gap: 4px; }
 .manage-group header { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .manage-group h3 { margin: 0; font-family: var(--display); font-size: 16px; letter-spacing: 1.5px; text-transform: uppercase; }
-.manage-group .band, .trade-props .band { display: inline-block; width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0, 0, 0, 0.4); flex-shrink: 0; }
+.manage-group .band { display: inline-block; width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0, 0, 0, 0.4); flex-shrink: 0; }
 .manage-group ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .space-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 6px 8px; border-radius: 8px; background: rgba(255, 255, 255, 0.03); border: 1px solid transparent; }
 .space-row.staged { border-color: rgba(255, 181, 71, 0.45); background: rgba(255, 181, 71, 0.06); }
@@ -1261,27 +1264,117 @@ button.link:hover { background: none; filter: brightness(1.1); }
 .mortgage-toggle { min-height: 32px; font-size: 13px; }
 .manage-summary { display: flex; flex-direction: column; gap: 2px; margin-right: auto; font-size: 14px; }
 
-/* Trade */
-.partner-pick { display: flex; flex-wrap: wrap; gap: 6px; }
-.trade-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.trade-side { min-width: 0; margin: 0; padding: 10px; border: 1px solid var(--glass-line); border-radius: 10px; display: flex; flex-direction: column; gap: 8px; }
-.trade-side legend { padding: 0 6px; font-family: var(--display); font-size: 15px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
-.trade-cash { display: flex; align-items: center; gap: 8px; }
-.trade-cash input { width: 110px; min-width: 0; padding: 6px 8px; }
-.trade-cash small { white-space: nowrap; }
-.game-dialog.trade .trade-cash input { width: 96px; flex: 0 1 96px; }
+/* Trade builder: a deal table. The partner from their tokens, then the two sides facing each other (owner, cash,
+   holdings as small title deeds to tap in or out), and the deal read back in the footer */
+.trade-partners { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; min-width: 0; }
+/* In the header, beside the title: the title keeps its line, the partners (and the Find box) take the rest */
+.game-dialog.trade .dialog-head { flex-wrap: nowrap; align-items: center; }
+.game-dialog.trade .dialog-head h2 { flex: 0 0 auto; }
+.game-dialog.trade .dialog-head .trade-partners { flex: 1 1 auto; }
+.trade-partner { display: inline-flex; align-items: center; gap: 7px; min-height: 40px; padding: 4px 14px 4px 9px; border-radius: 999px; border: 1px solid var(--glass-line); background: rgba(255, 255, 255, 0.04); color: var(--text); }
+.trade-partner:hover { background: rgba(255, 255, 255, 0.08); }
+.trade-partner.selected { border-color: var(--accent); background: rgba(255, 181, 71, 0.12); box-shadow: inset 0 0 0 1px var(--accent); }
+.trade-partner .token-icon { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6)); }
+.trade-partner-name { font-size: 14px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
+.trade-partner.selected .trade-partner-name { color: var(--accent); }
+
+.trade-table { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+/* The two sides meet at the swap mark, on the line between their headers */
+.trade-swap { position: absolute; left: 50%; top: 9px; z-index: 1; display: grid; place-items: center; width: 28px; height: 28px; margin-left: -14px; border-radius: 50%; background: #1b2230; border: 1px solid var(--glass-line); color: var(--accent); font-size: 16px; font-weight: 700; }
+.trade-side { min-width: 0; margin: 0; padding: 0 0 12px; border: 1px solid var(--glass-line); border-radius: 12px; background: rgba(255, 255, 255, 0.025); display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
+/* The legend as a full-width header strip in the owner's colour (float: a legend otherwise sits on the border) */
+.trade-side-head { float: left; width: 100%; display: flex; align-items: center; gap: 8px; margin: 0; padding: 9px 12px; border-bottom: 1px solid var(--glass-line); background: linear-gradient(90deg, color-mix(in srgb, var(--seat) 22%, transparent), transparent 80%); }
+.trade-side-head + * { clear: both; }
+.trade-side-head .token-icon { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6)); }
+.trade-side-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--display); font-size: 15px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; }
+.trade-side > :not(legend) { margin-inline: 12px; }
+.trade-side-body { display: flex; flex-direction: column; gap: 10px; }
+.trade-none { margin: 0; }
+/* The Find box, with many holdings: on the partners' row, at its end */
+.trade-find { flex: 0 1 220px; min-width: 140px; min-height: 40px; padding: 8px 12px; font-size: 14px; }
+/* Holdings by colour set: the set's band and name, and how much of it this owner holds */
+.trade-holdings { display: flex; flex-wrap: wrap; gap: 10px 8px; }
+/* Sets share a row as their tiles allow (a set's basis grows with its tile count): small sets sit side by side */
+.trade-set { flex: 1 1 calc(var(--n, 1) * 120px); min-width: 0; }
+.trade-table.many .trade-set { flex-basis: calc(var(--n, 1) * 102px); }
+.trade-holdings > p { flex-basis: 100%; }
+.trade-set h4 { display: flex; align-items: center; gap: 6px; margin: 0 0 5px; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+.trade-set h4 .band { display: inline-block; width: 10px; height: 10px; border-radius: 2px; border: 1px solid rgba(0, 0, 0, 0.4); background: rgba(255, 255, 255, 0.25); flex-shrink: 0; }
+.trade-set-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trade-set-count { margin-left: auto; font-variant-numeric: tabular-nums; }
+/* Many holdings: smaller tiles, so a set's row holds more of them */
+.trade-table.many .trade-tiles { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
+.trade-table.many .trade-tile label { min-height: 60px; padding: 0 6px 6px; }
+.trade-table.many .trade-tile-band { height: 12px; margin: 0 -6px 4px; }
+.trade-table.many .trade-tile-name { font-size: 12px; }
+.trade-table.many .trade-tile-meta { font-size: 11px; padding-top: 2px; }
+.trade-table.many .trade-tile-check { width: 16px; height: 16px; right: 5px; bottom: 5px; }
+.trade-table.many .trade-tile.selected .trade-tile-check::after { left: 3.5px; top: 0.5px; width: 4px; height: 8px; }
+.trade-table.many .trade-tile .prop-chip.info { height: 14px; font-size: 10px; }
+
+.trade-cash-box { display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 10px; border: 1px solid var(--glass-line); background: rgba(0, 0, 0, 0.18); }
+.trade-cash-box.on { border-color: rgba(255, 181, 71, 0.55); background: rgba(255, 181, 71, 0.07); }
+.trade-cash { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; }
+.trade-cash label { font-weight: 600; }
+.trade-cash-field { flex: 1 1 80px; display: flex; align-items: center; min-width: 0; border-radius: 8px; border: 1px solid var(--line); background: #0f131a; }
+.trade-cash-field:focus-within { border-color: var(--accent); }
+.trade-cash-unit { padding-left: 10px; color: var(--muted); font-size: 14px; }
+.trade-cash-field input { flex: 1; min-width: 0; padding: 8px 10px 8px 6px; border: 0; background: transparent; font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.trade-cash-of { white-space: nowrap; font-size: 12px; }
 .trade-cash-range { width: 100%; margin: 0; padding: 0; accent-color: var(--accent); }
 .trade-cash-steps { display: flex; gap: 6px; }
-.trade-cash-steps button { flex: 1; min-width: 0; padding: 6px 4px; font-variant-numeric: tabular-nums; }
-.trade-props { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-.trade-props li { display: flex; flex-direction: column; gap: 2px; padding: 0 4px; border-radius: 8px; }
-.trade-props li:hover, .trade-props li:focus-within { background: rgba(255, 255, 255, 0.05); }
-.trade-prop-row { display: flex; align-items: center; gap: 6px; }
-.trade-prop-row label { flex: 1; min-width: 0; }
-.trade-props li.dim { opacity: 0.6; }
-.trade-props label, .trade-card { display: flex; align-items: center; gap: 6px; min-height: 30px; cursor: pointer; }
-.trade-props input, .trade-card input { width: auto; accent-color: var(--accent); }
-.trade-problems { margin-right: auto; font-size: 14px; color: #ff9090; }
+.trade-cash-steps button { flex: 1; min-width: 0; min-height: 36px; padding: 4px; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* Holdings as small title deeds: tap one in or out. Selected: a gold edge and a tick (shape, not colour alone) */
+.trade-tiles { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 8px; }
+.trade-tile { position: relative; min-width: 0; }
+.trade-tile label { position: relative; display: flex; flex-direction: column; height: 100%; min-height: 78px; padding: 0 8px 8px; border-radius: 8px; border: 1px solid rgba(0, 0, 0, 0.35); background: #f4f1e6; color: #16181d; cursor: pointer; overflow: hidden; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35); transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
+.trade-tile input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; pointer-events: none; }
+.trade-tile-band { display: block; height: 16px; margin: 0 -8px 6px; background: #3a4558; border-bottom: 1px solid rgba(0, 0, 0, 0.3); }
+.trade-tile.plain .trade-tile-band { background: repeating-linear-gradient(135deg, #2d3442 0 6px, #262c38 6px 12px); }
+.trade-tile-name { font-size: 13px; font-weight: 700; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; padding-right: 2px; }
+.trade-tile-meta { margin-top: auto; padding: 4px 22px 0 0; font-size: 12px; color: #5a5f6b; font-variant-numeric: tabular-nums; }
+.trade-tile-check { position: absolute; right: 6px; bottom: 6px; width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(0, 0, 0, 0.25); background: #fff; }
+.trade-tile label:hover { transform: translateY(-2px); box-shadow: 0 6px 14px rgba(0, 0, 0, 0.45); }
+.trade-tile.on label { box-shadow: 0 0 0 2px #4dabf7, 0 6px 14px rgba(0, 0, 0, 0.45); }
+.trade-tile label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.trade-tile.selected label { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent), 0 6px 16px rgba(255, 181, 71, 0.25); background: #fff6df; }
+.trade-tile.selected .trade-tile-check { border-color: #b86e00; background: var(--accent); }
+.trade-tile.selected .trade-tile-check::after { content: ''; position: absolute; left: 4px; top: 1px; width: 5px; height: 9px; border: solid #1a1205; border-width: 0 2.5px 2.5px 0; transform: rotate(45deg); }
+.trade-tile.mortgaged:not(.selected) label { background: repeating-linear-gradient(135deg, #e7e1d2 0 6px, #ddd6c5 6px 12px); }
+.trade-tile.mortgaged .trade-tile-meta { color: #b42318; font-weight: 700; }
+.trade-tile.blocked label { opacity: 0.5; cursor: not-allowed; }
+.trade-tile.blocked label:hover { transform: none; }
+/* The ⓘ on the band's corner: touch has no hover, so it shows the property on the board and its deed */
+.trade-tile .prop-chip.info { position: absolute; top: -1px; right: 2px; z-index: 1; width: 20px; height: 18px; border: 0; border-radius: 0 0 6px 6px; background: rgba(0, 0, 0, 0.45); color: #fff; font-size: 11px; }
+.trade-tile.jail .trade-tile-band { box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.85); }
+.trade-tile.jail .trade-tile-meta { font-style: italic; }
+html.reduce-motion .trade-tile label { transition: none; }
+html.reduce-motion .trade-tile label:hover { transform: none; }
+
+/* The footer: the deal in words and what stops it, then the buttons */
+/* The deal sheet (the right-hand column): the deed pointed at, then the deal item by item, what stops it and the
+   buttons, pinned to the column's foot */
+.trade-sheet { min-height: 0; display: flex; flex-direction: column; border-left: 1px solid var(--glass-line); background: rgba(255, 255, 255, 0.02); }
+/* Tall enough for a street's deed, so pointing at one never resizes the dialog */
+.trade-sheet-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px; overflow-y: auto; scrollbar-width: thin; }
+.trade-sheet-body h3 { margin: 0; font-family: var(--display); font-size: 15px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; }
+.trade-deal-sides { display: flex; flex-direction: column; gap: 10px; }
+.trade-deal { flex: 0 0 auto; display: flex; flex-direction: column; gap: 8px; padding: 12px; border-top: 1px solid var(--glass-line); background: rgba(0, 0, 0, 0.2); }
+.trade-deal-side h4 { margin: 0 0 3px; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+.trade-deal-side p { margin: 0; }
+.trade-deal-side ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.trade-deal-side li { display: flex; align-items: center; gap: 7px; min-width: 0; font-size: 13px; font-weight: 600; line-height: 1.3; }
+.trade-deal-side .band { display: inline-block; flex-shrink: 0; width: 10px; height: 12px; border-radius: 2px; border: 1px solid rgba(0, 0, 0, 0.4); background: #3a4558; }
+.trade-deal-side li.cash { color: var(--accent); font-variant-numeric: tabular-nums; }
+.trade-deal-side li.cash .band { width: 12px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ffe3a3, #e8a33d); }
+.trade-problems { margin: 0; font-size: 14px; font-weight: 600; color: #ff9090; }
+.trade-problems::before { content: '!'; display: inline-grid; place-items: center; width: 16px; height: 16px; margin-right: 6px; border-radius: 50%; background: rgba(255, 90, 90, 0.2); font-size: 11px; font-weight: 900; vertical-align: 1px; }
+.trade-problems.ok { color: var(--good); }
+.trade-problems.ok::before { content: '✓'; background: rgba(92, 224, 138, 0.2); }
+.trade-deal-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.trade-deal-actions button { flex: 1; min-height: 44px; padding-inline: 10px; }
+.trade-deal-actions .primary { flex: 1.4; }
 .problem-list { margin: 0; padding-left: 18px; }
 .trade-offers { display: flex; flex-direction: column; gap: 8px; }
 .trade-offer { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; }
@@ -1325,19 +1418,27 @@ button.link:hover { background: none; filter: brightness(1.1); }
 /* The trade builder keeps the board in view: beside the board on wide screens (the camera frames around it,
    data-inset), its preview pane on the right (always there, so a hover never moves the rows) */
 .game-dialog.trade { --edge: right; }
-.game-dialog.trade .dialog-body { flex: 1 1 auto; display: grid; grid-template-columns: minmax(0, 1fr) 250px; grid-template-rows: minmax(0, 1fr); overflow: hidden; padding: 0; gap: 0; }
+.game-dialog.trade .dialog-body { flex: 1 1 auto; display: grid; grid-template-columns: minmax(0, 1fr) 260px; grid-template-rows: minmax(0, 1fr); overflow: hidden; padding: 0; gap: 0; }
 .trade-main { min-height: 0; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
 .trade-main > * { flex-shrink: 0; }
-.trade-preview { min-height: 0; overflow-y: auto; padding: 12px; border-left: 1px solid var(--glass-line); background: rgba(255, 255, 255, 0.02); }
-.trade-preview-hint { line-height: 1.5; }
+.trade-preview-hint { margin-top: auto; line-height: 1.5; }
 @media (min-width: 641px) {
-  .game-modal:has(> .game-dialog.trade) { place-items: center end; background: linear-gradient(to left, rgba(7, 9, 13, 0.6), rgba(7, 9, 13, 0.12) 75%); }
-  .game-dialog.trade { width: min(800px, 100%); }
-  /* Room for a street's deed whether or not one is showing: a hover never resizes the dialog */
-  .trade-preview { min-height: 330px; }
+  /* Clear of the action bar, which stays above the backdrop while trading (Roll / End turn) */
+  .game-modal:has(> .game-dialog.trade) { place-items: center end; padding-bottom: calc(76px * var(--ui-scale) + 16px); background: linear-gradient(to left, rgba(7, 9, 13, 0.6), rgba(7, 9, 13, 0.12) 75%); }
+  .game-dialog.trade { width: min(900px, 100%); }
+  .trade-sheet-body { min-height: 310px; }
+}
+/* Wide screens, many holdings: each side's holdings scroll on their own under its header and cash, so finding one
+   on one side never scrolls the other away */
+@media (min-width: 641px) {
+  /* Full height, so filtering never resizes (and re-centres) the dialog under the pointer */
+  .game-dialog.trade:has(.trade-table.many) { height: calc(100% - 8px); }
+  .trade-table.many { flex: 1 1 auto; min-height: 260px; grid-template-rows: minmax(0, 1fr); align-items: stretch; }
+  .trade-table.many .trade-side { min-height: 0; }
+  .trade-table.many .trade-side-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; margin-right: 4px; padding-right: 8px; scrollbar-width: thin; }
 }
 @media (min-width: 641px) and (max-width: 1100px) {
-  .game-dialog.trade { width: min(700px, 100%); }
+  .game-dialog.trade { width: min(780px, 100%); }
   .game-dialog.trade .dialog-body { grid-template-columns: minmax(0, 1fr) 220px; }
 }
 
@@ -1512,15 +1613,28 @@ button.link:hover { background: none; filter: brightness(1.1); }
   .turn-phase { font-size: 13px; }
   .game-modal { place-items: end stretch; padding: 0; }
   .game-dialog, .game-dialog.inspector, .game-dialog.manage, .game-dialog.trade { width: 100%; max-height: 88vh; border-radius: 16px 16px 0 0; padding-bottom: env(safe-area-inset-bottom); }
-  .trade-columns { grid-template-columns: 1fr; }
+  .trade-table { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .trade-swap { display: none; }
+  .game-dialog.trade .dialog-head { flex-wrap: wrap; }
+  .game-dialog.trade .dialog-head h2 { flex: 1 1 auto; }
+  .game-dialog.trade .dialog-head .trade-partners { order: 3; flex-basis: 100%; justify-content: flex-start; }
+  .trade-find { flex: 1 1 100%; }
+  .trade-tiles { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+  /* The deal sheet at the foot: the status beside the buttons; the deal itself shows in the sides above */
+  .trade-sheet { border-left: 0; }
+  .trade-deal { flex-direction: row; flex-wrap: wrap; align-items: center; padding: 10px 12px; }
+  .problem-list { display: none; }
+  /* The deal shows in the sides above; the body is only the preview, while there is one */
+  .trade-sheet-body:not(:has(.trade-preview)) { display: none; }
+  .trade-sheet-body { padding: 8px 10px; max-height: 30vh; border-top: 1px solid var(--glass-line); }
+  .trade-problems { flex: 1 1 140px; }
+  .trade-deal-actions { flex: 0 0 auto; }
   /* The trade sheet: the preview under the lists only while there is one, and then the sheet gives the board
      above it room to show the tile (the camera frames it there: the sheet is an inset) */
   .game-modal:has(> .game-dialog.trade) { background: rgba(7, 9, 13, 0.3); }
   .game-dialog.trade { --edge: bottom; }
-  .game-dialog.trade:has(.trade-preview.on) { max-height: 64vh; }
+  .game-dialog.trade:has(.trade-preview) { max-height: 64vh; }
   .game-dialog.trade .dialog-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
-  .trade-preview { display: none; border-left: 0; border-top: 1px solid var(--glass-line); padding: 8px 10px; max-height: 30vh; }
-  .trade-preview.on { display: block; }
   .trade-main { padding: 10px 12px; }
   .offer-preview { padding: 6px; }
   /* A phone's preview is short, so the board keeps room for the tile: the price, the basic rent and the one

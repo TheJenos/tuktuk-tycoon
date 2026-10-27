@@ -1,4 +1,4 @@
-import { decide, seatsToAsk, thinkMs } from '../bots';
+import { decide, seatsToAsk, thinkMs, type BotTable } from '../bots';
 import {
   defaultAction,
   RULES_VERSION,
@@ -100,6 +100,10 @@ export interface SessionOptions {
 const fail = (code: string, message: string): DispatchResult => ({ ok: false, code, message });
 const errorText = (err: unknown): string => (err instanceof Error ? err.message : String(err));
 const docVisible = (): boolean => typeof document === 'undefined' || document.visibilityState !== 'hidden';
+
+/** The bot seats and their skills, as the bots see the table (an AFK human's seat stays human: they may come back) */
+const botTable = (doc: Doc): BotTable =>
+  Object.fromEntries(Object.values(doc.seats).flatMap((x) => (x?.kind === 'bot' ? [[x.seat, x.skill ?? doc.botSkill ?? 'normal']] : [])));
 
 interface Chore {
   due: number;
@@ -536,7 +540,7 @@ export class Session implements GameSession {
     let a: Action | null;
     if (n === 0 && moves < BOT_MOVES_PER_TURN) {
       try {
-        a = decide(g, seat, info?.skill ?? doc.botSkill ?? 'normal', seededRandom(hash32(id)));
+        a = decide(g, seat, info?.skill ?? doc.botSkill ?? 'normal', seededRandom(hash32(id)), botTable(doc));
       } catch (err) {
         console.error('Bot failed to decide', err);
         a = defaultAction(g, seat);

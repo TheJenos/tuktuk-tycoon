@@ -28,6 +28,8 @@ export interface Profile {
   propose: 'never' | 'swap' | 'full';
   /** Propose on every n-th own turn at most */
   tradeEvery: number;
+  /** The most cash (engine units) the bot puts into one proposal of its own */
+  tradeCashMax: number;
   /** Accept an offer when the gain is at least this share of what the bot gives up */
   acceptGain: number;
   /** Weight of an opponent's gain against the bot's own when judging a trade (Hard: zero-sum thinking) */
@@ -53,6 +55,7 @@ export const PROFILES: Record<BotSkill, Profile> = {
     fundBuilds: false,
     propose: 'never',
     tradeEvery: 1,
+    tradeCashMax: 0,
     acceptGain: 0.3,
     rivalWeight: 0,
     search: 0,
@@ -70,8 +73,9 @@ export const PROFILES: Record<BotSkill, Profile> = {
     stepMax: 10,
     holdAtFour: false,
     fundBuilds: false,
-    propose: 'swap',
+    propose: 'full',
     tradeEvery: 4,
+    tradeCashMax: 300,
     acceptGain: 0.1,
     rivalWeight: 0.3,
     search: 0,
@@ -91,6 +95,7 @@ export const PROFILES: Record<BotSkill, Profile> = {
     fundBuilds: true,
     propose: 'full',
     tradeEvery: 3,
+    tradeCashMax: Infinity,
     acceptGain: 0.02,
     rivalWeight: 1,
     search: 0,
@@ -110,6 +115,7 @@ export const PROFILES: Record<BotSkill, Profile> = {
     fundBuilds: true,
     propose: 'full',
     tradeEvery: 3,
+    tradeCashMax: Infinity,
     acceptGain: 0.02,
     rivalWeight: 1,
     search: 400,

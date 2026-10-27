@@ -1,6 +1,7 @@
 import { expect } from 'vitest';
 import { apply, createGame, type Action, type GameState, type Level, type RigRoll, type RulesConfig, type SeatId } from '../../rules';
 import type { BotSkill } from '../../net/types';
+import type { BotTable } from '../ctx';
 import { decideDetailed } from '../decide';
 
 export const SEATS: SeatId[] = ['s0', 's1', 's2', 's3', 's4', 's5', 's6', 's7'];
@@ -35,10 +36,11 @@ export function act(s: GameState, by: SeatId, a: Action): GameState {
   return r.state;
 }
 
-/** The bot's move: its own choice (no fallback), and the engine accepts it with invariants checked */
-export function bot(s: GameState, seat: SeatId, skill: BotSkill, rnd: () => number = () => 0.5): Action {
+/** The bot's move: its own choice (no fallback), and the engine accepts it with invariants checked. `table`: the
+ *  other bot seats' skills */
+export function bot(s: GameState, seat: SeatId, skill: BotSkill, rnd: () => number = () => 0.5, table: BotTable = {}): Action {
   const before = JSON.stringify(s);
-  const d = decideDetailed(s, seat, skill, rnd);
+  const d = decideDetailed(s, seat, skill, rnd, table);
   expect(JSON.stringify(s), 'decide must not mutate the state').toBe(before);
   expect(d.problem ?? null, `${skill} ${seat} in ${s.phase.k}`).toBeNull();
   expect(d.fellBack).toBe(false);

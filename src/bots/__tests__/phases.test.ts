@@ -332,14 +332,42 @@ describe('trades', () => {
     expect(bot(s, 's0', 'hard')).toEqual({ k: 'roll' });
   });
 
-  it('Normal proposes only swaps that complete a set for both sides; Easy never proposes', () => {
+  it('Normal proposes a deal for the street it lacks, within its cash budget; Easy never proposes', () => {
     const s = scenario(2);
     own(s, 's0', [37, 6, 8]);
     own(s, 's1', [39, 9]);
     const a = bot(s, 's0', 'normal');
     expect(a.k).toBe('propose');
-    if (a.k === 'propose') expect([...a.give.props].sort()).toEqual([37]);
+    if (a.k !== 'propose') return;
+    expect(a.to).toBe('s1');
+    expect(a.get.props.some((x) => x === 39 || x === 9)).toBe(true);
+    expect(a.give.cash).toBeLessThanOrEqual(300);
     expect(bot(s, 's0', 'easy')).toEqual({ k: 'roll' });
+  });
+
+  it("an offer to another bot is priced by that bot's own rules: it takes what it is offered", () => {
+    const deal = (n: number, from: 'normal' | 'hard' | 'expert', to: 'easy' | 'normal' | 'hard' | 'expert'): string => {
+      let s = scenario(n);
+      own(s, 's0', [16, 18, 3]);
+      own(s, 's1', [19, 5]);
+      const a = bot(s, 's0', from, () => 0.5, { s1: to });
+      // No deal the receiver would refuse: either none, or one it takes
+      if (a.k !== 'propose') return 'none';
+      expect(a.get.props).toContain(19);
+      s = act(s, 's0', a);
+      const id = Object.keys(s.trades)[0] as string;
+      expect(bot(s, 's1', to), `${from} to ${to}`).toEqual({ k: 'accept', id });
+      return 'taken';
+    };
+    for (const from of ['normal', 'hard', 'expert'] as const) {
+      for (const to of ['easy', 'normal', 'hard'] as const) deal(2, from, to);
+    }
+    expect(deal(2, 'normal', 'easy')).toBe('taken');
+    expect(deal(2, 'expert', 'hard')).toBe('taken');
+    // Two Hard bots alone are zero-sum: neither can gain without the other losing, so no offer at all...
+    expect(deal(2, 'hard', 'hard')).toBe('none');
+    // ...but at a bigger table both can gain on the others, and they trade
+    expect(deal(3, 'hard', 'hard')).toBe('taken');
   });
 
   it('an open offer of its own survives the turn and is not proposed again; a stale one is withdrawn', () => {

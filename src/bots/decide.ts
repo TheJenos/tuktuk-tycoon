@@ -11,7 +11,7 @@ import {
 import type { BotSkill } from '../net/types';
 import { auctionChoice } from './auction';
 import { claimChoice, placeChoice, postRollChoice, xferChoice } from './build';
-import { type BotCtx, makeCtx } from './ctx';
+import { type BotCtx, type BotTable, makeCtx } from './ctx';
 import { debtChoice } from './debt';
 import { profileOf } from './profile';
 import { searchDebt, searchJail, searchPostRoll, searchProposal, searchRespond } from './search';
@@ -96,13 +96,13 @@ export interface Decision {
 }
 
 /** decide() with a report of whether the policy's own choice was used */
-export function decideDetailed(s: GameState, seat: SeatId, skill: BotSkill, rnd: () => number): Decision {
+export function decideDetailed(s: GameState, seat: SeatId, skill: BotSkill, rnd: () => number, table: BotTable = {}): Decision {
   if (s.phase.k === 'over') return { action: null, fellBack: false };
   // Neither awaited nor offered anything: nothing to do (and no model to build)
   if (!awaiting(s).includes(seat) && !Object.values(s.trades).some((t) => t.to === seat)) {
     return { action: null, fellBack: false };
   }
-  const c = makeCtx(s, seat, profileOf(skill), rnd);
+  const c = makeCtx(s, seat, profileOf(skill), rnd, table);
   if (!c) return { action: null, fellBack: false };
   let a: Action | null;
   try {

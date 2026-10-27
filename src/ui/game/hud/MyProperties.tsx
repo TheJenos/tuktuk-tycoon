@@ -5,6 +5,7 @@ import { uiStore } from '../../../state/ui';
 import { useView } from '../../../view';
 import { safeColor } from '../../colors';
 import { useGame, useMySeats, useNames } from '../context';
+import { jailCard, JAIL_CARD_NAME } from '../deeds/jailCard';
 import { previewHandlers, useClearPreviewOnUnmount } from '../deeds/PropertyChip';
 import { levelText, money, type Names } from '../format';
 import { clusters } from './PlayersPanel';
@@ -36,7 +37,8 @@ export function MyProperties({ onClose }: { onClose(): void }) {
   const groups = clusters(names.board)
     .map((c) => ({ ...c, owned: c.spaces.filter((i) => s.props[`p${i}`]?.owner === seat) }))
     .filter((c) => c.owned.length > 0);
-  const count = groups.reduce((n, c) => n + c.owned.length, 0);
+  const cards = (s.players[seat]?.goojf ?? []).map((id) => jailCard(names.board, id));
+  const count = groups.reduce((n, c) => n + c.owned.length, 0) + cards.length;
   const expanded = open || phoneOpen;
 
   return (
@@ -59,7 +61,7 @@ export function MyProperties({ onClose }: { onClose(): void }) {
         </button>
       </header>
       {expanded &&
-        (groups.length === 0 ? (
+        (count === 0 ? (
           <p className="muted small my-props-empty">{live.length > 1 ? `${names.seat(seat)} doesn't own any property yet.` : "You don't own any property yet."}</p>
         ) : (
           <div className="my-props-list">
@@ -79,6 +81,25 @@ export function MyProperties({ onClose }: { onClose(): void }) {
                 </ul>
               </section>
             ))}
+            {cards.length > 0 && (
+              <section className="my-props-group" aria-label="Cards">
+                <h3>
+                  <span className="band" aria-hidden="true" />
+                  <span className="my-props-set">Cards</span>
+                </h3>
+                <ul>
+                  {cards.map((card) => (
+                    <li key={card.id}>
+                      <span className="my-prop card" title={`Kept until needed; it can be traded (${card.deck})`}>
+                        <span className="band jail-card" style={{ background: card.colour }} aria-hidden="true" />
+                        <span className="my-prop-name">{JAIL_CARD_NAME}</span>
+                        <span className="muted small">{card.deck}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
           </div>
         ))}
     </section>

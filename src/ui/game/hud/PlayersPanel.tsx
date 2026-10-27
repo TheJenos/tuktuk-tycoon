@@ -7,6 +7,7 @@ import { safeColor } from '../../colors';
 import { settings, useSettings } from '../../settings';
 import { useDoc, useGame, useMySeats, useNames, useSessionSel } from '../context';
 import { skillLabel } from '../../lobby/seats';
+import { jailCard, JAIL_CARD_NAME } from '../deeds/jailCard';
 import { levelText, money, type Names } from '../format';
 import { stripScroll } from '../layout';
 import { TokenIcon } from '../tokenIcons';
@@ -211,11 +212,6 @@ export const PlayerCard = memo(function PlayerCard({ seat, s, info, names, mine,
             {info?.afk && <span className="badge" title="Away: a bot is playing this seat">AFK</span>}
             {left && <span className="badge danger" title="This player left the game">Left</span>}
             {p.jail && <span className="badge danger" title={`In jail, try ${p.jail.tries + 1} of 3`}>Jail</span>}
-            {p.goojf.length > 0 && (
-              <span className="badge good" title="Get Out of Jail Free cards">
-                Free{p.goojf.length > 1 ? ` ×${p.goojf.length}` : ''}
-              </span>
-            )}
             {p.out && <span className="badge danger">{p.out === 'resigned' ? 'Resigned' : 'Bankrupt'}</span>}
           </span>
         </span>
@@ -224,7 +220,7 @@ export const PlayerCard = memo(function PlayerCard({ seat, s, info, names, mine,
           {showNetWorth && !p.out && <small className="muted" title="Net worth">{money(netWorth(s, seat))}</small>}
         </span>
       </div>
-      {owned.length > 0 && (
+      {(owned.length > 0 || p.goojf.length > 0) && (
         <div className="swatches" aria-label={`${names.seat(seat)}'s property`}>
           {owned.map((c) => (
             <span key={c.id} className="swatch-group" title={c.label}>
@@ -250,6 +246,16 @@ export const PlayerCard = memo(function PlayerCard({ seat, s, info, names, mine,
               })}
             </span>
           ))}
+          {/* Get Out of Jail Free cards, held like property: a card each, in its deck's colour */}
+          {p.goojf.length > 0 && (
+            <span className="swatch-group">
+              {p.goojf.map((id) => {
+                const card = jailCard(names.board, id);
+                const label = `${JAIL_CARD_NAME} card (${card.deck})`;
+                return <span key={id} className="swatch jail-card" style={{ background: card.colour }} title={label} role="img" aria-label={label} />;
+              })}
+            </span>
+          )}
         </div>
       )}
     </li>
