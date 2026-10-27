@@ -1,9 +1,14 @@
-import { SEAT_COLORS, TOKENS, type TokenId } from '../../shared/tokens';
+import { SEAT_COLORS, boardTokens, tokenOn, type TokenId } from '../../shared/tokens';
 import { safeColor } from '../colors';
 import { TokenIcon, tokenLabel } from '../game/tokenIcons';
 
-/** The eight tokens as a radio group; ones another seat holds can't be picked */
-export function TokenPicker({ value, taken, onPick, label, color, disabled }: {
+/**
+ * The board's eight tokens as a radio group; ones another seat holds can't be picked. A token from another board's set
+ * counts as the same slot of this board's (tokenOn), as the game shows it.
+ */
+export function TokenPicker({ board, value, taken, onPick, label, color, disabled }: {
+  /** Whose set to offer */
+  board: string;
   value: TokenId;
   /** Tokens other seats hold */
   taken: readonly string[];
@@ -14,25 +19,28 @@ export function TokenPicker({ value, taken, onPick, label, color, disabled }: {
   color?: string;
   disabled?: boolean;
 }) {
+  const current = tokenOn(board, value);
+  const held = taken.map((t) => tokenOn(board, t));
   return (
     <div className="token-picker" role="radiogroup" aria-label={label}>
-      {TOKENS.map((t) => {
-        const mine = t.id === value;
-        const gone = !mine && taken.includes(t.id);
+      {boardTokens(board).map((id) => {
+        const name = tokenLabel(id);
+        const mine = id === current;
+        const gone = !mine && held.includes(id);
         return (
           <button
-            key={t.id}
+            key={id}
             type="button"
             role="radio"
             aria-checked={mine}
-            aria-label={gone ? `${t.label} (taken)` : t.label}
-            title={gone ? `${t.label}: someone has it` : t.label}
+            aria-label={gone ? `${name} (taken)` : name}
+            title={gone ? `${name}: someone has it` : name}
             className={mine ? 'token-opt selected' : 'token-opt'}
             style={mine ? { color: safeColor(color) } : undefined}
             disabled={disabled || gone}
-            onClick={() => onPick(t.id)}
+            onClick={() => onPick(id)}
           >
-            <TokenIcon token={t.id} size={24} />
+            <TokenIcon token={id} size={24} />
           </button>
         );
       })}
@@ -72,11 +80,12 @@ export function ColorPicker({ value, taken, onPick, label, disabled }: {
   );
 }
 
-/** A seat's token in its colour, named for screen readers when `named` */
-export function SeatToken({ token, color, size = 28, named }: { token: string; color?: string; size?: number; named?: boolean }) {
+/** A seat's token in its colour (as `board` shows it), named for screen readers when `named` */
+export function SeatToken({ token, color, size = 28, named, board }: { token: string; color?: string; size?: number; named?: boolean; board?: string }) {
+  const t = board ? tokenOn(board, token) : token;
   return (
     <span className="seat-token" style={{ color: safeColor(color) }}>
-      <TokenIcon token={token} size={size} {...(named ? { label: tokenLabel(token) } : {})} />
+      <TokenIcon token={t} size={size} {...(named ? { label: tokenLabel(t) } : {})} />
     </span>
   );
 }

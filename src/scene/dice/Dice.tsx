@@ -6,7 +6,7 @@ import { getBoard, type GameEvent } from '../../rules';
 import { ANIM } from '../../shared/timing';
 import { settings } from '../../ui/settings';
 import { director, useView } from '../../view';
-import { BOARD_TOP } from '../board/layout';
+import { BOARD_TOP, CENTRE } from '../board/layout';
 import type { Tier } from '../quality';
 import { seeded } from '../util/random';
 import { speedDieMaterials, whiteDieMaterials } from './faces';
@@ -91,7 +91,7 @@ export function Dice({ tier }: { tier: Tier }) {
               const turn = (x: number, z: number, y: number) => new Vector3(x * c - z * s, y, x * s + z * c);
               for (let k = 0; k < count; k++) {
                 const off = (k - (count - 1) / 2) * 0.72;
-                const from = turn(off * 0.8, 3.4, BOARD_TOP + 2.2 + k * 0.15);
+                const from = turn(off * 0.8, 3.4 * CENTRE, BOARD_TOP + 2.2 + k * 0.15);
                 const to = turn(off + (rand() - 0.5) * 0.2, -0.2 + (rand() - 0.5) * 0.5, REST_Y);
                 throws.push(kinematicThrow(rand, from, to, targets[k] as number));
               }

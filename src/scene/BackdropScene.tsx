@@ -5,7 +5,7 @@ import { useSelector } from '../state/store';
 import { settings } from '../ui/settings';
 import { Board, paintKey } from './board/Board';
 import { hotelGeo, hotelMat, houseGeo, houseMat } from './board/Pieces';
-import { BOARD_TOP, buildingPos, slotPos, tileRotation, travelYaw } from './board/layout';
+import { BOARD_TOP, buildingPos, setBoardSize, slotPos, tileRotation, travelYaw } from './board/layout';
 import { Lights, Table } from './Lights';
 import type { Tier } from './quality';
 import { ringGeometry, tokenGeometry } from './tokens/shapes';
@@ -22,6 +22,8 @@ const DEMO_HOUSES: [number, number][] = [[37, 3], [39, 5], [21, 2], [23, 2], [24
 const COARSE = typeof matchMedia === 'function' && matchMedia('(hover: none) and (pointer: coarse)').matches;
 
 export function BackdropScene({ tier }: { tier: Tier }) {
+  // The menus' board is All Island's
+  setBoardSize(40);
   const camera = useThree((s) => s.camera);
   const invalidate = useThree((s) => s.invalidate);
   const reduced = useSelector(settings, (s) => s.reduceMotion);

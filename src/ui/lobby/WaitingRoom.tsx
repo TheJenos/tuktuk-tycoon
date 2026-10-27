@@ -12,7 +12,8 @@ import { MenuPanel, MenuPlay, MenuRail, type MenuTab } from '../MenuShell';
 import { DEFAULT_DRAFT, roomDraft, roomPatch, RulesForm, RulesSummary, rulesTitle } from './RulesForm';
 import { SettingsView } from './SettingsView';
 import { SeatToken, TokenPicker } from './TokenPicker';
-import { SKILLS, skillLabel } from './seats';
+import { maxSeatsFor, SKILLS, skillLabel } from './seats';
+import { useMenuBoard } from './useMenuBoard';
 import './lobby.css';
 
 /*
@@ -46,7 +47,10 @@ export function WaitingRoom({ room, name }: { room: Room; name: string }) {
   const mine = seats.find((s) => s.kind === 'human' && s.ctrl === me) ?? null;
   const owner = v.owner?.id === me;
   const ownerName = v.owner?.name || lobby?.host || 'the host';
-  const max = lobby?.maxSeats ?? 8;
+  const rulesBoard = v.setup?.rules.board ?? DEFAULT_DRAFT.board;
+  useMenuBoard(rulesBoard);
+  // The room's seats, but never more than its board seats
+  const max = Math.min(lobby?.maxSeats ?? 8, maxSeatsFor(rulesBoard));
   const here = (pid: string) => !!pid && (!!v.presence[pid] || lobby?.members?.[pid] !== undefined);
   const watchers = Object.entries(v.presence).filter(([pid, p]) => !p.seat && !seats.some((s) => s.ctrl === pid)).map(([, p]) => p.name);
   const rules = v.setup ? roomDraft(v.setup.rules) : DEFAULT_DRAFT;
@@ -188,7 +192,7 @@ export function WaitingRoom({ room, name }: { room: Room; name: string }) {
                 return (
                   <li key={s.seat} className={`seat-card ${s.kind}${s.ctrl === me && s.kind === 'human' ? ' mine' : ''}`}>
                     <div className="seat-card-main">
-                      <SeatToken token={s.token} color={s.color} size={30} named />
+                      <SeatToken token={s.token} color={s.color} size={30} named board={rules.board} />
                       <span className="seat-who">
                         <strong>{s.name}</strong>
                         <span className="seat-badges">
@@ -227,7 +231,7 @@ export function WaitingRoom({ room, name }: { room: Room; name: string }) {
                       </div>
                     )}
                     {owner && s.kind === 'bot' && editing === s.seat && (
-                      <TokenPicker label={`${s.name}'s token`} value={s.token} color={s.color} taken={taken(s)} disabled={!!busy} onPick={(t: TokenId) => void act('token', () => conn.setSeatToken(t, s.seat))} />
+                      <TokenPicker board={rules.board} label={`${s.name}'s token`} value={s.token} color={s.color} taken={taken(s)} disabled={!!busy} onPick={(t: TokenId) => void act('token', () => conn.setSeatToken(t, s.seat))} />
                     )}
                   </li>
                 );
@@ -244,7 +248,7 @@ export function WaitingRoom({ room, name }: { room: Room; name: string }) {
             {mine ? (
               <div className="my-token">
                 <h3>Your token</h3>
-                <TokenPicker label="Your token" value={mine.token} color={mine.color} taken={taken(mine)} disabled={!!busy} onPick={(t) => void act('token', () => conn.setSeatToken(t))} />
+                <TokenPicker board={rules.board} label="Your token" value={mine.token} color={mine.color} taken={taken(mine)} disabled={!!busy} onPick={(t) => void act('token', () => conn.setSeatToken(t))} />
               </div>
             ) : (
               <div className="spectating" role="status">
@@ -266,7 +270,7 @@ export function WaitingRoom({ room, name }: { room: Room; name: string }) {
         {tab === 'rules' && (
           <MenuPanel id="rules" idPrefix="wait-" title="Rules" aside={<span className="muted">{owner ? 'Changes apply at once' : `Set by ${ownerName}`}</span>}>
             {owner ? (
-              <RulesForm online value={rules} onChange={(p) => void conn.setRules(roomPatch(p)).catch((err: unknown) => setError(errorText(err)))} />
+              <RulesForm online value={rules} seated={seats.length} onChange={(p) => void conn.setRules(roomPatch(p)).catch((err: unknown) => setError(errorText(err)))} />
             ) : (
               <RulesSummary value={rules} online />
             )}

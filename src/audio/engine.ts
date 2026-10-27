@@ -3,7 +3,8 @@ import { LOOP_SECONDS, SOUNDS, type MusicName, type SoundName } from './sounds';
 /*
  * Web Audio playback: one AudioContext, made (or resumed) on the first user gesture since browsers block audio
  * until then. Buffers are fetched and decoded on first use. Effects and music each have a gain node, so their
- * settings apply at once; music also passes through a duck node that dips it under a stinger.
+ * settings apply at once; music also passes through a duck node that dips it under a stinger. Each board has its
+ * own sounds in a folder (setFolder); a file it doesn't have is the original one (the root of the sounds).
  *
  * Nothing here touches the DOM or the settings: src/audio/index.ts wires those in, and the tests drive it with a
  * fake context.
@@ -62,6 +63,9 @@ export class AudioEngine {
   private wantMusic = false;
   private loopStarting = false;
   private introPending = false;
+  /** The board's sound folder ('' = the originals) and its loop's length */
+  private folder = '';
+  private loopSeconds = LOOP_SECONDS;
 
   constructor(private opts: EngineOptions) {
     this.random = opts.random ?? Math.random;
@@ -121,16 +125,50 @@ export class AudioEngine {
     set(this.music, this.mus.on ? curve(this.mus.vol) * MUSIC_LEVEL : 0);
   }
 
-  /** Fetches and decodes a file (once); the other format is tried if the first fails */
+  /**
+   * Plays the sounds in `folder` from now on ('' = the originals); `loopSeconds` is where its music loop is cut. The
+   * music crossfades to the new board's loop.
+   */
+  setFolder(folder: string, loopSeconds = LOOP_SECONDS): void {
+    if (folder === this.folder) return;
+    this.folder = folder;
+    this.loopSeconds = loopSeconds;
+    if (!this.ctx) return;
+    this.stopLoop(FADE_OUT_S);
+    this.syncMusic();
+  }
+
+  /** A sound's path in the current folder */
+  private path(name: string): string {
+    return this.folder ? `${this.folder}/${name}` : name;
+  }
+
+  /** Fetches and decodes a sound of the current folder (once), else the original; each format tried in turn */
   load(name: string): Promise<AudioBuffer | null> {
+    const key = this.path(name);
+    let p = this.buffers.get(key);
+    if (!p) {
+      p = this.fetchBoth(key).then((b) => b ?? (key === name ? null : this.load0(name)));
+      p.then((b) => b && this.ready.set(key, b));
+      this.buffers.set(key, p);
+    }
+    return p;
+  }
+
+  /** The original sound (the root's), cached under its bare name */
+  private load0(name: string): Promise<AudioBuffer | null> {
     let p = this.buffers.get(name);
     if (!p) {
-      const other = this.opts.prefer === 'ogg' ? 'mp3' : 'ogg';
-      p = this.decode(name, this.opts.prefer).then((b) => b ?? this.decode(name, other));
+      p = this.fetchBoth(name);
       p.then((b) => b && this.ready.set(name, b));
       this.buffers.set(name, p);
     }
     return p;
+  }
+
+  private fetchBoth(path: string): Promise<AudioBuffer | null> {
+    const other = this.opts.prefer === 'ogg' ? 'mp3' : 'ogg';
+    return this.decode(path, this.opts.prefer).then((b) => b ?? this.decode(path, other));
   }
 
   private async decode(name: string, ext: 'ogg' | 'mp3'): Promise<AudioBuffer | null> {
@@ -168,7 +206,7 @@ export class AudioEngine {
       src = this.voice(name, buf, gain, at, o.pitch ?? def.pitch);
       if (def.duck) this.duck(buf.duration);
     };
-    const buf = this.ready.get(name);
+    const buf = this.ready.get(this.path(name));
     if (buf) start(buf);
     else void this.load(name).then((b) => b && start(b));
     return {
@@ -274,15 +312,18 @@ export class AudioEngine {
     }
     if (this.loop || this.intro || this.loopStarting || this.introPending) return;
     this.loopStarting = true;
+    const folder = this.folder;
     void this.load('music-loop').then((buf) => {
       this.loopStarting = false;
+      // The board changed while it loaded: its own loop instead
+      if (folder !== this.folder) return this.syncMusic();
       if (!buf || this.loop || this.intro || !this.musicAudible()) return;
       const ctx = this.ctx as AudioContext;
       const src = ctx.createBufferSource();
       src.buffer = buf;
       src.loop = true;
       src.loopStart = 0;
-      src.loopEnd = Math.min(buf.duration, LOOP_SECONDS);
+      src.loopEnd = Math.min(buf.duration, this.loopSeconds);
       const gain = ctx.createGain();
       const t = ctx.currentTime;
       gain.gain.setValueAtTime(0, t);

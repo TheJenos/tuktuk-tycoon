@@ -3,7 +3,8 @@ import { DEFAULT_DRAFT, RulesForm, RulesSummary, rulesLine, rulesTitle, type Rul
 import { SeatsEditor, seatsProblem } from './SeatsEditor';
 import { SeatToken } from './TokenPicker';
 import { Wizard } from './Wizard';
-import { skillLabel, startingSeats, type SeatDraft } from './seats';
+import { seatsOnBoard, skillLabel, startingSeats, type SeatDraft } from './seats';
+import { useMenuBoard } from './useMenuBoard';
 
 const STEPS = [
   { id: 'rules', label: 'Rules' },
@@ -19,7 +20,8 @@ export function LocalWizard({ you, busy, error, onStart }: {
   onStart(rules: RulesDraft, seats: SeatDraft[]): void;
 }) {
   const [rules, setRules] = useState<RulesDraft>(DEFAULT_DRAFT);
-  const [seats, setSeats] = useState<SeatDraft[]>(() => startingSeats(you, { humans: 1, bots: 2 }));
+  const [seats, setSeats] = useState<SeatDraft[]>(() => startingSeats(you, { humans: 1, bots: 2 }, DEFAULT_DRAFT.board));
+  useMenuBoard(rules.board);
   // Renamed in Settings meanwhile: the first seat follows
   const table = seats.map((s) => (s.kind === 'you' && s.name !== you ? { ...s, name: you } : s));
 
@@ -30,11 +32,22 @@ export function LocalWizard({ you, busy, error, onStart }: {
       busy={busy}
       error={error}
       note="Saved as you play: Continue picks it up after a reload."
-      blocked={(i) => (i >= 1 ? seatsProblem(table) : null)}
+      blocked={(i) => (i >= 1 ? seatsProblem(table, rules.board) : null)}
       onLaunch={() => onStart(rules, table)}
       render={(i, go) => {
-        if (i === 0) return <RulesForm value={rules} onChange={(p) => setRules({ ...rules, ...p })} />;
-        if (i === 1) return <SeatsEditor seats={table} onChange={setSeats} botSkill={rules.botSkill} />;
+        if (i === 0) {
+          return (
+            <RulesForm
+              value={rules}
+              onChange={(p) => {
+                // The table follows the board: its tokens and its bots' names
+                if (p.board && p.board !== rules.board) setSeats(seatsOnBoard(seats, p.board));
+                setRules({ ...rules, ...p });
+              }}
+            />
+          );
+        }
+        if (i === 1) return <SeatsEditor seats={table} onChange={setSeats} botSkill={rules.botSkill} board={rules.board} />;
         return (
           <>
             <div className="launch-summary">
@@ -58,7 +71,7 @@ export function LocalWizard({ you, busy, error, onStart }: {
             <ul className="table-preview" aria-label="At the table">
               {table.map((s) => (
                 <li key={s.key}>
-                  <SeatToken token={s.token} color={s.color} size={22} named />
+                  <SeatToken token={s.token} color={s.color} size={22} named board={rules.board} />
                   <span>{s.name}</span>
                   {s.kind === 'bot' ? <span className="badge bot" title="Bot">{skillLabel(s.skill)}</span> : s.kind === 'you' ? <span className="badge accent">You</span> : null}
                 </li>

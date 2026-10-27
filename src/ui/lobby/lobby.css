@@ -30,6 +30,8 @@
 }
 .board-choice strong { font-size: 15px; }
 .board-choice small { font-size: 13px; line-height: 1.35; }
+.board-choice .board-size { font-size: 12px; font-weight: 700; letter-spacing: 0.3px; color: var(--accent); }
+.board-choice:disabled { opacity: 0.45; cursor: not-allowed; }
 .board-choice.selected { border-color: var(--accent); background: rgba(255, 181, 71, 0.1); }
 .board-choice.selected strong { color: var(--accent); }
 .board-strip { display: flex; width: 100%; height: 8px; border-radius: 3px; overflow: hidden; }

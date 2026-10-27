@@ -1,14 +1,17 @@
 import type { ReactNode } from 'react';
-import { TOKENS, type TokenId } from '../../shared/tokens';
+import { TOKENS } from '../../shared/tokens';
 import { safeColor } from '../colors';
+import { COLOMBO_ICONS } from './tokenIcons/colombo';
+import { HILL_ICONS } from './tokenIcons/hill';
+import { SOUTH_ICONS } from './tokenIcons/south';
 
 /*
- * Flat silhouettes of the eight tokens (the same shapes as the 3D pieces), for the players panel, owner marks and the
+ * Flat silhouettes of the tokens (the same shapes as the 3D pieces), for the players panel, owner marks and the
  * MiniBoard, so the token shape and not only the seat colour says whose it is. Drawn in the seat's colour when one
- * is given, else in currentColor.
+ * is given, else in currentColor. All Island's are here; each other board's in tokenIcons/<board>.tsx.
  */
 
-const SHAPES: Record<TokenId, ReactNode> = {
+const LANKA: Record<string, ReactNode> = {
   // Canopy hood, open-sided body, big rear wheel and small front wheel
   tuktuk: (
     <>
@@ -77,6 +80,8 @@ const SHAPES: Record<TokenId, ReactNode> = {
   ),
 };
 
+const SHAPES: Record<string, ReactNode> = { ...LANKA, ...COLOMBO_ICONS, ...HILL_ICONS, ...SOUTH_ICONS };
+
 export const tokenLabel = (token: string): string => TOKENS.find((t) => t.id === token)?.label ?? 'Token';
 
 /**
@@ -90,7 +95,7 @@ export function TokenIcon({ token, size = 20, label, className, color }: {
   className?: string;
   color?: string;
 }) {
-  const shape = SHAPES[token as TokenId] ?? <circle cx="12" cy="12" r="8" />;
+  const shape = SHAPES[token] ?? <circle cx="12" cy="12" r="8" />;
   const name = label === true ? tokenLabel(token) : label;
   return (
     <svg

@@ -39,7 +39,8 @@ export interface Lens {
 /** Height of everything on the board that should stay in frame (tokens, houses) */
 const CONTENT_H = 0.6;
 
-export const BOARD_AREA: Area = { minX: -HALF - FRAME, maxX: HALF + FRAME, minZ: -HALF - FRAME, maxZ: HALF + FRAME };
+/** The whole board in play, frame included */
+export const boardArea = (): Area => ({ minX: -HALF - FRAME, maxX: HALF + FRAME, minZ: -HALF - FRAME, maxZ: HALF + FRAME });
 
 /** The tiles of a path, padded, at least `min` across so a one-tile step doesn't zoom right in */
 export function pathArea(path: readonly number[], pad = 1, min = 5.5): Area {
@@ -51,7 +52,7 @@ export function pathArea(path: readonly number[], pad = 1, min = 5.5): Area {
     a.minZ = Math.min(a.minZ, b.minZ);
     a.maxZ = Math.max(a.maxZ, b.maxZ);
   }
-  if (!Number.isFinite(a.minX)) return BOARD_AREA;
+  if (!Number.isFinite(a.minX)) return boardArea();
   const grow = (lo: number, hi: number): [number, number] => {
     const c = (lo + hi) / 2;
     const half = Math.max(min / 2, (hi - lo) / 2 + pad);
@@ -156,7 +157,7 @@ function axisShift(area: readonly Pt[], bounds: readonly Pt[] | null, t: number,
  * where the board's width sets the distance of every shot, a move along the top row frames the whole board rather
  * than leaving an empty band above it and pushing its near half under the bottom sheet.
  */
-export function frameArea(area: Area, azimuth: number, polar: number, lens: Lens, insets: Insets, bounds: Area | null = BOARD_AREA): Framing {
+export function frameArea(area: Area, azimuth: number, polar: number, lens: Lens, insets: Insets, bounds: Area | null = boardArea()): Framing {
   const sp = Math.sin(polar);
   const dir: [number, number, number] = [sp * Math.sin(azimuth), Math.cos(polar), sp * Math.cos(azimuth)];
   const right: [number, number, number] = [Math.cos(azimuth), 0, -Math.sin(azimuth)];
@@ -219,6 +220,6 @@ export function shotPolar(wide: number, aspect: number): number {
  */
 export function zoomOutLimit(fov: number, aspect: number, insets: Insets, polar: number, floor: number): number {
   const lens: Lens = { fov, aspect, minDistance: 0, maxDistance: Infinity };
-  const fit = Math.max(frameArea(BOARD_AREA, 0, polar, lens, insets).distance, frameArea(BOARD_AREA, Math.PI / 4, polar, lens, insets).distance);
+  const fit = Math.max(frameArea(boardArea(), 0, polar, lens, insets).distance, frameArea(boardArea(), Math.PI / 4, polar, lens, insets).distance);
   return Math.max(floor, fit * 1.15);
 }

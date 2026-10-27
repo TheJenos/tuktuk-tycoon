@@ -117,4 +117,14 @@ describe('codec upgrade', () => {
     expect(decode(encode(s)).v).toBe(RULES_VERSION);
     expect(() => decode(encode({ ...s, v: 2 }))).toThrow(/version/);
   });
+
+  it('carries an older game on only on a board that still has the 40 spaces it was laid out on', () => {
+    const lanka: GameState = { ...scenario(), v: 4 };
+    expect(decode(encode(lanka)).v).toBe(RULES_VERSION);
+    for (const board of ['colombo', 'hill', 'south']) {
+      expect(() => decode(encode({ ...lanka, cfg: { ...lanka.cfg, board } }))).toThrow(/changed size/);
+      // Made under the current version, the same board decodes as it is
+      expect(decode(encode({ ...lanka, v: RULES_VERSION, cfg: { ...lanka.cfg, board } })).cfg.board).toBe(board);
+    }
+  });
 });

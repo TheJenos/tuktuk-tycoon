@@ -159,6 +159,13 @@ export interface BoardDef {
   chance: CardDef[];
   chest: CardDef[];
   speedDie: { faces: SpeedFace[]; labels: Record<string, string> };
+  /** The most players the board seats: a smaller board seats fewer */
+  maxPlayers: number;
+  /**
+   * The board's standard rules, over DEFAULT_RULES: where the lobby starts for this board (the table can still change
+   * any of them). Not applied by the engine itself: a game's config is whatever it was created with.
+   */
+  rules: Partial<Omit<RulesConfig, 'board' | 'debug'>>;
   /**
    * What the UI prints: the board title, its name, subtitle and blurb, each card deck's name, the colour groups' colours and the currency. Money
    * is shown as `symbol` and the engine's amount times `scale` (the engine counts rulebook units).
@@ -171,6 +178,8 @@ export interface BoardDef {
     subtitle: string;
     /** One line for the board picker */
     blurb: string;
+    /** One line on how its standard rules differ from the rulebook's (the lobby's preset hint); none for the rulebook's */
+    rulesBlurb?: string;
     decks: Record<Deck, string>;
     groupColours: Record<string, string>;
     currency: { symbol: string; scale: number };

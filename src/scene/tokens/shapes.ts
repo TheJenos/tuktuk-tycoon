@@ -1,71 +1,20 @@
-import {
-  BoxGeometry,
-  BufferGeometry,
-  ConeGeometry,
-  CylinderGeometry,
-  ExtrudeGeometry,
-  LatheGeometry,
-  Matrix4,
-  Euler,
-  Quaternion,
-  Shape,
-  SphereGeometry,
-  TorusGeometry,
-  Vector2,
-  Vector3,
-} from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { BoxGeometry, BufferGeometry, ConeGeometry, CylinderGeometry, SphereGeometry, TorusGeometry } from 'three';
 import type { TokenId } from '../../shared/tokens';
+import { B, TOKEN_SCALE, extrude, lathe, merge, part, plinth, type TokenBuilder } from './kit';
+import { COLOMBO_TOKENS } from './sets/colombo';
+import { HILL_TOKENS } from './sets/hill';
+import { SOUTH_TOKENS } from './sets/south';
+
+export { PLINTH_TOP, TOKEN_SCALE } from './kit';
 
 /*
- * The eight Sri Lankan tokens, built from primitives (no model files): each a few hundred triangles merged into one
- * geometry standing on y = 0, facing +X (the tuk-tuk's nose, the canoe's bow), on the common round plinth. They are
- * drawn in their seat's colour (Tokens.tsx). Modelled
- * about 0.5 tall inside a 0.2 radius, then scaled by TOKEN_SCALE. The seat-colour ring around the plinth is a
- * separate mesh (ringGeometry).
+ * The tokens' 3D shapes (modelling kit and conventions in kit.ts). All Island's eight are here; each other board's
+ * are in tokens/sets/<board>.ts. They are drawn in their seat's colour (Tokens.tsx). The seat-colour ring around the
+ * plinth is a separate mesh (ringGeometry).
  */
 
-type V3 = [number, number, number];
-
-function part(g: BufferGeometry, pos: V3 = [0, 0, 0], rot: V3 = [0, 0, 0], scale: V3 = [1, 1, 1]): BufferGeometry {
-  const m = new Matrix4().compose(new Vector3(...pos), new Quaternion().setFromEuler(new Euler(...rot)), new Vector3(...scale));
-  g.applyMatrix4(m);
-  const flat = g.index ? g.toNonIndexed() : g;
-  if (flat.getAttribute('uv')) flat.deleteAttribute('uv');
-  return flat;
-}
-
-function merge(parts: BufferGeometry[]): BufferGeometry {
-  const g = mergeGeometries(parts);
-  if (!g) throw new Error('token geometry merge failed');
-  g.computeBoundingBox();
-  g.computeBoundingSphere();
-  return g;
-}
-
-const lathe = (pts: [number, number][], segments = 16) =>
-  new LatheGeometry(pts.map(([x, y]) => new Vector2(x, y)), segments);
-
-/** An outline in the XY plane extruded along Z and centred on it */
-function extrude(pts: [number, number][], depth: number): BufferGeometry {
-  const shape = new Shape(pts.map(([x, y]) => new Vector2(x, y)));
-  const g = new ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 4 });
-  g.translate(0, 0, -depth / 2);
-  return g;
-}
-
-/** Tokens are modelled about 0.36 across and drawn this much bigger, so they read from the overview */
-export const TOKEN_SCALE = 1.35;
-
-/** Top of the plinth every token stands on (model units, before TOKEN_SCALE) */
-export const PLINTH_TOP = 0.055;
-
-const plinth = () =>
-  part(lathe([[0, 0], [0.17, 0], [0.18, 0.015], [0.17, 0.04], [0.12, PLINTH_TOP], [0, PLINTH_TOP]], 18));
-
-const B = PLINTH_TOP;
-
-const BUILDERS: Record<TokenId, () => BufferGeometry[]> = {
+/** All Island's tokens */
+const LANKA: Record<string, TokenBuilder> = {
   // A three-wheeler: open-sided body, a canopy hood wrapping down the back, two rear wheels and one front wheel
   tuktuk: () => [
     part(
@@ -145,6 +94,8 @@ const BUILDERS: Record<TokenId, () => BufferGeometry[]> = {
   ],
 };
 
+const BUILDERS: Record<string, TokenBuilder> = { ...LANKA, ...COLOMBO_TOKENS, ...HILL_TOKENS, ...SOUTH_TOKENS };
+
 let ring: BufferGeometry | null = null;
 /** The seat-colour ring around a token's plinth */
 export function ringGeometry(): BufferGeometry {
@@ -161,7 +112,7 @@ const cache = new Map<TokenId, BufferGeometry>();
 export function tokenGeometry(id: TokenId): BufferGeometry {
   let g = cache.get(id);
   if (!g) {
-    g = merge([plinth(), ...BUILDERS[id]()]);
+    g = merge([plinth(), ...(BUILDERS[id] ?? (LANKA.tuktuk as TokenBuilder))()]);
     g.scale(TOKEN_SCALE, TOKEN_SCALE, TOKEN_SCALE);
     g.computeBoundingBox();
     g.computeBoundingSphere();

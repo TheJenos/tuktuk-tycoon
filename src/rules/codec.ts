@@ -1,4 +1,5 @@
-import { RULES_VERSION, UPGRADABLE_VERSIONS, normalizeConfig } from './config';
+import { getBoard } from './board';
+import { LEGACY_SPACES, RULES_VERSION, UPGRADABLE_VERSIONS, normalizeConfig } from './config';
 import type { GameState } from './types';
 
 /*
@@ -24,8 +25,12 @@ export function decode(text: string): GameState {
   const upgrade = typeof raw.v === 'number' && UPGRADABLE_VERSIONS.includes(raw.v);
   if (raw.v !== RULES_VERSION && !upgrade) throw new Error(`state version ${String(raw.v)} is not ${RULES_VERSION}`);
   const s = raw as GameState;
-  s.v = RULES_VERSION;
   s.cfg = normalizeConfig(s.cfg);
+  // An older game was laid out on 40 spaces: it carries on only where its board still has them
+  if (s.v !== RULES_VERSION && getBoard(s.cfg.board).spaces.length !== LEGACY_SPACES) {
+    throw new Error(`a version ${String(s.v)} game on a board that has changed size`);
+  }
+  s.v = RULES_VERSION;
   s.since ??= s.seq;
   s.order ??= [];
   s.pending ??= [];

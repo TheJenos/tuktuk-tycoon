@@ -25,16 +25,26 @@ export const minutes = (n: number): string => (n % 60 === 0 ? `${n / 60} h` : n 
 
 export const BOT_PACE_LABELS: Record<number, string> = { 0.5: 'Quick', 1: 'Normal', 2: 'Relaxed' };
 
-/** Building supply presets (any supply of 88 houses / 22 hotels or more can never run short) */
-export const SUPPLY = {
-  standard: { houses: 32, hotels: 12, label: 'Standard' },
-  scarce: { houses: 20, hotels: 8, label: 'Scarce' },
-  unlimited: { houses: 200, hotels: 100, label: 'Unlimited' },
-} as const;
-export type SupplyId = keyof typeof SUPPLY;
+export type SupplyId = 'standard' | 'scarce' | 'unlimited';
 
-export function supplyOf(d: Pick<RulesDraft, 'houses' | 'hotels'>): SupplyId | 'custom' {
-  const id = (Object.keys(SUPPLY) as SupplyId[]).find((k) => SUPPLY[k].houses === d.houses && SUPPLY[k].hotels === d.hotels);
+/**
+ * Building supply presets for a board: its standard supply (the rulebook's 32 houses / 12 hotels on All Island), a
+ * scarce one (about 60% of it) and one that can never run short (four houses and a hotel on every street is far less)
+ */
+export function supplyFor(board: string): Record<SupplyId, { houses: number; hotels: number; label: string }> {
+  const r = getBoard(board).rules;
+  const houses = r.houses ?? DEFAULT_RULES.houses;
+  const hotels = r.hotels ?? DEFAULT_RULES.hotels;
+  return {
+    standard: { houses, hotels, label: 'Standard' },
+    scarce: { houses: Math.round(houses * 0.625), hotels: Math.round(hotels * (2 / 3)), label: 'Scarce' },
+    unlimited: { houses: 200, hotels: 100, label: 'Unlimited' },
+  };
+}
+
+export function supplyOf(d: Pick<RulesDraft, 'houses' | 'hotels' | 'board'>): SupplyId | 'custom' {
+  const supply = supplyFor(d.board);
+  const id = (Object.keys(supply) as SupplyId[]).find((k) => supply[k].houses === d.houses && supply[k].hotels === d.hotels);
   return id ?? 'custom';
 }
 

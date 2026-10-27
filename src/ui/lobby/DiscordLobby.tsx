@@ -6,7 +6,8 @@ import { roomInUse, type LobbyRecord } from '../../net/network';
 import { friendlyError } from '../errors';
 import { MenuFrame, MenuPanel, MenuPlay, MenuRail, ProfileChip, type MenuTab } from '../MenuShell';
 import { joinErrorText, joinOrCreateRoom } from './connect';
-import { LaunchStep, newRoomPlan, TableStep, type RoomPlan } from './CreateWizard';
+import { LaunchStep, newRoomPlan, TableStep, withRules, type RoomPlan } from './CreateWizard';
+import { useMenuBoard } from './useMenuBoard';
 import { OnlineNotice } from './OnlineNotice';
 import { draftOptions, draftRules, roomTimers, RulesForm } from './RulesForm';
 import { SettingsView } from './SettingsView';
@@ -38,6 +39,7 @@ export function DiscordLobby({ notice }: { notice: string | null }) {
   const [error, setError] = useState('');
   const [tab, setTab] = useState<Tab>('table');
   const [plan, setPlan] = useState<RoomPlan>(newRoomPlan);
+  useMenuBoard(plan.rules.board);
 
   useEffect(() => {
     if (!online) return;
@@ -173,7 +175,7 @@ export function DiscordLobby({ notice }: { notice: string | null }) {
               note="Everyone in this voice channel joins the same table."
               onLaunch={() => void enter(true)}
               render={(i, go) => {
-                if (i === 0) return <RulesForm online value={plan.rules} onChange={(p) => setPlan({ ...plan, rules: { ...plan.rules, ...p } })} />;
+                if (i === 0) return <RulesForm online value={plan.rules} onChange={(p) => setPlan(withRules(plan, p))} />;
                 if (i === 1) return <TableStep plan={plan} onChange={(p) => setPlan({ ...plan, ...p })} />;
                 return <LaunchStep plan={plan} go={go} />;
               }}

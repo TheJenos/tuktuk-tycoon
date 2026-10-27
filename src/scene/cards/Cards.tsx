@@ -17,7 +17,7 @@ import { uiStore } from '../../state/ui';
 import { settings } from '../../ui/settings';
 import { director, useView } from '../../view';
 import { BOARD_TOP } from '../board/layout';
-import { CARD_H, CARD_W, DECKS } from '../board/centre';
+import { CARD_H, CARD_W, deckSpot } from '../board/centre';
 import { toTexture } from '../textures/canvas';
 import { tokenPositions } from '../tokens/Tokens';
 import { drawCardBack, drawCardFace } from './drawCard';
@@ -55,7 +55,7 @@ const X = new Vector3(1, 0, 0);
 
 /** Lying face down on its deck */
 function deckPose(deck: Deck, pos: Vector3, q: Quaternion): void {
-  const d = DECKS[deck];
+  const d = deckSpot(deck);
   pos.set(d.x, BOARD_TOP + STACK_H + 0.01, d.z);
   q.setFromAxisAngle(UP, d.yaw).multiply(new Quaternion().setFromAxisAngle(X, Math.PI / 2));
 }
@@ -178,7 +178,7 @@ export function Cards() {
   return (
     <group>
       {(['chance', 'chest'] as const).map((deck, i) => {
-        const d = DECKS[deck];
+        const d = deckSpot(deck);
         return <mesh key={deck} geometry={stackGeo} material={stackMats[i]} position={[d.x, BOARD_TOP, d.z]} rotation-y={d.yaw} castShadow receiveShadow />;
       })}
       <group ref={group} visible={false}>

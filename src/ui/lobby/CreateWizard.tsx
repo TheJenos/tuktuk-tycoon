@@ -1,11 +1,12 @@
 import { useState, type ReactNode } from 'react';
 import type { BotSkill } from '../../net/types';
-import { TOKENS, type TokenId } from '../../shared/tokens';
+import { boardTokens, tokenOn, type TokenId } from '../../shared/tokens';
 import { Choices, type Choice } from './Choices';
 import { DEFAULT_DRAFT, RulesForm, RulesSummary, rulesLine, rulesTitle, type RulesDraft } from './RulesForm';
 import { TokenPicker } from './TokenPicker';
 import { Wizard } from './Wizard';
-import { freeBotName, MAX_SEATS, MIN_SEATS, SKILLS, skillLabel } from './seats';
+import { useMenuBoard } from './useMenuBoard';
+import { freeBotName, maxSeatsFor, MIN_SEATS, SKILLS, skillLabel } from './seats';
 
 /*
  * Opening an online room: the rules, then the table (how many seats, which bots, your token), then the room itself
@@ -22,26 +23,37 @@ export interface RoomPlan {
   public: boolean;
 }
 
-const SEAT_COUNTS: Choice<number>[] = Array.from({ length: MAX_SEATS - MIN_SEATS + 1 }, (_, i) => ({ value: i + MIN_SEATS, label: String(i + MIN_SEATS) }));
+/** The seat counts a board allows */
+const seatCounts = (board: string): Choice<number>[] =>
+  Array.from({ length: maxSeatsFor(board) - MIN_SEATS + 1 }, (_, i) => ({ value: i + MIN_SEATS, label: String(i + MIN_SEATS) }));
 const VISIBILITY: Choice<'public' | 'private'>[] = [
   { value: 'public', label: 'Public', hint: 'Listed in Rooms for anyone to join' },
   { value: 'private', label: 'Private', hint: 'Only people with the code or link' },
 ];
 
 export function newRoomPlan(): RoomPlan {
-  return { rules: DEFAULT_DRAFT, maxSeats: 6, bots: [], token: TOKENS[0].id, name: '', public: true };
+  return { rules: DEFAULT_DRAFT, maxSeats: Math.min(6, maxSeatsFor(DEFAULT_DRAFT.board)), bots: [], token: boardTokens(DEFAULT_DRAFT.board)[0] as TokenId, name: '', public: true };
+}
+
+/** The plan with new rules: on another board, its seats fit that board and the token is that board's own */
+export function withRules(plan: RoomPlan, patch: Partial<RulesDraft>): RoomPlan {
+  const rules = { ...plan.rules, ...patch };
+  if (rules.board === plan.rules.board) return { ...plan, rules };
+  const maxSeats = Math.min(plan.maxSeats, maxSeatsFor(rules.board));
+  return { ...plan, rules, maxSeats, bots: plan.bots.slice(0, maxSeats - 1), token: tokenOn(rules.board, plan.token) };
 }
 
 /** The table step: seats, bots and your token */
 export function TableStep({ plan, onChange }: { plan: RoomPlan; onChange(p: Partial<RoomPlan>): void }) {
-  const names = plan.bots.reduce<string[]>((acc) => [...acc, freeBotName(acc.map((n) => ({ name: n })))], []);
+  const board = plan.rules.board;
+  const names = plan.bots.reduce<string[]>((acc) => [...acc, freeBotName(acc.map((n) => ({ name: n })), board)], []);
   const room = plan.maxSeats - 1 - plan.bots.length;
   return (
     <div className="lobby-form">
       <Choices
         label="Seats"
         value={plan.maxSeats}
-        options={SEAT_COUNTS}
+        options={seatCounts(board)}
         onChange={(maxSeats) => onChange({ maxSeats, bots: plan.bots.slice(0, maxSeats - 1) })}
         hint="Everyone who joins takes a free seat; once they're all taken, people watch."
       />
@@ -69,7 +81,7 @@ export function TableStep({ plan, onChange }: { plan: RoomPlan; onChange(p: Part
       </div>
       <div className="lobby-setting">
         <span className="lobby-setting-label">Your token</span>
-        <TokenPicker label="Your token" value={plan.token} taken={[]} onPick={(token) => onChange({ token })} />
+        <TokenPicker board={board} label="Your token" value={plan.token} taken={[]} onPick={(token) => onChange({ token })} />
       </div>
     </div>
   );
@@ -83,6 +95,7 @@ export function CreateWizard({ you, busy, error, onCreate, onExit }: {
   onExit?: () => void;
 }) {
   const [plan, setPlan] = useState<RoomPlan>(newRoomPlan);
+  useMenuBoard(plan.rules.board);
   const change = (p: Partial<RoomPlan>) => setPlan((cur) => ({ ...cur, ...p }));
   const steps = [{ id: 'rules', label: 'Rules' }, { id: 'seats', label: 'Seats' }, { id: 'launch', label: 'Launch' }];
   return (
@@ -96,7 +109,7 @@ export function CreateWizard({ you, busy, error, onCreate, onExit }: {
       onExit={onExit}
       onLaunch={() => onCreate(plan)}
       render={(i, go) => {
-        if (i === 0) return <RulesForm online value={plan.rules} onChange={(p) => change({ rules: { ...plan.rules, ...p } })} />;
+        if (i === 0) return <RulesForm online value={plan.rules} onChange={(p) => setPlan((cur) => withRules(cur, p))} />;
         if (i === 1) return <TableStep plan={plan} onChange={change} />;
         return (
           <LaunchStep plan={plan} go={go}>

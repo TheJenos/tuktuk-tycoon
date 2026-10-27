@@ -1,6 +1,6 @@
 /*
- * The game's sounds: the files in public/sounds (OGG Vorbis, with an MP3 beside each for browsers that can't play
- * OGG), how loud each one plays, how many copies may overlap and how much its pitch wanders between plays (so a
+ * The game's sounds: the files in public/sounds (OGG, with an MP3 beside each for browsers that can't play OGG; each
+ * board other than All Island has its own set in public/sounds/<board>, in OGG Opus), how loud each one plays, how many copies may overlap and how much its pitch wanders between plays (so a
  * walk of ten hops doesn't sound like a machine gun). Where each file came from is in public/credits.html.
  */
 
@@ -74,3 +74,6 @@ export const SOUND_NAMES = Object.keys(SOUNDS) as SoundName[];
 
 /** Seconds of music-loop.ogg: the loop is cut there (an MP3 decoder may pad the end) */
 export const LOOP_SECONDS = 17.44;
+
+/** The same for each board's own loop, by sound folder (boardThemes.ts); the originals' when a board has none */
+export const LOOP_SECONDS_BY_FOLDER: Record<string, number> = { colombo: 108.39, hill: 130.23, south: 51.69 };

@@ -9,8 +9,10 @@ import {
   draftRules,
   draftTimers,
   expandPatch,
+  onBoard,
   presetOf,
   PRESETS,
+  presetsFor,
   roomDraft,
   roomPatch,
   roomTimers,
@@ -91,11 +93,20 @@ describe('presets and the advanced options', () => {
     expect(rulesLine(apply(DEFAULT_DRAFT, { board: 'colombo' }))).toBe('Colombo · Classic · Rs. 150,000');
   });
 
-  it('the board is not part of a preset', () => {
-    const colombo = apply(DEFAULT_DRAFT, { board: 'colombo' });
+  it('each board has its own standard rules, and a preset follows the board', () => {
+    const colombo = apply(DEFAULT_DRAFT, onBoard(DEFAULT_DRAFT, 'colombo'));
+    expect(colombo).toMatchObject({ board: 'colombo', speedDie: true, startCash: 1000, houses: 20, hotels: 8 });
     expect(presetOf(colombo)).toBe('classic');
-    expect(apply(colombo, PRESETS.fast).board).toBe('colombo');
-    expect(presetOf(apply(colombo, PRESETS.house))).toBe('house');
+    expect(rulesTitle(colombo)).toBe('Colombo rules');
+    expect(supplyOf(colombo)).toBe('standard');
+    // All Island's numbers on Colombo are not Colombo's rules
+    expect(presetOf(apply(DEFAULT_DRAFT, { board: 'colombo' }))).toBe('custom');
+    const fast = apply(colombo, presetsFor('colombo').fast);
+    expect(fast.board).toBe('colombo');
+    expect(presetOf(fast)).toBe('fast');
+    // Another board: its own version of the same preset
+    expect(presetOf(apply(fast, onBoard(fast, 'south')))).toBe('fast');
+    expect(apply(colombo, onBoard(colombo, 'lanka'))).toMatchObject({ board: 'lanka', speedDie: false, startCash: 1500, houses: 32 });
   });
 
   it('a draft goes to room rules and back unchanged', () => {

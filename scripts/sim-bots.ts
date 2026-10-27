@@ -1,17 +1,18 @@
 // Bot-vs-bot games through the engine with invariants checked after every command (Milestones 3 and 8).
 // npm run sim:bots -- [--games 100] [--players 4] [--speed] [--seed 1] [--skills easy,normal,hard,expert] [--turns 400]
-//   [--jobs 1] [--fast] [--expect expert=0.57,...] [--options]
+//   [--jobs 1] [--fast] [--expect expert=0.57,...] [--options] [--board lanka|colombo|hill|south]
 // --jobs N plays the games on N worker threads (decision times are then only indicative: the threads compete);
 // --fast skips the invariant checks (strength runs); --expect fails the run when a skill wins a smaller share of the
 // games. Exits with code 1 on any illegal or fallen-back bot decision, broken invariant, game that does not end or
 // missed --expect. --options varies the optional rules (jackpot, auctions off, first lap, quick deal...) game by
-// game. The Expert check: --players 2 --skills hard,expert --games 600 --jobs 8 --fast --expect expert=0.57
+// game. --board plays that board with its standard rules (All Island by default). The Expert check: --players 2 --skills hard,expert --games 600 --jobs 8 --fast --expect expert=0.57
 import { availableParallelism } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import type { BotSkill } from '../src/net/types';
 import { type DecisionTimes, type GameReport, SLOW_MS, playGame } from '../src/bots/arena';
 import { variedRules } from '../src/rules/randomPlayer';
+import { getBoard, hasBoard } from '../src/rules/board';
 
 const SKILLS: readonly BotSkill[] = ['easy', 'normal', 'hard', 'expert'];
 
@@ -27,6 +28,8 @@ interface Setup {
   options: boolean;
   /** Least share of the games each listed skill must win */
   expect: Partial<Record<BotSkill, number>>;
+  /** The board (played with its standard rules) */
+  board: string;
 }
 
 /** Rotate skills over the seats game by game, so no skill always sits first */
@@ -39,7 +42,7 @@ function playSome(st: Setup, from: number, step: number): GameReport[] {
   let failures = 0;
   for (let g = from; g < st.games && failures <= 50; g += step) {
     const seed = st.seed0 + g;
-    const cfg = st.options ? variedRules(seed) : {};
+    const cfg = { ...getBoard(st.board).rules, ...(st.options ? variedRules(seed) : {}), board: st.board };
     const r = playGame({ seed, players: st.players, skills: lineup(st, g), speedDie: st.speedDie, turnLimit: st.turnLimit, check: st.check, cfg });
     failures += r.failures.length;
     out.push(r);
@@ -86,6 +89,7 @@ function setupFromArgs(args: string[]): Setup & { jobs: number } {
     check: !args.includes('--fast'),
     options: args.includes('--options'),
     expect,
+    board: hasBoard(opt('board') ?? '') ? (opt('board') as string) : 'lanka',
     jobs: num('jobs', 1, 1, Math.max(1, availableParallelism())),
   };
 }

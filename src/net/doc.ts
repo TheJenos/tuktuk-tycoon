@@ -12,6 +12,7 @@ import {
   type SeatId,
 } from '../rules';
 import { animBudget, OFFLINE_TIMERS, phaseSecs, type TimerRules } from '../shared/timing';
+import { tokenOn } from '../shared/tokens';
 import type { Batch, BotSkill, Doc, Envelope, PlayerId, SeatInfo } from './types';
 
 /*
@@ -92,7 +93,8 @@ const carried = (doc: Doc): Partial<Doc> => {
 export function createDoc(o: CreateDocOptions): Doc {
   const { state, events } = createGame(o.rules, o.seats.map((s) => ({ id: s.seat, name: s.name })), o.seed);
   const seats: Partial<Record<SeatId, SeatInfo>> = {};
-  for (const s of o.seats) seats[s.seat] = cleanSeat(s);
+  // Every seat plays the board's own token (one kept from another board's set is the same slot of this one's)
+  for (const s of o.seats) seats[s.seat] = cleanSeat({ ...s, token: tokenOn(state.cfg.board, s.token) });
   const timers = { ...(o.timers ?? OFFLINE_TIMERS) };
   const at = o.at ?? Date.now();
   const doc: Doc = { gid: o.gid, seq: state.seq, game: state, seats, ids: [], recent: [], timers, strikes: {}, ...docExtras(o, at) };

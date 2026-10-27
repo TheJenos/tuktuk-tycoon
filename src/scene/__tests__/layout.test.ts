@@ -1,12 +1,19 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { createGame } from '../../rules';
 import { pieceChanges, piecesOf } from '../board/pieceList';
+import { deckSpot, throwHalf } from '../board/centre';
 import {
   buildingPos,
+  CENTRE,
   chipPos,
   HALF,
   INNER,
+  JAIL,
+  PER_SIDE,
+  setBoardSize,
   SIDE,
+  TILE_W,
+  TILES,
   slotPos,
   tileAt,
   tileBounds,
@@ -142,5 +149,39 @@ describe('board pieces', () => {
     expect(pieceChanges({ t: 'level', space: 1, from: 4, to: 5, bank })).toEqual({ enter: ['H:1'], leave: ['h:1:0', 'h:1:1', 'h:1:2', 'h:1:3'] });
     expect(pieceChanges({ t: 'level', space: 1, from: 5, to: 4, bank }).leave).toEqual(['H:1']);
     expect(pieceChanges({ t: 'owner', space: 5, via: 'bankrupt', from: 's1' })).toEqual({ enter: [], leave: ['c:5'] });
+  });
+});
+
+describe('board sizes', () => {
+  afterEach(() => setBoardSize(40));
+
+  it.each([32, 36, 40, 48])('lays out %i spaces: every tile found where it is drawn, the ring exactly filled', (n) => {
+    setBoardSize(n);
+    expect(TILES).toBe(n);
+    expect(PER_SIDE).toBe(n / 4);
+    expect(JAIL).toBe(n / 4);
+    // A bigger board is a bigger slab; All Island's stays 12.2 with tiles 1 wide
+    expect(SIDE).toBeCloseTo(12.2 * Math.sqrt(n / 40));
+    if (n === 40) expect(TILE_W).toBeCloseTo(1);
+    let area = 0;
+    for (let i = 0; i < n; i++) {
+      const [x, z] = tileCenter(i);
+      expect(tileAt(x, z), `tile ${i}`).toBe(i);
+      const b = tileBounds(i);
+      area += (b.maxX - b.minX) * (b.maxZ - b.minZ);
+      expect(Math.max(Math.abs(b.minX), Math.abs(b.maxX), Math.abs(b.minZ), Math.abs(b.maxZ))).toBeLessThanOrEqual(HALF + 1e-9);
+    }
+    expect(area).toBeCloseTo(SIDE * SIDE - (2 * INNER) ** 2);
+    // The corners are GO, the jail, the middle corner and Go To Jail's, a side apart
+    for (let s = 0; s < 4; s++) expect(tileRotation(s * PER_SIDE + 1)).toBeCloseTo(tileRotation(s * PER_SIDE));
+    // Tokens on a street stay on it; houses stay on its band
+    for (const i of [1, PER_SIDE - 1, 2 * PER_SIDE + 2]) {
+      for (let k = 0; k < 4; k++) expect(tileAt(...slotPos(i, 4, k))).toBe(i);
+      for (let h = 0; h < 5; h++) expect(tileAt(...buildingPos(i, h))).toBe(i);
+    }
+    // The middle (decks and dice) scales with the inner square and stays inside it
+    expect(CENTRE).toBeCloseTo(INNER / 4.5);
+    expect(throwHalf()).toBeLessThan(INNER);
+    expect(Math.abs(deckSpot('chance').x) + 0.95).toBeLessThan(INNER);
   });
 });

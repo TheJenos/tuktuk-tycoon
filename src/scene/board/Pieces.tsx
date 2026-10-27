@@ -22,7 +22,7 @@ import { director, useView, type BoardEvent } from '../../view';
 import { DIM } from '../dimmable';
 import { useSeatLooks } from '../seats';
 import { fitText, makeCanvas, toTexture } from '../textures/canvas';
-import { BOARD_TOP, buildingPos, chipPos, FRAME, tileCenter, tileRotation, TILE_D, TILE_W } from './layout';
+import { BOARD_TOP, buildingPos, chipPos, FRAME, tileCenter, tileRotation, TILE_D, TILE_W, TILES } from './layout';
 import { pieceChanges, piecesOf, type Pieces as PieceList } from './pieceList';
 
 /*
@@ -45,9 +45,22 @@ export const hotelGeo = merged([
   new BoxGeometry(0.4, 0.13, 0.2).translate(0, 0.065, 0),
   new ConeGeometry(0.29, 0.08, 4).rotateY(Math.PI / 4).scale(1, 1, 0.55).translate(0, 0.17, 0),
 ]);
-/** The owner bar: a thick strip in the owner's colour along the frame outside the tile, as wide as the tile */
-const chipGeo = new BoxGeometry(TILE_W * 0.86, 0.045, FRAME * 0.72).translate(0, 0.0225, 0);
-const stampGeo = new PlaneGeometry(TILE_W * 0.92, TILE_D * 0.94).rotateX(-Math.PI / 2);
+/**
+ * The owner bar (a thick strip in the owner's colour along the frame outside the tile, as wide as the tile) and the
+ * mortgage stamp, for the board in play's tile width (kept per width: boards come and go)
+ */
+const tileGeos = new Map<number, { chip: BoxGeometry; stamp: PlaneGeometry }>();
+function tileGeometries(): { chip: BoxGeometry; stamp: PlaneGeometry } {
+  let g = tileGeos.get(TILE_W);
+  if (!g) {
+    g = {
+      chip: new BoxGeometry(TILE_W * 0.86, 0.045, FRAME * 0.72).translate(0, 0.0225, 0),
+      stamp: new PlaneGeometry(TILE_W * 0.92, TILE_D * 0.94).rotateX(-Math.PI / 2),
+    };
+    tileGeos.set(TILE_W, g);
+  }
+  return g;
+}
 
 export const houseMat = new MeshStandardMaterial({ color: '#2f9e44', roughness: 0.45 });
 export const hotelMat = new MeshStandardMaterial({ color: '#e03131', roughness: 0.45 });
@@ -108,6 +121,8 @@ const parse = (key: string) => {
 };
 
 export function Pieces() {
+  // The board size is fixed for a mount (GameScene remounts the scene for another size)
+  const geos = useMemo(tileGeometries, []);
   const looks = useSeatLooks();
   const caps = useView((v) => `${Math.max(32, v.game?.cfg.houses ?? 32) + 8}:${Math.max(12, v.game?.cfg.hotels ?? 12) + 4}`);
   const [houseCap, hotelCap] = caps.split(':').map(Number) as [number, number];
@@ -242,7 +257,7 @@ export function Pieces() {
     if (c) {
       let n = 0;
       const one = (space: number, color: string, dim: boolean, key: string) => {
-        if (n >= 40) return;
+        if (n >= TILES) return;
         const s = step(key, false);
         const [x, z] = chipPos(space);
         put(c, n, x, BOARD_TOP, z, tileRotation(space), s.scale);
@@ -267,7 +282,7 @@ export function Pieces() {
     if (m) {
       let n = 0;
       const one = (space: number, key: string) => {
-        if (n >= 40) return;
+        if (n >= TILES) return;
         const a = anims.current.get(key);
         const s = step(key, false);
         const [x, z] = tileCenter(space);
@@ -295,8 +310,8 @@ export function Pieces() {
     <group>
       <instancedMesh key={`h${houseCap}`} ref={houses} args={[houseGeo, houseMat, houseCap]} frustumCulled={false} castShadow receiveShadow />
       <instancedMesh key={`H${hotelCap}`} ref={hotels} args={[hotelGeo, hotelMat, hotelCap]} frustumCulled={false} castShadow receiveShadow />
-      <instancedMesh ref={chips} args={[chipGeo, chipMat, 40]} frustumCulled={false} castShadow />
-      <instancedMesh ref={stamps} args={[stampGeo, stampMaterial(), 40]} frustumCulled={false} renderOrder={1} />
+      <instancedMesh ref={chips} args={[geos.chip, chipMat, TILES]} frustumCulled={false} castShadow />
+      <instancedMesh ref={stamps} args={[geos.stamp, stampMaterial(), TILES]} frustumCulled={false} renderOrder={1} />
     </group>
   );
 }

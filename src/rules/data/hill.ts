@@ -1,9 +1,9 @@
 import type { BoardDef, CardDef, SpaceDef } from '../types';
 
 /*
- * "Hill Country": Kandy to Nuwara Eliya and Ella along the main line. The same prices, rents and card effects as
- * the All Island board (data/lanka.ts), so the rules and balance are identical; only the names, card texts and
- * display differ. Card texts print the shown amounts (x100 the engine's units).
+ * "Hill Country": Kandy to Nuwara Eliya and Ella along the main line. 36 spaces (eight between corners) for 2 to 6
+ * players: the rulebook's eight colour groups, orange and yellow cut to pairs (each pair its tier's cheapest and
+ * dearest street), four stations, two boards. Card texts print the shown amounts (x100 the engine's units).
  */
 
 const street = (
@@ -28,7 +28,6 @@ const SPACES: SpaceDef[] = [
   { k: 'tax', name: 'Estate Office Ledger', tax: 'income' },
   rail('Kandy Station'),
   street('Hatton Bus Stand', 'lightBlue', 100, [6, 30, 90, 270, 400, 550], 50),
-  { k: 'chance', name: CHANCE_NAME },
   street('Talawakelle Bridge', 'lightBlue', 100, [6, 30, 90, 270, 400, 550], 50),
   street('Maskeliya Reservoir', 'lightBlue', 120, [8, 40, 100, 300, 450, 600], 50),
   { k: 'jail', name: 'Railway Waiting Room' },
@@ -38,26 +37,23 @@ const SPACES: SpaceDef[] = [
   street('Kandy Market Hall', 'pink', 160, [12, 60, 180, 500, 700, 900], 100),
   rail('Nanu Oya Station'),
   street('Welimada Carrot Fields', 'orange', 180, [14, 70, 200, 550, 750, 950], 100),
-  { k: 'chest', name: CHEST_NAME },
-  street('Bandarawela Fruit Stall', 'orange', 180, [14, 70, 200, 550, 750, 950], 100),
+  { k: 'chance', name: CHANCE_NAME },
   street('Haputale Tea Ridge', 'orange', 200, [16, 80, 220, 600, 800, 1000], 100),
   { k: 'parking', name: 'Tea Break Shelter' },
   street('Ella Rock Trail', 'red', 220, [18, 90, 250, 700, 875, 1050], 150),
-  { k: 'chance', name: CHANCE_NAME },
+  { k: 'chest', name: CHEST_NAME },
   street("Little Adam's Peak", 'red', 220, [18, 90, 250, 700, 875, 1050], 150),
   street('Nine Arches Bridge', 'red', 240, [20, 100, 300, 750, 925, 1100], 150),
   rail('Haputale Station'),
   street('Kandy Lake Walk', 'yellow', 260, [22, 110, 330, 800, 975, 1150], 150),
-  street('Royal Botanic Gardens', 'yellow', 260, [22, 110, 330, 800, 975, 1150], 150),
   utility('Ice-Cold Shower Board'),
   street('Hantana Tea Hills', 'yellow', 280, [24, 120, 360, 850, 1025, 1200], 150),
   { k: 'goToJail', name: 'Train Delayed!' },
   street('Gregory Lake Boathouse', 'green', 300, [26, 130, 390, 900, 1100, 1275], 200),
   street('Horton Plains Lodge', 'green', 300, [26, 130, 390, 900, 1100, 1275], 200),
-  { k: 'chest', name: CHEST_NAME },
+  { k: 'chance', name: CHANCE_NAME },
   street("Tea Planter's Bungalow", 'green', 320, [28, 150, 450, 1000, 1200, 1400], 200),
   rail('Ella Station'),
-  { k: 'chance', name: CHANCE_NAME },
   street('Racecourse Grandstand', 'darkBlue', 350, [35, 175, 500, 1100, 1300, 1500], 200),
   { k: 'tax', name: 'Woolly Jumper Bill', tax: 'luxury' },
   street('Little England Mansion', 'darkBlue', 400, [50, 200, 600, 1400, 1700, 2000], 200),
@@ -69,8 +65,8 @@ const TO_WAIT = 'Go directly to the Railway Waiting Room. Do not pass Start, do 
 /** "Mountain Mist" (the rulebook's Chance deck) */
 const CHANCE: CardDef[] = [
   { id: 'ch-go', text: 'The mist lifts and you can see the road home. Advance to Start. Collect Rs. 20,000.', fx: { k: 'advance', to: 0 } },
-  { id: 'ch-galle', text: `Everyone wants a photo of the blue train. Advance to Nine Arches Bridge. ${PASS_START}`, fx: { k: 'advance', to: 24 } },
-  { id: 'ch-negombo', text: `The exam results are out. Advance to Peradeniya Campus. ${PASS_START}`, fx: { k: 'advance', to: 11 } },
+  { id: 'ch-galle', text: `Everyone wants a photo of the blue train. Advance to Nine Arches Bridge. ${PASS_START}`, fx: { k: 'advance', to: 22 } },
+  { id: 'ch-negombo', text: `The exam results are out. Advance to Peradeniya Campus. ${PASS_START}`, fx: { k: 'advance', to: 10 } },
   {
     id: 'ch-utility',
     text:
@@ -99,7 +95,7 @@ const CHANCE: CardDef[] = [
   },
   { id: 'ch-poortax', text: 'Fined for feeding the monkeys at the viewpoint. Pay Rs. 1,500.', fx: { k: 'cash', amount: -15 } },
   { id: 'ch-fort', text: `Catch the early train to the hills. Advance to Kandy Station. ${PASS_START}`, fx: { k: 'advance', to: 5 } },
-  { id: 'ch-penthouse', text: 'Invited to tea by a log fire. Advance to Little England Mansion.', fx: { k: 'advance', to: 39 } },
+  { id: 'ch-penthouse', text: 'Invited to tea by a log fire. Advance to Little England Mansion.', fx: { k: 'advance', to: 35 } },
   { id: 'ch-chairman', text: 'You are elected to run the flower show. Pay each player Rs. 5,000.', fx: { k: 'each', amount: -50 } },
   { id: 'ch-loan', text: 'A bumper crop of strawberries. Collect Rs. 15,000.', fx: { k: 'cash', amount: 150 } },
 ];
@@ -133,22 +129,25 @@ export const HILL: BoardDef = {
   spaces: SPACES,
   groups: [
     { id: 'brown', name: 'Brown', spaces: [1, 3] },
-    { id: 'lightBlue', name: 'Light Blue', spaces: [6, 8, 9] },
-    { id: 'pink', name: 'Pink', spaces: [11, 13, 14] },
-    { id: 'orange', name: 'Orange', spaces: [16, 18, 19] },
-    { id: 'red', name: 'Red', spaces: [21, 23, 24] },
-    { id: 'yellow', name: 'Yellow', spaces: [26, 27, 29] },
-    { id: 'green', name: 'Green', spaces: [31, 32, 34] },
-    { id: 'darkBlue', name: 'Dark Blue', spaces: [37, 39] },
+    { id: 'lightBlue', name: 'Light Blue', spaces: [6, 7, 8] },
+    { id: 'pink', name: 'Pink', spaces: [10, 12, 13] },
+    { id: 'orange', name: 'Orange', spaces: [15, 17] },
+    { id: 'red', name: 'Red', spaces: [19, 21, 22] },
+    { id: 'yellow', name: 'Yellow', spaces: [24, 26] },
+    { id: 'green', name: 'Green', spaces: [28, 29, 31] },
+    { id: 'darkBlue', name: 'Dark Blue', spaces: [33, 35] },
   ],
   railRent: [25, 50, 100, 200],
   utilityMul: [4, 10],
   utilityCardMul: 10,
   railCardMul: 2,
-  jailIndex: 10,
-  goToJailIndex: 30,
+  jailIndex: 9,
+  goToJailIndex: 27,
   chance: CHANCE,
   chest: CHEST,
+  maxPlayers: 6,
+  // A cooler economy: a stiffer jail fine and a flat income tax
+  rules: { jailFine: 100, incomeTaxMode: 'flat' },
   speedDie: {
     faces: [1, 2, 3, 'bus', 'uncle', 'uncle'],
     labels: { '1': '1', '2': '2', '3': '3', bus: 'Bus', uncle: 'Tuk-Tuk Uncle' },
@@ -158,6 +157,7 @@ export const HILL: BoardDef = {
     name: 'Hill Country',
     subtitle: 'Hill Country',
     blurb: 'Kandy to Nuwara Eliya and Ella along the main line: tea estates, misty mornings, late trains and leeches.',
+    rulesBlurb: 'A Rs. 10,000 jail fine and a flat income tax: a cooler hill economy',
     currency: { symbol: 'Rs.', scale: 100 },
     decks: { chance: CHANCE_NAME, chest: CHEST_NAME },
     groupColours: {

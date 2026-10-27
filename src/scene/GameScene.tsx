@@ -1,11 +1,13 @@
 import { PerformanceMonitor } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
 import { useRef } from 'react';
+import { getBoard } from '../rules';
 import { useSelector } from '../state/store';
-import { director } from '../view';
+import { director, useView } from '../view';
 import { Board } from './board/Board';
 import { BoardPicker } from './board/BoardPicker';
 import { JailBars } from './board/JailBars';
+import { setBoardSize } from './board/layout';
 import { Pieces } from './board/Pieces';
 import { Spotlight } from './board/Spotlight';
 import { TileHighlights } from './board/TileHighlights';
@@ -19,8 +21,11 @@ import { Tokens } from './tokens/Tokens';
 
 /** The game: everything the director animates, plus the camera rig and the tile picker */
 export function GameScene({ tier }: { tier: Tier }) {
+  // The geometry follows the board in play (a different size remounts everything laid out on it)
+  const spaces = useView((v) => getBoard(v.game?.cfg.board ?? 'lanka').spaces.length);
+  setBoardSize(spaces);
   return (
-    <>
+    <group key={spaces}>
       <Lights tier={tier} />
       <Table />
       <Board tier={tier} />
@@ -35,7 +40,7 @@ export function GameScene({ tier }: { tier: Tier }) {
       <FloatingLabels />
       <CameraRig />
       <AdaptiveResolution tier={tier} />
-    </>
+    </group>
   );
 }
 

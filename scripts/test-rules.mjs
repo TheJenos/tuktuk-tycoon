@@ -148,6 +148,7 @@ const cases = [
   ['setup: seat s8', 'rooms/ROOM1/setup/seats/s8', { ...human, seat: 's8' }, false],
   ['setup: seat key and seat id differ', 'rooms/ROOM1/setup/seats/s2', human, false],
   ['setup: unknown token', 'rooms/ROOM1/setup/seats/s1/token', 'dragon', false],
+  ['setup: another board\'s token', 'rooms/ROOM1/setup/seats/s1/token', 'cityBus', true],
   ['setup: unknown bot skill', 'rooms/ROOM1/setup/seats/s1/skill', 'godlike', false],
   ['setup: a 17-character seat name', 'rooms/ROOM1/setup/seats/s1/name', 'B'.repeat(17), false],
   ['setup: a bad controller id', 'rooms/ROOM1/setup/seats/s0/ctrl', 'someone', false],

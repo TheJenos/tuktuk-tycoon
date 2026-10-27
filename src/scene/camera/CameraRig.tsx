@@ -5,7 +5,7 @@ import type { PerspectiveCamera } from 'three';
 import { uiStore } from '../../state/ui';
 import { settings } from '../../ui/settings';
 import { director } from '../../view';
-import { BOARD_AREA, frameArea, laneAzimuth, nearestAzimuth, pathArea, shotPolar, tileArea, zoomOutLimit, type Area } from './framing';
+import { boardArea, frameArea, laneAzimuth, nearestAzimuth, pathArea, shotPolar, tileArea, zoomOutLimit, type Area } from './framing';
 import { setOverview } from './recenter';
 
 export { recenter } from './recenter';
@@ -35,7 +35,7 @@ export function CameraRig() {
   const ref = useRef<CameraControls>(null);
   const camera = useThree((s) => s.camera) as PerspectiveCamera;
   const get = useThree((s) => s.get);
-  const last = useRef<{ area: Area; shot: Shot; face?: number }>({ area: BOARD_AREA, shot: 'overview', face: 0 });
+  const last = useRef<{ area: Area; shot: Shot; face?: number }>({ area: boardArea(), shot: 'overview', face: 0 });
   /** While a preview holds the camera: the shot to go back to (the director's latest) */
   const held = useRef<{ area: Area; shot: Shot; face?: number } | null>(null);
 
@@ -75,7 +75,7 @@ export function CameraRig() {
   useEffect(() => {
     const offOverview = setOverview(() => {
       held.current = null;
-      return frame(BOARD_AREA, 'overview', { force: true, face: 0 });
+      return frame(boardArea(), 'overview', { force: true, face: 0 });
     });
     /** The director's shots: taken now, or kept for when a preview lets go of the camera */
     const shot = (area: Area, kind: Shot, face?: number): Promise<void> => {
@@ -86,10 +86,10 @@ export function CameraRig() {
     };
     // A picker already open (a game resumed at a triple) gets its cursor framed straight away
     const g0 = uiStore.get().picker?.ghost ?? null;
-    if (g0 === null) void frame(BOARD_AREA, 'overview', { smooth: false, force: true, face: 0 });
+    if (g0 === null) void frame(boardArea(), 'overview', { smooth: false, force: true, face: 0 });
     else void frame(tileArea(g0), 'focus', { smooth: false, force: true });
     const offApi = director.register('camera', {
-      focus: (space) => (space === null ? shot(BOARD_AREA, 'overview') : shot(tileArea(space), 'focus', laneAzimuth([space]))),
+      focus: (space) => (space === null ? shot(boardArea(), 'overview') : shot(tileArea(space), 'focus', laneAzimuth([space]))),
       follow: (path) => shot(pathArea(path), 'follow', laneAzimuth(path)),
     });
     // Re-frame when the HUD's panels change size, and follow the picker's cursor (Bus choice, triples)
@@ -115,7 +115,7 @@ export function CameraRig() {
         ghost = g;
         // The picker's cursor outranks a preview
         held.current = null;
-        void (g === null ? frame(BOARD_AREA, 'overview') : frame(tileArea(g), 'focus'));
+        void (g === null ? frame(boardArea(), 'overview') : frame(tileArea(g), 'focus'));
       }
       const p = u.picker ? null : u.preview;
       if (p !== preview) {

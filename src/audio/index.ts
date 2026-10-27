@@ -1,17 +1,19 @@
 import { ownerOf, type GameEvent } from '../rules';
+import { boardTheme } from '../shared/boardThemes';
 import { sessionStore } from '../state/session';
 import { toasts } from '../ui/game/actions';
 import { settings } from '../ui/settings';
 import { director, type PlayInfo } from '../view';
 import { AudioEngine, type Voice } from './engine';
 import { cuesFor, pickInstant, type Cue } from './events';
-import { SOUND_NAMES } from './sounds';
+import { LOOP_SECONDS, LOOP_SECONDS_BY_FOLDER, SOUND_NAMES } from './sounds';
 
 /*
  * Sound for the game: wires the engine (src/audio/engine.ts) to the settings, the first user gesture, the tab's
  * visibility, the director's events (src/audio/events.ts), the screen (music in the lobby and in games, an intro
  * jingle as a game starts) and the UI (a click for buttons in the lobby and the HUD, an error blip with a refusal
- * toast).
+ * toast). Each board has its own music and effects: those of the game on screen, else of the board the lobby shows
+ * (setMenuBoard), else All Island's.
  *
  * Silent, with no AudioContext at all, in the Playwright build (VITE_E2E), when localStorage has
  * `tuktuk-silent` = 1, or while both the effects and the music are off.
@@ -81,6 +83,23 @@ function inGame(): boolean {
   return !!director.view.get().game;
 }
 
+let menuBoard: string | null = null;
+
+/** The board the lobby is showing (a wizard's pick, a waiting room's board), or null when none */
+export function setMenuBoard(board: string | null): void {
+  menuBoard = board;
+  syncBoard();
+}
+
+/** Sounds from the board on screen: the game's, else the lobby's, else All Island's */
+function syncBoard(): void {
+  const e = engine;
+  if (!e?.ctx) return;
+  const folder = boardTheme(director.view.get().game?.cfg.board ?? menuBoard ?? 'lanka').sounds;
+  e.setFolder(folder, LOOP_SECONDS_BY_FOLDER[folder] ?? LOOP_SECONDS);
+  e.preload(SOUND_NAMES);
+}
+
 let started = false;
 
 /** Call once at startup (the app and the dev pages) */
@@ -104,6 +123,7 @@ export function initAudio(): void {
     if (!e.unlock()) return;
     if (fresh) {
       apply();
+      syncBoard();
       e.preload(SOUND_NAMES);
       // Music plays everywhere: the lobby, the waiting room and the game
       e.wantsMusic(true);
@@ -124,6 +144,7 @@ export function initAudio(): void {
   let hadGame = inGame();
   director.view.subscribe(() => {
     const now = inGame();
+    syncBoard();
     if (now && !hadGame) engine?.playIntro();
     hadGame = now;
   });

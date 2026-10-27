@@ -1,17 +1,21 @@
 import type { BotSkill } from '../../net/types';
 import type { LocalSeat } from '../../net/local';
-import { SEAT_COLORS, TOKENS, type TokenId } from '../../shared/tokens';
+import { getBoard } from '../../rules';
+import { boardTheme, freeBotName as boardBotName, isDefaultBotName } from '../../shared/boardThemes';
+import { SEAT_COLORS, boardTokens, tokenOn, type TokenId } from '../../shared/tokens';
 
 /*
  * Seats as the lobby's forms edit them before a game exists: who sits (you, another player at this screen, or a
- * bot), with a token and a colour each, both unique at the table.
+ * bot), with a token and a colour each, both unique at the table. The board decides how many may sit, which tokens
+ * there are and what the bots are called.
  */
 
 export const MIN_SEATS = 2;
+/** The most seats any board has */
 export const MAX_SEATS = 8;
 
-/** Bot names: common Sri Lankan first names */
-export const BOT_NAMES = ['Nimal', 'Kamala', 'Kasun', 'Dilini', 'Ruwan', 'Sanduni', 'Chamara', 'Nadeesha'] as const;
+/** How many players a board seats */
+export const maxSeatsFor = (board: string): number => Math.min(MAX_SEATS, getBoard(board).maxPlayers);
 
 export const SKILLS: { value: BotSkill; label: string; hint: string }[] = [
   { value: 'easy', label: 'Easy', hint: 'Buys on a whim, never trades' },
@@ -34,40 +38,61 @@ export interface SeatDraft {
 
 let nextKey = 1;
 
-const freeToken = (seats: SeatDraft[]): TokenId => TOKENS.find((t) => !seats.some((s) => s.token === t.id))?.id ?? TOKENS[0].id;
+const freeToken = (seats: SeatDraft[], board: string): TokenId => {
+  const set = boardTokens(board);
+  return set.find((t) => !seats.some((s) => tokenOn(board, s.token) === t)) ?? (set[0] as TokenId);
+};
 const freeColor = (seats: SeatDraft[]): string => SEAT_COLORS.find((c) => !seats.some((s) => s.color === c)) ?? SEAT_COLORS[0];
 
-export function freeBotName(seats: { name: string }[]): string {
-  const taken = new Set(seats.map((s) => s.name.toLowerCase()));
-  return BOT_NAMES.find((n) => !taken.has(n.toLowerCase())) ?? `Bot ${seats.length + 1}`;
-}
+/** The board's first bot name nobody at the table has */
+export const freeBotName = (seats: { name: string }[], board = 'lanka'): string => boardBotName(board, seats.map((s) => s.name), seats.length + 1);
 
 function freePlayerName(seats: SeatDraft[]): string {
   const taken = new Set(seats.map((s) => s.name.toLowerCase()));
   for (let i = 2; ; i++) if (!taken.has(`player ${i}`)) return `Player ${i}`;
 }
 
-/** A new seat of `kind`, with the first token, colour and name nobody at the table has */
-export function addSeat(seats: SeatDraft[], kind: SeatDraft['kind'], skill: BotSkill = 'normal'): SeatDraft[] {
-  if (seats.length >= MAX_SEATS) return seats;
+/** A new seat of `kind`, with the board's first token, colour and name nobody at the table has (none past its cap) */
+export function addSeat(seats: SeatDraft[], kind: SeatDraft['kind'], skill: BotSkill = 'normal', board = 'lanka'): SeatDraft[] {
+  if (seats.length >= maxSeatsFor(board)) return seats;
   const seat: SeatDraft = {
     key: nextKey++,
     kind,
-    name: kind === 'bot' ? freeBotName(seats) : freePlayerName(seats),
+    name: kind === 'bot' ? freeBotName(seats, board) : freePlayerName(seats),
     skill,
-    token: freeToken(seats),
+    token: freeToken(seats, board),
     color: freeColor(seats),
   };
   return [...seats, seat];
 }
 
-/** You plus `bots` bots and `humans` more players at this screen */
-export function startingSeats(you: string, { humans = 0, bots = 3 }: { humans?: number; bots?: number } = {}): SeatDraft[] {
-  let seats: SeatDraft[] = [{ key: nextKey++, kind: 'you', name: you, skill: 'normal', token: TOKENS[0].id, color: SEAT_COLORS[0] }];
-  for (let i = 0; i < humans; i++) seats = addSeat(seats, 'human');
-  for (let i = 0; i < bots; i++) seats = addSeat(seats, 'bot');
+/** You plus `bots` bots and `humans` more players at this screen, on `board` */
+export function startingSeats(you: string, { humans = 0, bots = 3 }: { humans?: number; bots?: number } = {}, board = 'lanka'): SeatDraft[] {
+  let seats: SeatDraft[] = [{ key: nextKey++, kind: 'you', name: you, skill: 'normal', token: boardTokens(board)[0] as TokenId, color: SEAT_COLORS[0] }];
+  for (let i = 0; i < humans; i++) seats = addSeat(seats, 'human', 'normal', board);
+  for (let i = 0; i < bots; i++) seats = addSeat(seats, 'bot', 'normal', board);
   return seats;
 }
+
+/**
+ * The table moved to another board: every token becomes the same slot of the new board's set (so they stay unique),
+ * and bots still called by a default name take the new board's names. Seats past the new board's cap stay, for the
+ * player to remove (seatsProblem says so).
+ */
+export function seatsOnBoard(seats: SeatDraft[], board: string): SeatDraft[] {
+  const out = seats.map((s) => ({ ...s, token: tokenOn(board, s.token) }));
+  const kept = out.filter((s) => !(s.kind === 'bot' && isDefaultBotName(s.name)));
+  return out.map((s) => {
+    if (s.kind !== 'bot' || !isDefaultBotName(s.name)) return s;
+    const name = freeBotName(kept, board);
+    const seat = { ...s, name };
+    kept.push(seat);
+    return seat;
+  });
+}
+
+/** The names the board's bots get, for a preview */
+export const botNamesFor = (board: string): readonly string[] => boardTheme(board).botNames;
 
 export const toLocalSeats = (seats: SeatDraft[]): LocalSeat[] =>
   seats.map((s) => ({

@@ -148,6 +148,9 @@ export const LANKA: BoardDef = {
   goToJailIndex: 30,
   chance: CHANCE,
   chest: CHEST,
+  maxPlayers: 8,
+  // Today's Classic rules
+  rules: {},
   speedDie: {
     faces: [1, 2, 3, 'bus', 'uncle', 'uncle'],
     labels: { '1': '1', '2': '2', '3': '3', bus: 'Bus', uncle: 'Tuk-Tuk Uncle' },

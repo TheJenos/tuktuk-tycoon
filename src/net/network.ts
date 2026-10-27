@@ -1,6 +1,7 @@
-import { BOARD_IDS, DEFAULT_RULES, RULES_VERSION, SEAT_IDS, type EndMode, type IncomeTaxMode, type RulesConfig, type SeatId, type TradingMode } from '../rules';
+import { BOARD_IDS, DEFAULT_RULES, RULES_VERSION, SEAT_IDS, getBoard, type EndMode, type IncomeTaxMode, type RulesConfig, type SeatId, type TradingMode } from '../rules';
+import { freeBotName } from '../shared/boardThemes';
 import { ONLINE_TIMERS, type TimerRules } from '../shared/timing';
-import { SEAT_COLORS, TOKENS, isTokenId, type TokenId } from '../shared/tokens';
+import { SEAT_COLORS, boardTokens, isTokenId, tokenOn, type TokenId } from '../shared/tokens';
 import type { Db } from './db';
 import { AFK_STRIKES, BOT_PACES, BOT_SKILLS, cleanSeat, createDoc, drivenSeat, encodeDoc, othersPlaying, seatsOf } from './doc';
 import { envelopeId, gameId, isPlayerId, randomSeed, roomCode } from './ids';
@@ -180,9 +181,6 @@ export const IDLE_GAME_MS = 24 * 60 * 60 * 1000;
 /** The driver refreshes lobby.lastMoveAt at most this often */
 const LAST_MOVE_EVERY_MS = 60_000;
 
-/** Bot names: common Sri Lankan first names */
-const BOT_NAMES = ['Nimal', 'Kamala', 'Kasun', 'Dilini', 'Ruwan', 'Sanduni', 'Chamara', 'Nadeesha'];
-
 export const DEFAULT_ROOM_OPTIONS: RoomOptions = {
   afkStrikes: AFK_STRIKES,
   botPace: 1,
@@ -306,11 +304,22 @@ export function rematchSeats(doc: Doc, here: ReadonlySet<PlayerId>): SetupRecord
   return out;
 }
 
-function freeToken(seats: SeatInfo[], want?: TokenId): TokenId | null {
-  const used = new Set(seats.map((s) => s.token));
-  if (want && !used.has(want)) return want;
-  return TOKENS.find((t) => !used.has(t.id))?.id ?? null;
+/**
+ * The token for a new seat on `board`: `want` (as the board shows it) if nobody has it, else the board's first free
+ * one. Seats count by slot (tokenOn), so a token kept from another board still holds its slot.
+ */
+function freeToken(seats: SeatInfo[], board: string, want?: TokenId): TokenId | null {
+  const used = new Set(seats.map((s) => tokenOn(board, s.token)));
+  const w = want ? tokenOn(board, want) : null;
+  if (w && !used.has(w)) return w;
+  return boardTokens(board).find((t) => !used.has(t)) ?? null;
 }
+
+/** Whether two seats' tokens are the same piece on `board` */
+const sameToken = (board: string, a: string, b: string): boolean => tokenOn(board, a) === tokenOn(board, b);
+
+/** The most seats a room on `board` has */
+const boardSeats = (board: string): number => Math.min(8, getBoard(board).maxPlayers);
 
 const seatColor = (seat: SeatId): string => SEAT_COLORS[SEAT_IDS.indexOf(seat)] ?? SEAT_COLORS[0];
 
@@ -527,9 +536,9 @@ export class RoomConnection {
   static async create(db: Db, o: CreateRoomOptions, handlers: RoomHandlers = {}): Promise<RoomConnection> {
     await pendingLeave;
     const clock = await serverClock(db);
-    const maxSeats = Math.min(8, Math.max(2, Math.round(o.maxSeats ?? 8)));
-    const bots = (o.bots ?? []).slice(0, maxSeats - 1);
     const roomRules = toRoomRules(o.rules, o.timers, o.options);
+    const maxSeats = Math.min(boardSeats(roomRules.board), Math.max(2, Math.round(o.maxSeats ?? 8)));
+    const bots = (o.bots ?? []).slice(0, maxSeats - 1);
     let code = o.code ?? '';
     const record = (): LobbyRecord => ({
       name: o.name.slice(0, 24),
@@ -558,12 +567,15 @@ export class RoomConnection {
     }
 
     const seats: Partial<Record<SeatId, SeatInfo>> = {};
-    const creator: SeatInfo = { seat: 's0', name: o.host, token: o.token ?? TOKENS[0].id, color: seatColor('s0'), kind: 'human', ctrl: o.me };
+    const board = roomRules.board;
+    const first = boardTokens(board)[0] as TokenId;
+    const creator: SeatInfo = { seat: 's0', name: o.host, token: o.token ? tokenOn(board, o.token) : first, color: seatColor('s0'), kind: 'human', ctrl: o.me };
     seats.s0 = creator;
     bots.forEach((b, i) => {
       const seat = SEAT_IDS[i + 1] as SeatId;
-      const token = freeToken(Object.values(seats) as SeatInfo[]) ?? TOKENS[0].id;
-      seats[seat] = { seat, name: BOT_NAMES[i] ?? `Bot ${i + 1}`, token, color: seatColor(seat), kind: 'bot', ctrl: '', skill: b.skill };
+      const at = Object.values(seats) as SeatInfo[];
+      const token = freeToken(at, board) ?? first;
+      seats[seat] = { seat, name: freeBotName(board, at.map((x) => x.name), i + 1), token, color: seatColor(seat), kind: 'bot', ctrl: '', skill: b.skill };
     });
     // A leftover from an abandoned room with this code goes first
     await db.remove(roomPath(code));
@@ -740,13 +752,14 @@ export class RoomConnection {
 
   /** Take a seat (or change my token): the seat cap and unique tokens are enforced by transaction */
   claimSeat(token?: TokenId): Promise<SeatId> {
-    const max = this.lobbyRec?.maxSeats ?? 8;
     return this.editSetup<SeatId>((s) => {
       if (s.locked) return { error: new RoomError('started', 'The game has already started.') };
+      const board = s.rules?.board ?? DEFAULT_ROOM_RULES.board;
+      const max = Math.min(this.lobbyRec?.maxSeats ?? 8, boardSeats(board));
       const seats = Object.values(s.seats) as SeatInfo[];
       const mine = seats.find((x) => x.kind === 'human' && x.ctrl === this.me);
       const others = seats.filter((x) => x !== mine);
-      if (token && others.some((x) => x.token === token)) return { error: new RoomError('token', 'Someone already has that token.') };
+      if (token && others.some((x) => sameToken(board, x.token, token))) return { error: new RoomError('token', 'Someone already has that token.') };
       if (mine) {
         const want = token ?? mine.token;
         if (want === mine.token && mine.name === this.name) return { result: mine.seat };
@@ -754,7 +767,7 @@ export class RoomConnection {
       }
       if (seats.length >= max) return { error: new RoomError('full', 'Every seat is taken.') };
       const seat = SEAT_IDS.find((id) => !s.seats[id]);
-      const pick = freeToken(others, token);
+      const pick = freeToken(others, board, token);
       if (!seat || !pick) return { error: new RoomError('full', 'Every seat is taken.') };
       const info: SeatInfo = { seat, name: this.name, token: pick, color: seatColor(seat), kind: 'human', ctrl: this.me };
       return { result: seat, seats: { ...s.seats, [seat]: info } };
@@ -783,7 +796,8 @@ export class RoomConnection {
       if (!target) return { error: new RoomError('bad', 'Nobody sits there') };
       const mine = target.kind === 'human' && target.ctrl === this.me;
       if (!mine && !(target.kind === 'bot' && this.isOwner())) return { error: new RoomError('owner', 'That is not your seat') };
-      if ((Object.values(s.seats) as SeatInfo[]).some((x) => x.seat !== target.seat && x.token === token)) {
+      const board = s.rules?.board ?? DEFAULT_ROOM_RULES.board;
+      if ((Object.values(s.seats) as SeatInfo[]).some((x) => x.seat !== target.seat && sameToken(board, x.token, token))) {
         return { error: new RoomError('token', 'Someone already has that token.') };
       }
       return { seats: { ...s.seats, [target.seat]: { ...target, token } } };
@@ -804,6 +818,11 @@ export class RoomConnection {
       clean[key] = v;
     }
     if (!Object.keys(clean).length) return;
+    // A smaller board must still seat everyone already at the table
+    const seated = Object.keys(this.setupRec?.seats ?? {}).length;
+    if (typeof clean.board === 'string' && boardSeats(clean.board) < seated) {
+      throw new RoomError('full', `${getBoard(clean.board).display.name} seats at most ${boardSeats(clean.board)}: ${seated} are at the table.`);
+    }
     await this.db.update(`${roomPath(this.code)}/setup/rules`, clean);
     // What the Rooms list shows
     const mirror: Partial<LobbyRecord> = {};
@@ -815,15 +834,15 @@ export class RoomConnection {
   /** Owner: put a bot in the first free seat (at the room's bot level unless told otherwise) */
   addBot(skill: BotSkill = this.setupRec?.rules.botSkill ?? 'normal'): Promise<SeatId> {
     this.requireOwner();
-    const max = this.lobbyRec?.maxSeats ?? 8;
     return this.editSetup<SeatId>((s) => {
       if (s.locked) return { error: new RoomError('started', 'The game has already started.') };
+      const board = s.rules?.board ?? DEFAULT_ROOM_RULES.board;
+      const max = Math.min(this.lobbyRec?.maxSeats ?? 8, boardSeats(board));
       const seats = Object.values(s.seats) as SeatInfo[];
       const seat = SEAT_IDS.find((id) => !s.seats[id]);
-      const token = freeToken(seats);
+      const token = freeToken(seats, board);
       if (seats.length >= max || !seat || !token) return { error: new RoomError('full', 'Every seat is taken.') };
-      const names = new Set(seats.map((x) => x.name));
-      const name = BOT_NAMES.find((n) => !names.has(n)) ?? `Bot ${seat.slice(1)}`;
+      const name = freeBotName(board, seats.map((x) => x.name), Number(seat.slice(1)));
       const info: SeatInfo = { seat, name, token, color: seatColor(seat), kind: 'bot', ctrl: '', skill };
       return { result: seat, seats: { ...s.seats, [seat]: info } };
     });

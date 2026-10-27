@@ -11,7 +11,7 @@ import {
   optionRows,
   parkingName,
   rulesLine,
-  SUPPLY,
+  supplyFor,
   supplyOf,
   type RulesDraft,
   type SupplyId,
@@ -40,26 +40,46 @@ type PresetValues = Pick<RulesDraft, PresetKey>;
 
 const CLASSIC: PresetValues = Object.fromEntries(PRESET_KEYS.map((k) => [k, DEFAULT_DRAFT[k]])) as PresetValues;
 
-export const PRESETS: Record<Exclude<PresetId, 'custom'>, PresetValues> = {
-  classic: CLASSIC,
-  fast: { ...CLASSIC, speedDie: true, dealProperties: 2, endMode: 'firstBankrupt', startCash: 2000, turnLimit: 200 },
-  house: { ...CLASSIC, jackpot: true, doubleGoLanding: true, threeDoublesJail: false },
-};
+/**
+ * The presets on a board. Each board has its own standard rules (BoardDef.rules: All Island's are the rulebook's,
+ * "Classic"); Fast and House rules are that standard with their changes on top.
+ */
+export function presetsFor(board: string): Record<Exclude<PresetId, 'custom'>, PresetValues> {
+  const standard = { ...CLASSIC, ...getBoard(board).rules } as PresetValues;
+  return {
+    classic: standard,
+    fast: { ...standard, speedDie: true, dealProperties: 2, endMode: 'firstBankrupt', startCash: 2000, turnLimit: 200 },
+    house: { ...standard, jackpot: true, doubleGoLanding: true, threeDoublesJail: false },
+  };
+}
+
+/** All Island's presets */
+export const PRESETS = presetsFor(DEFAULT_DRAFT.board);
+
+/** A board's standard rules by name: "Classic" (the rulebook's, All Island) or the board's own ("Colombo") */
+export const standardName = (board: string): string => (board === DEFAULT_DRAFT.board ? 'Classic' : getBoard(board).display.name);
 
 const presetChoices = (board: string): Choice<PresetId>[] => {
   const b = getBoard(board);
   return [
-    { value: 'classic', label: 'Classic', hint: 'The rulebook' },
+    { value: 'classic', label: standardName(board), hint: board === DEFAULT_DRAFT.board ? 'The rulebook' : (b.display.rulesBlurb ?? 'This board’s own rules') },
     { value: 'fast', label: 'Fast', hint: `Speed Die, 2 properties dealt each, ${money(2000)} to start, the first bankruptcy ends it, 200 turns at most` },
     { value: 'house', label: 'House rules', hint: `A ${parkingName(b)} jackpot, double salary for landing on ${startName(b)}, no jail for three doubles` },
     { value: 'custom', label: 'Custom', hint: 'Your own mix: see Advanced' },
   ];
 };
 
-/** Which preset the draft is (Custom once anything a preset sets differs from all of them) */
+/** Which of its board's presets the draft is (Custom once anything a preset sets differs from all of them) */
 export function presetOf(d: RulesDraft): PresetId {
-  const ids = Object.keys(PRESETS) as Exclude<PresetId, 'custom'>[];
-  return ids.find((id) => PRESET_KEYS.every((k) => PRESETS[id][k] === d[k])) ?? 'custom';
+  const presets = presetsFor(d.board);
+  const ids = Object.keys(presets) as Exclude<PresetId, 'custom'>[];
+  return ids.find((id) => PRESET_KEYS.every((k) => presets[id][k] === d[k])) ?? 'custom';
+}
+
+/** The draft moved to another board: that board's version of the same preset (its standard rules from Custom) */
+export function onBoard(d: RulesDraft, board: string): Partial<RulesDraft> {
+  const preset = presetOf(d);
+  return { board, ...presetsFor(board)[preset === 'custom' ? 'classic' : preset] };
 }
 
 // ------------------------------------------------------------------------------------------------ draft <-> rules
@@ -140,11 +160,14 @@ const INCOME_FLAT: Choice<number>[] = [100, 150, 200, 250].map((v) => ({ value: 
 const INCOME_PCT: Choice<number>[] = [5, 10, 15, 20].map((v) => ({ value: v, label: `${v}%` }));
 const JAIL_FINE: Choice<number>[] = [25, 50, 100].map((v) => ({ value: v, label: money(v), ...(v === 50 ? { hint: 'The rulebook amount' } : {}) }));
 const INTEREST: Choice<number>[] = [0, 10, 20].map((v) => ({ value: v, label: v ? `${v}%` : 'None' }));
-const SUPPLY_CHOICES: Choice<SupplyId | 'custom'>[] = (Object.keys(SUPPLY) as SupplyId[]).map((k) => ({
-  value: k,
-  label: SUPPLY[k].label,
-  hint: k === 'unlimited' ? 'Never runs short' : `${SUPPLY[k].houses} houses, ${SUPPLY[k].hotels} hotels`,
-}));
+const supplyChoices = (board: string): Choice<SupplyId | 'custom'>[] => {
+  const supply = supplyFor(board);
+  return (Object.keys(supply) as SupplyId[]).map((k) => ({
+    value: k,
+    label: supply[k].label,
+    hint: k === 'unlimited' ? 'Never runs short' : `${supply[k].houses} houses, ${supply[k].hotels} hotels`,
+  }));
+};
 const AUCTION_TIMERS: Choice<number>[] = [5, 8, 12, 20].map((v) => ({ value: v, label: `${v} s` }));
 const DEAL: Choice<number>[] = [0, 1, 2, 3].map((v) => ({ value: v, label: v ? `${v} each` : 'None' }));
 const END: Choice<RulesDraft['endMode']>[] = [
@@ -178,30 +201,39 @@ export function BoardStrip({ board }: { board: string }) {
   );
 }
 
-/** The board picker: one card per board with its name, blurb and colour strip (a radio group named "Board") */
-export function BoardChoice({ value, onChange, disabled }: { value: string; onChange(board: string): void; disabled?: boolean }) {
+/**
+ * The board picker: one card per board with its name, blurb, colour strip and size (a radio group named "Board"). A
+ * board too small for the `seated` players can't be picked.
+ */
+export function BoardChoice({ value, onChange, disabled, seated = 0 }: { value: string; onChange(board: string): void; disabled?: boolean; seated?: number }) {
   const id = useId();
   return (
     <div className={disabled ? 'lobby-setting board-setting disabled' : 'lobby-setting board-setting'}>
       <span className="lobby-setting-label" id={`${id}-label`}>Board</span>
       <div className="board-choices" role="radiogroup" aria-labelledby={`${id}-label`}>
-        {BOARDS.map((b) => (
-          <button
-            key={b.id}
-            type="button"
-            role="radio"
-            aria-checked={b.id === value}
-            aria-label={b.name}
-            aria-describedby={`${id}-${b.id}`}
-            className={b.id === value ? 'board-choice selected' : 'board-choice'}
-            disabled={disabled}
-            onClick={() => onChange(b.id)}
-          >
-            <BoardStrip board={b.id} />
-            <strong>{b.name}</strong>
-            <small className="muted" id={`${id}-${b.id}`}>{b.blurb}</small>
-          </button>
-        ))}
+        {BOARDS.map((b) => {
+          const def = getBoard(b.id);
+          const small = seated > def.maxPlayers;
+          return (
+            <button
+              key={b.id}
+              type="button"
+              role="radio"
+              aria-checked={b.id === value}
+              aria-label={b.name}
+              aria-describedby={`${id}-${b.id}`}
+              className={b.id === value ? 'board-choice selected' : 'board-choice'}
+              disabled={disabled || (small && b.id !== value)}
+              title={small ? `Seats ${def.maxPlayers}: ${seated} are at the table` : undefined}
+              onClick={() => onChange(b.id)}
+            >
+              <BoardStrip board={b.id} />
+              <strong>{b.name}</strong>
+              <small className="board-size">{def.spaces.length} spaces · 2–{def.maxPlayers} players</small>
+              <small className="muted" id={`${id}-${b.id}`}>{b.blurb}</small>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -209,9 +241,11 @@ export function BoardChoice({ value, onChange, disabled }: { value: string; onCh
 
 // ------------------------------------------------------------------------------------------------ the form
 
-export function RulesForm({ value, onChange, online = false, disabled = false }: {
+export function RulesForm({ value, onChange, online = false, disabled = false, seated = 0 }: {
   value: RulesDraft;
   onChange(patch: Partial<RulesDraft>): void;
+  /** Players already at the table: boards that seat fewer can't be picked */
+  seated?: number;
   /** Shows the room-only options: the timers on human decisions, AFK, spectators and late join */
   online?: boolean;
   disabled?: boolean;
@@ -221,7 +255,7 @@ export function RulesForm({ value, onChange, online = false, disabled = false }:
   const set = (patch: Partial<RulesDraft>) => onChange(expandPatch(patch));
   const pick = (id: PresetId) => {
     if (id === 'custom') setOpen(true);
-    else set(PRESETS[id]);
+    else set(presetsFor(value.board)[id]);
   };
   const timersOn = value.turnTimer > 0;
   const supply = supplyOf(value);
@@ -230,7 +264,7 @@ export function RulesForm({ value, onChange, online = false, disabled = false }:
   const presets = presetChoices(value.board);
   return (
     <div className="lobby-form rules-form">
-      <BoardChoice value={board.id} disabled={disabled} onChange={(id) => set({ board: id })} />
+      <BoardChoice value={board.id} disabled={disabled} seated={seated} onChange={(id) => set(onBoard(value, id))} />
       <Choices
         label="Preset"
         value={preset}
@@ -314,9 +348,9 @@ export function RulesForm({ value, onChange, online = false, disabled = false }:
           <Choices
             label="Building supply"
             value={supply}
-            options={SUPPLY_CHOICES}
+            options={supplyChoices(value.board)}
             disabled={disabled}
-            onChange={(id) => id !== 'custom' && set({ houses: SUPPLY[id].houses, hotels: SUPPLY[id].hotels })}
+            onChange={(id) => id !== 'custom' && set({ houses: supplyFor(value.board)[id].houses, hotels: supplyFor(value.board)[id].hotels })}
             hint={supply === 'custom' ? `${value.houses} houses, ${value.hotels} hotels` : 'Houses and hotels in the bank; a shortage starts a contest for them.'}
           />
         </fieldset>
@@ -453,17 +487,22 @@ export function RulesForm({ value, onChange, online = false, disabled = false }:
 }
 
 /**
- * The rules' name: "Classic rules", "Classic + Speed Die", "Fast rules", "House rules"; "· custom" when changed beyond
- * that. `short`: without "rules" (the waiting room's tab).
+ * The rules' name: "Classic rules" (All Island's standard; another board's is its name: "Colombo rules"), "Classic +
+ * Speed Die", "Fast rules", "House rules"; "· custom" when changed beyond that. `short`: without "rules" (the waiting
+ * room's tab).
  */
 export function rulesTitle(d: RulesDraft, short = false): string {
   const preset = presetOf(d);
   if (preset === 'fast') return short ? 'Fast' : 'Fast rules';
-  const house = preset === 'house' || presetOf({ ...d, speedDie: false, triplesRollAgain: true }) === 'house';
-  const base = house ? 'House rules' : 'Classic';
-  const custom = presetOf({ ...d, speedDie: false, triplesRollAgain: true }) === 'custom';
-  const name = d.speedDie ? `${base} + Speed Die` : house || short ? base : 'Classic rules';
-  return custom ? `${name} · custom` : name;
+  const standard = presetsFor(d.board).classic;
+  // The Speed Die set the other way from the preset it otherwise is
+  const asStandard = presetOf({ ...d, speedDie: standard.speedDie, triplesRollAgain: standard.triplesRollAgain });
+  const house = preset === 'house' || asStandard === 'house';
+  const base = house ? 'House rules' : standardName(d.board);
+  const name = d.speedDie !== (house ? presetsFor(d.board).house.speedDie : standard.speedDie)
+    ? `${base} ${d.speedDie ? '+' : 'without'} Speed Die`
+    : house || short ? base : `${base} rules`;
+  return asStandard === 'custom' ? `${name} · custom` : name;
 }
 
 /** The rules as a short list (what a player who can't change them sees): the basics, then whatever isn't the default */

@@ -3,33 +3,63 @@
  * default view looking from +Z. Play runs clockwise seen from above: GO bottom-right (+x, +z), Jail bottom-left,
  * Free Parking top-left, Go To Jail top-right.
  *
+ * Boards have different numbers of spaces (always a multiple of 4: a corner and PER_SIDE - 1 tiles a side), and a
+ * bigger board is a bigger slab: its side grows with the square root of the space count (All Island's 40 spaces:
+ * 12.2 across, tiles 1 wide), and the tiles share what the corners leave. The scene shows one board at a time, so
+ * the size is module state, set by setBoardSize() before the scene renders (GameScene, BackdropScene); the exports
+ * below are live bindings that follow it.
+ *
  * Every tile is laid out in the frame of the bottom row ("local" coordinates) and rotated by its side: side s holds
- * tiles 10s..10s+9, its corner is 10s. In the local frame the outer edge is z = HALF and the inner edge z = INNER;
- * tile k (1-9) is centred at x = 5 - k.
+ * tiles s·PER_SIDE .. s·PER_SIDE + PER_SIDE - 1, its corner first. In the local frame the outer edge is z = HALF and
+ * the inner edge z = INNER; tile k (1 .. PER_SIDE - 1) runs from the corner at +x towards -x.
  */
 
-export const TILE_W = 1;
 export const TILE_D = 1.6;
 export const CORNER = 1.6;
-/** Board side: two corners and nine tiles */
-export const SIDE = 2 * CORNER + 9 * TILE_W;
-export const HALF = SIDE / 2;
-/** Distance from the centre to the inner edge of the ring of tiles */
-export const INNER = HALF - TILE_D;
 /** Wooden frame around the printed board */
 export const FRAME = 0.35;
 /** The colour band along a street's inner edge, where its houses stand */
 export const BAND = 0.36;
 /** Height of the printed board top above the table */
 export const BOARD_TOP = 0.2;
-export const TILES = 40;
+
+/** Spaces on the board in play */
+export let TILES = 40;
+/** Spaces a side, its corner included */
+export let PER_SIDE = 10;
+/** Width of a (non-corner) tile along its side */
+export let TILE_W = 1;
+/** Board side: two corners and PER_SIDE - 1 tiles */
+export let SIDE = 2 * CORNER + 9 * TILE_W;
+export let HALF = SIDE / 2;
+/** Distance from the centre to the inner edge of the ring of tiles */
+export let INNER = HALF - TILE_D;
 /** The jail corner (side 1's corner: the layout draws the cell there) */
-export const JAIL = 10;
+export let JAIL = 10;
+/** The jail cell inside the jail corner (local frame of the jail's side); the rest of the corner is Just Visiting */
+export let JAIL_CELL = { min: INNER, max: INNER + 1.05 } as const;
+/** The board's middle against All Island's (the decks, the dice's square and the banner scale with it) */
+export let CENTRE = 1;
+
+/** Lays the geometry out for a board of `n` spaces (a multiple of 4, at least 16) */
+export function setBoardSize(n: number): void {
+  if (n === TILES) return;
+  if (!Number.isInteger(n) || n % 4 !== 0 || n < 16) throw new Error(`a board needs a multiple of 4 spaces, not ${n}`);
+  TILES = n;
+  PER_SIDE = n / 4;
+  SIDE = 12.2 * Math.sqrt(n / 40);
+  TILE_W = (SIDE - 2 * CORNER) / (PER_SIDE - 1);
+  HALF = SIDE / 2;
+  INNER = HALF - TILE_D;
+  JAIL = PER_SIDE;
+  JAIL_CELL = { min: INNER, max: INNER + 1.05 };
+  CENTRE = INNER / 4.5;
+}
 
 export type XZ = [x: number, z: number];
 
-export const sideOf = (i: number): number => Math.floor((((i % TILES) + TILES) % TILES) / 10);
-export const isCorner = (i: number): boolean => i % 10 === 0;
+export const sideOf = (i: number): number => Math.floor((((i % TILES) + TILES) % TILES) / PER_SIDE);
+export const isCorner = (i: number): boolean => i % PER_SIDE === 0;
 
 /** Local (bottom-row) coordinates of side `side` to world coordinates */
 export function toWorld(side: number, x: number, z: number): XZ {
@@ -57,8 +87,8 @@ export const tileRotation = (i: number): number => sideRotation(sideOf(i));
 
 /** Centre of tile `i` in its local frame */
 export function localCenter(i: number): XZ {
-  const k = i % 10;
-  return k === 0 ? [HALF - CORNER / 2, HALF - CORNER / 2] : [5 - k, HALF - TILE_D / 2];
+  const k = i % PER_SIDE;
+  return k === 0 ? [HALF - CORNER / 2, HALF - CORNER / 2] : [HALF - CORNER - (k - 0.5) * TILE_W, HALF - TILE_D / 2];
 }
 
 export function tileCenter(i: number): XZ {
@@ -75,14 +105,11 @@ export function tileAt(x: number, z: number): number | null {
     const [lx, lz] = toLocal(side, x, z);
     // Each side owns its strip from its own corner up to (not including) the next side's corner.
     if (lz < INNER || lz > HALF || lx <= -INNER || lx > HALF) continue;
-    if (lx >= INNER) return side * 10;
-    return side * 10 + Math.min(9, Math.max(1, Math.floor(5.5 - lx)));
+    if (lx >= INNER) return side * PER_SIDE;
+    return side * PER_SIDE + Math.min(PER_SIDE - 1, Math.max(1, Math.floor((HALF - CORNER - lx) / TILE_W) + 1));
   }
   return null;
 }
-
-/** The jail cell inside the jail corner (local frame of the jail's side); the rest of the corner is Just Visiting */
-export const JAIL_CELL = { min: INNER, max: INNER + 1.05 } as const;
 
 function grid(n: number, k: number, cols: number, dx: number, dz: number): XZ {
   const rows = Math.ceil(n / cols);
@@ -124,7 +151,8 @@ export function slotPos(i: number, n: number, k: number, inCell = false): XZ {
     const [cx] = localCenter(i);
     // The part of the tile below the colour band
     const cz = (INNER + BAND + HALF) / 2;
-    const [gx, gz] = count === 1 ? [0, 0] : grid(count, slot, 2, 0.44, 0.29);
+    // Narrower tiles (a bigger board) pack their tokens closer along the side
+    const [gx, gz] = count === 1 ? [0, 0] : grid(count, slot, 2, 0.44 * Math.min(1, TILE_W), 0.29);
     local = [cx + gx, cz + gz];
   }
   return toWorld(side, local[0], local[1]);
@@ -133,7 +161,7 @@ export function slotPos(i: number, n: number, k: number, inCell = false): XZ {
 /** House `slot` 0-3 on a street's colour band, or 4 for the hotel (world) */
 export function buildingPos(i: number, slot: number): XZ {
   const [cx] = localCenter(i);
-  const x = slot >= 4 ? cx : cx + (slot - 1.5) * 0.24;
+  const x = slot >= 4 ? cx : cx + (slot - 1.5) * 0.24 * Math.min(1, TILE_W);
   return toWorld(sideOf(i), x, INNER + BAND / 2);
 }
 

@@ -1,9 +1,9 @@
 import { formatMoney, type BoardDef, type RulesConfig, type SpaceDef } from '../../rules';
 import { drawLines, fitText, roundRect } from '../textures/canvas';
-import { CARD_H, CARD_W, DECKS } from './centre';
+import { CARD_H, CARD_W, deckSpot } from './centre';
 import { diamondWidth } from './diamond';
 import { drawIcon } from './icons';
-import { BAND, CORNER, HALF, INNER, JAIL_CELL, SIDE, TILE_D, TILE_W, localCenter, sideOf, toWorld } from './layout';
+import { BAND, CENTRE, CORNER, HALF, INNER, JAIL_CELL, SIDE, TILE_D, TILE_W, isCorner, localCenter, sideOf, toWorld } from './layout';
 
 /*
  * Paints the whole board top into one canvas, in board units: the context is scaled so 1 unit = one tile's width
@@ -191,7 +191,7 @@ function drawCorner(ctx: CanvasRenderingContext2D, sp: SpaceDef, rules: PaintRul
 function drawCentre(ctx: CanvasRenderingContext2D, b: BoardDef): void {
   // The two deck spots
   for (const deck of ['chance', 'chest'] as const) {
-    const d = DECKS[deck];
+    const d = deckSpot(deck);
     const name = b.spaces.find((s) => s.k === deck)?.name ?? deck;
     ctx.save();
     ctx.translate(d.x, d.z);
@@ -209,6 +209,8 @@ function drawCentre(ctx: CanvasRenderingContext2D, b: BoardDef): void {
   // The title on a banner across the middle, running up to the right
   ctx.save();
   ctx.rotate(-Math.PI / 4);
+  // Sized for All Island's middle, scaled with this board's
+  ctx.scale(CENTRE, CENTRE);
   const len = 7.4;
   ctx.fillStyle = '#c92a2a';
   ctx.strokeStyle = '#f8f9fa';
@@ -244,7 +246,7 @@ export function drawBoard(canvas: HTMLCanvasElement, b: BoardDef, rules: PaintRu
   b.spaces.forEach((sp, i) => {
     ctx.save();
     frameFor(ctx, i);
-    if (i % 10 === 0) drawCorner(ctx, sp, rules);
+    if (isCorner(i)) drawCorner(ctx, sp, rules);
     else drawSpace(ctx, b, sp, i, rules);
     ctx.restore();
   });

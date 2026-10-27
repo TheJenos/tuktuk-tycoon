@@ -105,6 +105,38 @@ describe('AudioEngine', () => {
     expect(sources).toHaveLength(1);
   });
 
+  it("plays a board's own sound from its folder, and the original where it has none", async () => {
+    const { engine, sources, urls } = setup({ missing: ['colombo/click.ogg', 'colombo/click.mp3'] });
+    engine.unlock();
+    engine.setFolder('colombo');
+    engine.play('dice-land');
+    engine.play('click');
+    await tick();
+    await tick();
+    await tick();
+    expect(urls).toContain('/sounds/colombo/dice-land.ogg');
+    expect(urls).toEqual(expect.arrayContaining(['/sounds/colombo/click.ogg', '/sounds/colombo/click.mp3', '/sounds/click.ogg']));
+    expect(sources).toHaveLength(2);
+    // Back on the originals: their own files
+    engine.setFolder('');
+    await engine.load('dice-land');
+    expect(urls).toContain('/sounds/dice-land.ogg');
+  });
+
+  it("a board change moves the music to that board's loop", async () => {
+    const { engine, urls } = setup();
+    engine.unlock();
+    engine.wantsMusic(true);
+    await tick();
+    await tick();
+    expect(engine.musicState()).toBe('loop');
+    engine.setFolder('south', 20);
+    await tick();
+    await tick();
+    expect(urls).toContain('/sounds/south/music-loop.ogg');
+    expect(engine.musicState()).toBe('loop');
+  });
+
   it('caps copies of one sound: the oldest stops', async () => {
     const { engine, sources } = setup();
     engine.unlock();

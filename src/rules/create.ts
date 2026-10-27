@@ -30,6 +30,7 @@ export function createGame(
   if (new Set(ids).size !== ids.length || !ids.every((id) => SEAT_IDS.includes(id))) throw new Error('bad seat ids');
 
   const b = getBoard(rules.board);
+  if (seats.length > b.maxPlayers) throw new Error(`${b.display.name} seats at most ${b.maxPlayers}`);
   const h = { rng: seedState(seed) };
   const chance = shuffle(h, b.chance.map((card) => card.id));
   const chest = shuffle(h, b.chest.map((card) => card.id));

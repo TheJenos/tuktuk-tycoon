@@ -1,7 +1,7 @@
 import { Quaternion } from 'three';
 import type RAPIER_NS from '#rapier';
-import { BOARD_TOP } from '../board/layout';
-import { CARD_H, CARD_W, DECKS, THROW_HALF } from '../board/centre';
+import { BOARD_TOP, CENTRE } from '../board/layout';
+import { CARD_H, CARD_W, deckSpot, throwHalf } from '../board/centre';
 import { seeded } from '../util/random';
 import { randomQuat } from './kinematic';
 import { landedFace, upness } from './remap';
@@ -68,12 +68,13 @@ function buildWorld(R: Rapier): RAPIER_NS.World {
   };
   fixed(8, 0.5, 8, 0, BOARD_TOP - 0.5, 0);
   const wallH = 3;
+  const THROW_HALF = throwHalf();
   fixed(0.25, wallH, THROW_HALF + 0.5, THROW_HALF + 0.25, BOARD_TOP + wallH, 0);
   fixed(0.25, wallH, THROW_HALF + 0.5, -THROW_HALF - 0.25, BOARD_TOP + wallH, 0);
   fixed(THROW_HALF + 0.5, wallH, 0.25, 0, BOARD_TOP + wallH, THROW_HALF + 0.25);
   fixed(THROW_HALF + 0.5, wallH, 0.25, 0, BOARD_TOP + wallH, -THROW_HALF - 0.25);
   // The two card decks, so a die never ends up inside one
-  for (const d of Object.values(DECKS)) fixed(CARD_W / 2, 0.12, CARD_H / 2, d.x, BOARD_TOP + 0.12, d.z, d.yaw);
+  for (const d of [deckSpot('chance'), deckSpot('chest')]) fixed(CARD_W / 2, 0.12, CARD_H / 2, d.x, BOARD_TOP + 0.12, d.z, d.yaw);
   // A lid, so a hard bounce can't leave the box
   fixed(THROW_HALF + 0.5, 0.25, THROW_HALF + 0.5, 0, BOARD_TOP + 2 * wallH, 0);
   return world;
@@ -92,7 +93,7 @@ function attempt(R: Rapier, count: number, seed: number): Recording | null {
     const q = new Quaternion();
     const bodies: RAPIER_NS.RigidBody[] = [];
     for (let i = 0; i < count; i++) {
-      const [x, z] = turn((i - (count - 1) / 2) * 0.72 + (rand() - 0.5) * 0.3, 3.1);
+      const [x, z] = turn((i - (count - 1) / 2) * 0.72 + (rand() - 0.5) * 0.3, 3.1 * CENTRE);
       const [vx, vz] = turn((rand() - 0.5) * 2.5, -(6.5 + rand() * 3.5));
       randomQuat(rand, q);
       const body = world.createRigidBody(

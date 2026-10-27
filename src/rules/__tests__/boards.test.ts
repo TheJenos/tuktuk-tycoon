@@ -1,21 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import { apply, BOARD_IDS, BOARDS, COLOMBO, createGame, getBoard, HILL, LANKA, normalizeConfig, SEAT_IDS, SOUTH, type GameState } from '..';
 import { randFrom, randomCommand } from '../randomPlayer';
-import type { BoardDef, CardDef, CardFx } from '../types';
+import type { CardDef, CardFx } from '../types';
 
 /*
- * Every board is the All Island board (data/lanka.ts) with other names: same spaces in the same places, same
- * numbers, same card effects. Only names, card texts and the display block may differ.
+ * Every board stands on its own: its own size (a multiple of 4: GO, the jail, parking and Go To Jail on the corners),
+ * its own colour groups and prices (from the rulebook's tiers, rising around the board), its own player cap and
+ * standard rules. The cards keep the rulebook's effects, pointed at the board's own spaces. The All Island board is
+ * the rulebook's own 40 spaces.
  */
 
 const THEMES = [COLOMBO, HILL, SOUTH];
 const ALL = [LANKA, ...THEMES];
 
-/** A space without its name: what the rules see */
-const shape = (b: BoardDef) => b.spaces.map(({ name: _name, ...rest }) => rest);
-
-/** A deck's effects as a sorted list of JSON strings (ids may be renamed) */
-const effects = (deck: CardDef[]): string[] => deck.map((c) => JSON.stringify(c.fx)).sort();
+/** A deck's effects as a sorted list of JSON strings (ids may be renamed; advance targets are each board's own) */
+const effects = (deck: CardDef[]): string[] =>
+  deck.map((c) => JSON.stringify(c.fx.k === 'advance' ? { k: 'advance' } : c.fx)).sort();
 
 const rupees = (units: number): string => `Rs. ${(Math.abs(units) * 100).toLocaleString('en-US')}`;
 
@@ -44,28 +44,68 @@ describe('the boards', () => {
     expect(LANKA.display.name).toBe('All Island');
   });
 
-  for (const b of THEMES) {
+  it('come in four sizes, each seating fewer the smaller it is', () => {
+    expect(ALL.map((b) => [b.id, b.spaces.length, b.maxPlayers])).toEqual([
+      ['lanka', 40, 8],
+      ['colombo', 32, 4],
+      ['hill', 36, 6],
+      ['south', 48, 8],
+    ]);
+  });
+
+  for (const b of ALL) {
     describe(b.display.name, () => {
-      it('has the All Island spaces, groups and numbers', () => {
-        expect(b.spaces).toHaveLength(40);
-        expect(shape(b)).toEqual(shape(LANKA));
-        expect(b.groups.map(({ name: _n, ...g }) => g)).toEqual(LANKA.groups.map(({ name: _n, ...g }) => g));
-        expect(b.railRent).toEqual(LANKA.railRent);
-        expect(b.utilityMul).toEqual(LANKA.utilityMul);
-        expect(b.utilityCardMul).toBe(LANKA.utilityCardMul);
-        expect(b.railCardMul).toBe(LANKA.railCardMul);
-        expect(b.jailIndex).toBe(LANKA.jailIndex);
-        expect(b.goToJailIndex).toBe(LANKA.goToJailIndex);
-        expect(b.speedDie.faces).toEqual(LANKA.speedDie.faces);
-        expect(Object.keys(b.speedDie.labels).sort()).toEqual(Object.keys(LANKA.speedDie.labels).sort());
-        expect(b.display.currency).toEqual(LANKA.display.currency);
-        expect(Object.keys(b.display.groupColours).sort()).toEqual(Object.keys(LANKA.display.groupColours).sort());
-        const colours = Object.values(b.display.groupColours);
-        expect(new Set(colours).size).toBe(8);
+      const n = b.spaces.length;
+      const at = (k: string) => b.spaces.flatMap((sp, i) => (sp.k === k ? [i] : []));
+
+      it('has GO, the jail, parking and Go To Jail on its four corners', () => {
+        expect(n % 4).toBe(0);
+        expect(n).toBeGreaterThanOrEqual(32);
+        expect(at('go')).toEqual([0]);
+        expect(at('jail')).toEqual([n / 4]);
+        expect(at('parking')).toEqual([n / 2]);
+        expect(at('goToJail')).toEqual([(3 * n) / 4]);
+        expect(b.jailIndex).toBe(n / 4);
+        expect(b.goToJailIndex).toBe((3 * n) / 4);
+      });
+
+      it('has colour groups of its own streets, priced up the board, with rents that rise with each house', () => {
+        const streets = b.spaces.flatMap((sp, i) => (sp.k === 'street' ? [i] : []));
+        expect(b.groups.flatMap((g) => g.spaces).sort((x, y) => x - y)).toEqual(streets);
+        let last = 0;
+        for (const g of b.groups) {
+          expect(g.spaces.length).toBeGreaterThanOrEqual(2);
+          for (const i of g.spaces) {
+            const sp = b.spaces[i];
+            if (sp?.k !== 'street') throw new Error(`${i} is not a street`);
+            expect(sp.group).toBe(g.id);
+            expect(sp.price).toBeGreaterThanOrEqual(last);
+            last = sp.price;
+            expect(sp.mortgage).toBe(sp.price / 2);
+            expect(sp.rent).toHaveLength(6);
+            for (let k = 1; k < 6; k++) expect(sp.rent[k]!).toBeGreaterThan(sp.rent[k - 1]!);
+            expect(sp.house).toBeGreaterThan(0);
+          }
+        }
+        expect(at('rail').length).toBe(b.railRent.length);
+        expect(at('utility').length).toBe(b.utilityMul.length);
+        expect(at('tax').length).toBe(2);
+        const colours = b.groups.map((g) => b.display.groupColours[g.id]);
+        expect(new Set(colours).size).toBe(b.groups.length);
         for (const c of colours) expect(c).toMatch(/^#[0-9a-f]{6}$/);
       });
 
-      it('has two 16-card decks with the All Island effects, unique ids and the right prefixes', () => {
+      it('seats 2 to its cap, and its standard rules are valid ones', () => {
+        expect(b.maxPlayers).toBeGreaterThanOrEqual(2);
+        expect(b.maxPlayers).toBeLessThanOrEqual(SEAT_IDS.length);
+        const cfg = normalizeConfig({ ...b.rules, board: b.id });
+        for (const [k, v] of Object.entries(b.rules)) expect(cfg[k as keyof typeof cfg], k).toEqual(v);
+        const seats = SEAT_IDS.slice(0, b.maxPlayers + 1).map((id, i) => ({ id, name: `P${i}` }));
+        expect(() => createGame({ board: b.id }, seats.slice(0, b.maxPlayers), 1)).not.toThrow();
+        if (b.maxPlayers < SEAT_IDS.length) expect(() => createGame({ board: b.id }, seats, 1)).toThrow(/at most/);
+      });
+
+      it('has two 16-card decks with the rulebook effects, unique ids and the right prefixes', () => {
         for (const [deck, base, prefix] of [
           [b.chance, LANKA.chance, 'ch-'],
           [b.chest, LANKA.chest, 'cc-'],
@@ -110,21 +150,18 @@ describe('the boards', () => {
         expect(b.display.blurb.length).toBeLessThanOrEqual(120);
       });
 
-      it('plays exactly like the All Island board (same seed, same commands, same game)', () => {
+      it('plays a whole random game with every invariant holding', () => {
         const seats = ['Ann', 'Bob', 'Cat'].map((name, i) => ({ id: SEAT_IDS[i]!, name }));
-        let x: GameState = createGame({ board: 'lanka' }, seats, 5).state;
-        let y: GameState = createGame({ board: b.id }, seats, 5).state;
-        const r = randFrom(11);
-        for (let step = 0; step < 400 && x.phase.k !== 'over'; step++) {
-          const cmd = randomCommand(x, r);
-          if (!cmd) break;
-          const rx = apply(x, cmd, { check: true });
-          const ry = apply(y, cmd, { check: true });
-          expect(ry.ok).toBe(rx.ok);
-          if (!rx.ok || !ry.ok) continue;
-          x = rx.state;
-          y = ry.state;
-          expect({ ...y, cfg: { ...y.cfg, board: 'lanka' } }).toEqual(x);
+        for (const seed of [5, 6]) {
+          let x: GameState = createGame({ ...b.rules, board: b.id }, seats, seed).state;
+          const r = randFrom(seed * 7);
+          for (let step = 0; step < 1500 && x.phase.k !== 'over'; step++) {
+            const cmd = randomCommand(x, r);
+            if (!cmd) break;
+            const rx = apply(x, cmd, { check: true });
+            if (rx.ok) x = rx.state;
+          }
+          expect(x.players.s0!.pos).toBeLessThan(n);
         }
       });
     });
