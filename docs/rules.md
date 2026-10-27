@@ -137,6 +137,7 @@ Off (classic) by default; each is a `RulesConfig` field the room owner can chang
 | Tuk-Tuk Stand jackpot | `jackpot` (off) | Taxes, fines and card payments to the Bank go into a pot (also when paid late, once a debt settles); landing on the Tuk-Tuk Stand wins all of it. |
 | Inland Revenue | `incomeTaxMode` (`choice`) | `flat` or `percent` charges that amount at once, with no choice to make. |
 | Auctions | `auctions` (on) | Off: a declined property and a bankrupt's property to the Bank stay with the Bank; in a building shortage, requests are granted in the order they were made until the supply runs out. |
+| Auction every property | `auctionAll` (off) | Nobody buys at the printed price: landing on an unowned property (a card's or Tuk-Tuk Uncle's move included) starts an auction at once, open to everyone still in, the lander included. It needs auctions, so it turns them on. A player still on the first lap (`buyAfterFirstLap`) triggers nothing, as without it. |
 | First lap | `buyAfterFirstLap` (off) | No buying or bidding until the player has collected a Start salary once (a landing on a Bank property, Tuk-Tuk Uncle's included, then does nothing). |
 | Rent while jailed | `jailRent` (on) | Off: a jailed owner collects no rent (Tuk-Tuk Uncle's rent branch skips its property). |
 | Three doubles | `threeDoublesJail` (on) | Off: a third (or later) doubles just rolls again. |

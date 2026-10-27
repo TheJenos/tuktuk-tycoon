@@ -52,6 +52,11 @@ export interface RulesConfig {
   incomeTaxMode: IncomeTaxMode;
   /** Declined property and a bankrupt's property to the bank are auctioned (off: the bank keeps them) */
   auctions: boolean;
+  /**
+   * Every property is auctioned: landing on an unowned one starts an auction at once, with no buying at the printed
+   * price (the lander bids like everyone else). Needs `auctions` (normalizeConfig turns it on).
+   */
+  auctionAll: boolean;
   /** No buying (or bidding) until the player has collected a GO salary once */
   buyAfterFirstLap: boolean;
   /** Owners collect rent while they are in jail */

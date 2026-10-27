@@ -38,6 +38,7 @@ export function variedRules(seed: number): Partial<RulesConfig> {
     incomeTaxMode: pick(r, ['choice', 'flat', 'percent'] as const),
     auctions: r() < 0.6,
     buyAfterFirstLap: r() < 0.4,
+    auctionAll: r() < 0.25,
     jailRent: r() < 0.6,
     threeDoublesJail: r() < 0.7,
     dealProperties: pick(r, [0, 0, 1, 2, 3]),

@@ -116,6 +116,9 @@
             "auctions": {
               ".validate": "newData.isBoolean()"
             },
+            "auctionAll": {
+              ".validate": "newData.isBoolean()"
+            },
             "buyAfterFirstLap": {
               ".validate": "newData.isBoolean()"
             },

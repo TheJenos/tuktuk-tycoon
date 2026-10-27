@@ -57,7 +57,10 @@ function landOnProperty(c: Ctx, seat: SeatId, space: number, opts: LandOpts): vo
   const ps = prop(c.s, space);
   if (!ps) {
     // First-lap rule: a player who has not collected a salary yet cannot buy; the property stays with the bank
-    if (mayBuy(c.s, seat)) setPhase(c, { k: 'buy', space });
+    if (!mayBuy(c.s, seat)) return;
+    // Every property auctioned: no buying at the printed price, straight to bidding (the lander included)
+    if (c.s.cfg.auctionAll) startAuction(c, { k: 'prop', space }, propBidders(c.s), { k: 'busy' });
+    else setPhase(c, { k: 'buy', space });
     return;
   }
   if (ps.owner === seat || ps.mortgaged || !collectsRent(c.s, ps.owner)) return;

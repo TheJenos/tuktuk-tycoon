@@ -79,6 +79,7 @@ export interface RoomRules extends RoomOptions {
   jackpot: boolean;
   incomeTaxMode: IncomeTaxMode;
   auctions: boolean;
+  auctionAll: boolean;
   buyAfterFirstLap: boolean;
   jailRent: boolean;
   threeDoublesJail: boolean;
@@ -193,7 +194,7 @@ export const DEFAULT_ROOM_OPTIONS: RoomOptions = {
 /** The engine rules a room stores (RulesConfig keys, in RoomRules) */
 export const ROOM_ENGINE_KEYS = [
   'board', 'speedDie', 'startCash', 'luxuryTax', 'triplesRollAgain', 'turnLimit', 'goSalary', 'incomeFlat', 'incomePct', 'jailFine',
-  'mortgagePct', 'houses', 'hotels', 'doubleGoLanding', 'jackpot', 'incomeTaxMode', 'auctions', 'buyAfterFirstLap', 'jailRent',
+  'mortgagePct', 'houses', 'hotels', 'doubleGoLanding', 'jackpot', 'incomeTaxMode', 'auctions', 'auctionAll', 'buyAfterFirstLap', 'jailRent',
   'threeDoublesJail', 'dealProperties', 'endMode', 'trading', 'tradeAfterLap',
 ] as const satisfies readonly (keyof RoomRules & keyof RulesConfig)[];
 type RoomEngineKey = (typeof ROOM_ENGINE_KEYS)[number];

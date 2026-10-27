@@ -165,3 +165,36 @@ describe('timed open auction', () => {
     expect(timer(t)?.key).not.toBe(k1);
   });
 });
+
+describe('auctioning every property (auctionAll)', () => {
+  it('landing on an unowned property starts an auction at once, the lander bidding like everyone else', () => {
+    const s = scenario({ n: 3, cfg: { auctionAll: true } });
+    rig(s, [2, 4]);
+    const { state, events } = run(s, ['s0', { k: 'roll' }]);
+    expect(state.phase).toMatchObject({ k: 'auction', lot: { k: 'prop', space: 6 }, eligible: ['s0', 's1', 's2'] });
+    expect(ofType(events, 'auctionStart')).toHaveLength(1);
+    // No buying at the printed price
+    expect(refused(state, 's0', { k: 'buy' })).toBe('phase');
+    // The winner owns it for the bid, and play goes on with the lander's turn
+    let t = act(state, 's1', { k: 'bid', amount: 30 }).state;
+    t = act(t, 's0', { k: 'pass' }).state;
+    t = act(t, 's2', { k: 'pass' }).state;
+    expect(t.props.p6?.owner).toBe('s1');
+    expect(cash(t, 's1')).toBe(1500 - 30);
+    expect(t.phase.k).toBe('postRoll');
+    expect(t.turn.seat).toBe('s0');
+  });
+
+  it('needs auctions: the option turns them on', () => {
+    expect(scenario({ n: 2, cfg: { auctionAll: true, auctions: false } }).cfg.auctions).toBe(true);
+  });
+
+  it('a player still on the first lap triggers nothing, as without it', () => {
+    const s = scenario({ n: 2, cfg: { auctionAll: true, buyAfterFirstLap: true } });
+    rig(s, [2, 4]);
+    const { state, events } = run(s, ['s0', { k: 'roll' }]);
+    expect(state.phase.k).toBe('postRoll');
+    expect(ofType(events, 'auctionStart')).toHaveLength(0);
+    expect(state.props.p6).toBeUndefined();
+  });
+});

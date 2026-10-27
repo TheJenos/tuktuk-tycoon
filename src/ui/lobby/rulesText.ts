@@ -85,6 +85,7 @@ export function optionRows(d: RulesDraft, { all = false, online = false, local =
   const supply = supplyOf(d);
   add(supply !== 'standard', ['Bank stock', supply === 'unlimited' ? 'Unlimited houses and hotels' : `${d.houses} houses, ${d.hotels} hotels`]);
   add(!d.auctions, ['Auctions', d.auctions ? 'Declined property is auctioned' : 'Off: declined property stays with the bank']);
+  add(d.auctionAll, ['Auction every property', d.auctionAll ? 'No buying at the printed price: every property goes to bidding' : 'Off: the lander may buy first']);
   add(d.buyAfterFirstLap, ['First lap', d.buyAfterFirstLap ? `No buying until you have passed ${startName(b)} once` : 'Buy from the start']);
   add(!d.jailRent, ['Rent while in jail', d.jailRent ? 'Collected' : 'Not collected']);
   add(!d.threeDoublesJail, ['Three doubles', d.threeDoublesJail ? `Go to the ${jailName(b)}` : 'Just roll again']);
@@ -120,6 +121,7 @@ export function rulesLine(d: RulesDraft): string {
     d.jackpot ? 'jackpot' : null,
     d.trading === 'off' ? 'no trading' : null,
     !d.auctions ? 'no auctions' : null,
+    d.auctionAll ? 'every property auctioned' : null,
   ].filter(Boolean).join(' · ');
 }
 

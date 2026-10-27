@@ -249,7 +249,7 @@ function RulesView() {
     ['Mortgage interest', `${c.mortgagePct}%`],
     ...(c.speedDie ? [['Triples', c.triplesRollAgain ? 'Move anywhere, then roll again' : 'Move anywhere'] as [string, string]] : []),
     ['Three doubles', c.threeDoublesJail ? `Go to the ${jailName(b)}` : 'Just roll again'],
-    ['Auctions', c.auctions ? 'Property nobody buys is auctioned' : 'Off: property nobody buys stays with the bank'],
+    ['Auctions', c.auctionAll ? 'Every property: nobody buys at the printed price' : c.auctions ? 'Property nobody buys is auctioned' : 'Off: property nobody buys stays with the bank'],
     ['First lap', c.buyAfterFirstLap ? `No buying until you have passed ${startName(b)} once` : 'Buy from the start'],
     ['Rent while in jail', c.jailRent ? 'Collected' : 'Not collected'],
     ['Quick-start deal', c.dealProperties > 0 ? `${c.dealProperties} free propert${c.dealProperties === 1 ? 'y' : 'ies'} each` : 'None'],

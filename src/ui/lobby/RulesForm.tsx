@@ -360,9 +360,16 @@ export function RulesForm({ value, onChange, online = false, disabled = false, s
           <Toggle
             label="Auctions"
             checked={value.auctions}
-            disabled={disabled}
+            disabled={disabled || value.auctionAll}
             onChange={(auctions) => set({ auctions })}
-            hint="Property nobody buys goes to open bidding. Off: it stays with the bank."
+            hint={value.auctionAll ? 'On: every property is auctioned.' : 'Property nobody buys goes to open bidding. Off: it stays with the bank.'}
+          />
+          <Toggle
+            label="Auction every property"
+            checked={value.auctionAll}
+            disabled={disabled}
+            onChange={(auctionAll) => set(auctionAll ? { auctionAll, auctions: true } : { auctionAll })}
+            hint="Nobody buys at the printed price: landing on an unowned property starts an auction at once, the lander bidding like everyone else."
           />
           <Choices
             label="Auction countdown"

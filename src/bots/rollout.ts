@@ -88,6 +88,7 @@ const OPTIONAL: (keyof RulesConfig)[] = [
   'jackpot',
   'incomeTaxMode',
   'auctions',
+  'auctionAll',
   'buyAfterFirstLap',
   'jailRent',
   'threeDoublesJail',
