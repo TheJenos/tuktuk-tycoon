@@ -4,10 +4,12 @@ import { App } from './ui/App';
 import { ErrorBoundary } from './ui/ErrorBoundary';
 import { watchReducedMotion } from './ui/settings';
 import { fontsReady } from './ui/fonts';
+import { registerServiceWorker } from './pwa';
 import './style.css';
 
 watchReducedMotion();
 initAudio();
+registerServiceWorker();
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Missing #root in index.html');

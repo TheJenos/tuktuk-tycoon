@@ -1,10 +1,12 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import wasm from 'vite-plugin-wasm';
+import { pwa } from './scripts/pwa';
 
 export default defineConfig({
   // wasm(): Rapier's browser build imports its .wasm as an ES module (the dice simulation)
-  plugins: [react(), wasm()],
+  // pwa(): the service worker, so the game installs as an app and starts offline
+  plugins: [react(), wasm(), pwa()],
   // Pre-bundling would inline that .wasm as base64; served as a file, dev loads it like production
   optimizeDeps: { exclude: ['@dimforge/rapier3d'] },
   build: {

@@ -1,5 +1,8 @@
 // Renders the brand images in public/brand/ from public/brand/logo.svg with headless Chromium (Playwright):
 //   icon-512.png, icon-1024.png   the logo (app stores, the Discord app icon)
+//   icon-192.png                  the logo, small (the web app manifest)
+//   icon-maskable-512.png         the logo on a full-bleed tile, inside the safe zone (Android's masked icons)
+//   apple-touch-icon.png          180x180 full-bleed tile (iOS rounds the corners itself)
 //   og-image.png                  1200x630 link preview
 //   discord-cover.png             1024x576 Activity Shelf cover art (title + art)
 //   discord-background.png        1024x576 Activity background (art at the edges, the centre left clear)
@@ -11,6 +14,13 @@ import { fileURLToPath } from 'node:url';
 const out = (name) => fileURLToPath(new URL(`../public/brand/${name}`, import.meta.url));
 const logo = readFileSync(out('logo.svg'), 'utf8');
 const sized = (px) => logo.replace('<svg ', `<svg width="${px}" height="${px}" `);
+// The logo's tile stretched to the edges and its rounded border dropped, with `pad` units of room
+// round the art: launchers and iOS cut their own shape out of a square icon.
+const square = (px, pad) =>
+  sized(px)
+    .replace('viewBox="0 0 512 512"', `viewBox="${-pad} ${-pad} ${512 + 2 * pad} ${512 + 2 * pad}"`)
+    .replace(/<rect width="512" height="512" rx="112" fill="url\(#tile\)"\/>/, `<rect x="${-pad}" y="${-pad}" width="${512 + 2 * pad}" height="${512 + 2 * pad}" fill="url(#tile)"/>`)
+    .replace(/<rect x="8" y="8"[^>]*\/>/, '');
 
 // The board's colour groups, used as the band of tiles round the background
 const BANDS = ['#8b4c2c', '#a9dcf5', '#d6408f', '#f4921f', '#e2232a', '#f9e11e', '#1fa952', '#1c5ba8'];
@@ -57,6 +67,10 @@ function background({ w, h }) {
 const SHOTS = [
   { name: 'icon-512.png', w: 512, h: 512, html: sized(512), transparent: true },
   { name: 'icon-1024.png', w: 1024, h: 1024, html: sized(1024), transparent: true },
+  { name: 'icon-192.png', w: 192, h: 192, html: sized(192), transparent: true },
+  // The safe zone is the middle 80%: 64 units of tile each side of the 512
+  { name: 'icon-maskable-512.png', w: 512, h: 512, html: square(512, 64) },
+  { name: 'apple-touch-icon.png', w: 180, h: 180, html: square(180, 24) },
   { name: 'og-image.png', w: 1200, h: 630, html: banner({ w: 1200, h: 630, title: 'A Sri Lankan property-trading board game in 3D' }) },
   { name: 'discord-cover.png', w: 1024, h: 576, html: banner({ w: 1024, h: 576, title: 'Buy, build and bargain your way round Sri Lanka' }) },
   { name: 'discord-background.png', w: 1024, h: 576, html: background({ w: 1024, h: 576 }) },
