@@ -36,6 +36,15 @@ test('2D view from the lobby, switched back to 3D mid-game from the game menu', 
   await view.getByRole('radio', { name: '3D' }).click();
   await expect(view.getByRole('radio', { name: '3D' })).toHaveAttribute('aria-checked', 'true');
   expect(await saved(page)).toBe('3d');
+  await p.gameMenu.getByRole('button', { name: /Resume/ }).click();
+
+  // The action bar's switch, and V, flip it too
+  const bar = page.getByRole('navigation', { name: 'Actions' });
+  await bar.getByRole('button', { name: 'Switch to the 2D view' }).click();
+  expect(await saved(page)).toBe('2d');
+  await page.keyboard.press('v');
+  await expect(bar.getByRole('button', { name: 'Switch to the 2D view' })).toBeVisible();
+  expect(await saved(page)).toBe('3d');
   seen.check();
 });
 

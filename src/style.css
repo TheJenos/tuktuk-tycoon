@@ -924,8 +924,9 @@ html.reduce-motion .spinner { animation: none; border-right-color: currentColor;
   /* The side columns grow with the Panel size (GameView keeps it to what the window can take: fitUiScale) */
   grid-template-columns: min(calc(280px * var(--ui-scale)), 25vw) minmax(0, 1fr) min(calc(340px * var(--ui-scale)), 30vw);
   grid-template-rows: auto minmax(0, 1fr) auto;
-  /* The board has the whole middle: the turn bar heads the left column, the action bar ends the right one */
-  grid-template-areas: 'top board context' 'players board context' 'players board dock';
+  /* The board has the whole middle: the players (with the turn number and timer) down the left, the action bar ending
+     the right column; banners and toasts over the top of the board */
+  grid-template-areas: 'players top context' 'players board context' 'players board dock';
   gap: 12px;
   padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
   font-size: 15px;
@@ -934,7 +935,7 @@ html.reduce-motion .spinner { animation: none; border-right-color: currentColor;
 .game-hud p { margin: 0; }
 .token-icon { display: inline-block; vertical-align: middle; flex-shrink: 0; }
 
-.hud-top { grid-area: top; justify-self: stretch; display: flex; flex-direction: column; align-items: stretch; gap: 8px; min-width: 0; max-width: 100%; --edge: left; }
+.hud-top { grid-area: top; justify-self: stretch; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; max-width: 100%; --edge: top; }
 .hud-players { grid-area: players; align-self: start; min-height: 0; max-height: 100%; display: flex; flex-direction: column; --edge: left; }
 .hud-board { grid-area: board; min-height: 0; min-width: 0; display: grid; place-items: center; container-type: size; }
 .hud-context { grid-area: context; min-height: 0; display: flex; flex-direction: column; gap: 10px; --edge: right; }
@@ -969,6 +970,16 @@ html.reduce-motion .spinner { animation: none; border-right-color: currentColor;
 /* Players */
 .players-panel { display: flex; flex-direction: column; min-height: 0; overflow: hidden; padding: 10px; }
 .players-panel .panel-head { margin-bottom: 6px; font-size: 14px; }
+.players-head h2 { margin: 0; font: inherit; letter-spacing: inherit; }
+/* Desktop: the turn number, the Speed Die badge and the timer, in place of the turn bar */
+.players-turn { display: inline-flex; align-items: center; gap: 6px; }
+.players-turn .timer-ring { margin: -6px 0; }
+@media (min-width: 1024px) {
+  .turn-row .turn-bar { display: none; }
+}
+@media (max-width: 1023px) {
+  .players-turn { display: none; }
+}
 .player-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; min-height: 0; }
 .player-card { position: relative; padding: 8px 10px 8px 12px; border-radius: 10px; background: rgba(255, 255, 255, 0.035); border: 1px solid transparent; container-type: inline-size; }
 /* A narrow card (a small window, a large Panel size): the bot's level stays in its badge's tooltip */
@@ -1091,6 +1102,7 @@ html.reduce-motion .spinner { animation: none; border-right-color: currentColor;
   .turn-phase { white-space: normal; }
 }
 /* Phones: My properties opens from beside the turn bar (the tool row has no room for another button) */
+.action-bar .view-button { font-size: 13px; font-weight: 800; letter-spacing: 0.5px; }
 .props-button { display: none; width: 44px; border-radius: 14px; border: 1px solid var(--glass-line); background: var(--glass); backdrop-filter: blur(12px); font-size: 20px; }
 .props-button[aria-pressed='true'] { border-color: var(--accent); color: var(--accent); }
 

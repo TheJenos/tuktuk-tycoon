@@ -205,6 +205,7 @@ disabled while a move is being committed. A move the rules refuse shows the engi
 | `T` | Trade |
 | `L` | Open or close the event log |
 | `C` | Recenter the camera (and turn automatic framing back on) |
+| `V` | Switch the board between the 3D and 2D (top-down) views |
 | `N` | Mute: turns the sound effects and the music off, and the second press back to how they were |
 | `Esc` | The game menu; closes the dialog on top |
 | Drag | Turn the camera (touch: one finger); in the 2D view, pan |
@@ -221,7 +222,8 @@ Page Up / Page Down (ten spaces), Home / End, Enter, and typing a name to jump t
 
 The board has the whole middle of the screen: the panels keep to the two sides.
 
-- **Turn bar** (top left, above the players): whose turn it is, what the game is waiting for, the running timer and the Speed Die badge.
+- **Turn bar** (tablets and phones; on a desktop the players panel shows whose turn it is, with the turn number, the
+  Speed Die badge and the timer in its header): whose turn it is, what the game is waiting for, the running timer and the Speed Die badge.
 - **Players** (left): each player's token, name, cash (counting along with the board), net worth (a setting), and
   their property as swatches by colour group (mortgaged ones hatched, houses as pips); online, a dot says whether
   each player is connected. A swatch opens its deed.
@@ -232,7 +234,9 @@ The board has the whole middle of the screen: the panels keep to the two sides.
 - **The right-hand panel**: the last throw in words, an auction you're only watching, trade offers, and the event
   log (filters **All**, **Mine**, **Money**; its chevron folds it to its header, remembered in this browser, and
   `L` or the Log button shows it again).
-- **Action bar** (bottom right, under the log): **Manage**, **Trade**, Recenter, the 2D board, the log and the menu.
+- **Action bar** (bottom right, under the log): **Manage**, **Trade**, Recenter, the **2D / 3D** switch (the board
+  view, as in Settings; it names the view it switches to) and the menu. On phones it also has the log button, since
+  the log isn't on screen there.
 - **Tablets and narrow windows**: the players are a strip along the top; the turn bar, the right-hand panel and the
   action bar share the right-hand column.
 - **Phones**: the players become a strip along the top, Roll / End turn stay over the middle of the board, and the
@@ -293,7 +297,7 @@ from the roll after your first Start salary (the Roll button then says "+ Speed 
 - **Bus**: move by either white die or their sum; you choose (hovering a choice previews it on the board).
 - **Tuk-Tuk Uncle**: move by the white dice and resolve that space, then advance to the next property the bank owns
   (buy it, or it goes to auction). If the bank owns none, advance to the next property where you'll owe rent.
-- **Triples**: move to any space you like (click a highlighted space, use the 2D board, or the list), then roll again
+- **Triples**: move to any space you like (click a highlighted space, or pick it from the list), then roll again
   (**Triples roll again**, on by default).
 - Doubles count the white dice only; so does a roll to get off the bench. Board (utility) rent adds all three dice (Bus and
   Tuk-Tuk Uncle count 0).
@@ -506,7 +510,7 @@ cube's 24 symmetries so the engine's value lands on top (Rapier loads in its own
 reduced motion use a simple tumble). drei is limited to a short allowlist (a test checks it).
 
 **DOM first.** Every action is a DOM button and the canvas is hidden from screen readers. Without WebGL, or when the
-context is lost, a 2D board (`MiniBoard`) takes the 3D board's place (it can also be shown beside it). The event log
+context is lost, a 2D grid board (`MiniBoard`) takes the 3D board's place. The event log
 is a `role=log`, and moves are announced politely as they play.
 
 **State** is a handful of small stores read through `useSyncExternalStore` (`src/state`): the running session, local
@@ -965,12 +969,12 @@ src/
       Dialog.tsx          the dialog frame
       GameMenu.tsx        Esc: Game, Players, Rules, Settings, Leave room
       GameSettings.tsx    the menu's Settings, plus hot-seat's Pass to card
-      MiniBoard.tsx       the 2D board
+      MiniBoard.tsx       the 2D grid board, without WebGL
       hotSeat.ts          the Pass to card setting (tuktuk-hotseat)
       tokenIcons.tsx      flat token silhouettes
       hud/
         TurnBar.tsx       whose turn, what the game waits for, the timer
-        ActionBar.tsx     Manage, Trade, Recenter, 2D board, log, menu
+        ActionBar.tsx     Manage, Trade, Recenter, the 2D / 3D switch, log (phones), menu
         BoardCenter.tsx   over the board's middle: Roll / End turn, the jail choices and my decisions
         PlayersPanel.tsx  players, cash, property swatches, online dots
         DiceReadout.tsx   the last throw, in words and faces

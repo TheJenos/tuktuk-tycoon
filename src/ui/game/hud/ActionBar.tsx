@@ -1,4 +1,6 @@
 import type { SeatId } from '../../../rules';
+import { useSelector } from '../../../state/store';
+import { settings } from '../../settings';
 import { useGame } from '../context';
 import { heroesOn, tradeLock } from '../selectors';
 import { TurnButton } from './BoardCenter';
@@ -10,22 +12,24 @@ interface Props {
   onTrade(): void;
   /** Absent when there is no 3D camera to recenter (the 2D board only) */
   onRecenter?: () => void;
-  onLog(): void;
+  /** Phones only: the log opens on demand there (wider screens always show it, and L folds it) */
+  onLog?: () => void;
   onMenu(): void;
-  /** Show / hide the 2D board (absent when it is the only board) */
-  onMiniBoard?: () => void;
-  miniBoard: boolean;
+  /** Switch the board between the 3D and 2D views (absent without a 3D scene: the grid board is all there is) */
+  onToggleView?: () => void;
   /** Roll / End turn for this seat sit at the bar's start (while the trade dialog covers the board's middle) */
   turnSeat?: SeatId | null;
 }
 
 /**
- * Bottom centre: Manage, Trade, Recenter, the 2D board, the log and the menu. The turn's Roll / End turn and the
+ * Manage, Trade, Recenter, the 2D / 3D switch, the log (phones) and the menu (bottom right; a bottom sheet on phones). The turn's Roll / End turn and the
  * jail choices are over the middle of the board (BoardCenter), but Roll / End turn move here while trading. Hero
  * League has nothing to manage (no buildings, mortgages or sales) and no trading: neither button is there.
  */
-export function ActionBar({ seat, onManage, onTrade, onRecenter, onLog, onMenu, onMiniBoard, miniBoard, turnSeat }: Props) {
+export function ActionBar({ seat, onManage, onTrade, onRecenter, onLog, onMenu, onToggleView, turnSeat }: Props) {
   const s = useGame();
+  // The button names the view it switches to
+  const other = useSelector(settings, (v) => (v.boardView === '2d' ? '3D' : '2D'));
   const lock = tradeLock(s, seat);
   return (
     <nav className="action-bar panel" aria-label="Actions">
@@ -46,14 +50,16 @@ export function ActionBar({ seat, onManage, onTrade, onRecenter, onLog, onMenu, 
             ⌖
           </button>
         )}
-        {onMiniBoard && (
-          <button type="button" className="icon-button" onClick={onMiniBoard} aria-pressed={miniBoard} aria-label="2D board" title="2D board">
-            ▦
+        {onToggleView && (
+          <button type="button" className="icon-button view-button" onClick={onToggleView} aria-label={`Switch to the ${other} view`} title={`${other} view (V)`}>
+            {other}
           </button>
         )}
-        <button type="button" className="icon-button log-button" onClick={onLog} aria-label="Log" title="Log (L)">
-          ☰
-        </button>
+        {onLog && (
+          <button type="button" className="icon-button log-button" onClick={onLog} aria-label="Log" title="Log (L)">
+            ☰
+          </button>
+        )}
         <button type="button" className="icon-button" onClick={onMenu} aria-label="Menu" title="Menu (Esc)">
           ⏸
         </button>

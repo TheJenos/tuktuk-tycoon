@@ -6,7 +6,7 @@ import { watch } from './support/watch';
 /*
  * A phone (390 x 844, touch, mobile user agent): the lobby in one column, and in the game the players along the
  * top with the decision and the action bar in a bottom sheet, every control big enough for a thumb, dialogs as
- * sheets from the bottom, and the 2D board one tap away. Played with taps only.
+ * sheets from the bottom, and the 2D view one tap away. Played with taps only.
  */
 
 test('on a phone: the lobby fits, and a turn plays from the bottom sheet with taps', async ({ players }) => {
@@ -54,15 +54,12 @@ test('on a phone: the lobby fits, and a turn plays from the bottom sheet with ta
   await manage.getByRole('button', { name: 'Close' }).tap();
   await expect(manage).toBeHidden();
 
-  // The 2D board: tap a space to read its deed
-  await bar.getByRole('button', { name: '2D board' }).tap();
-  const board = page.getByRole('group', { name: 'Board' });
-  await expect(board).toBeVisible();
-  await board.getByRole('button', { name: /^Maradana Lane, owned by Tess/ }).tap();
-  const deed = page.getByRole('dialog', { name: 'Maradana Lane' });
-  await expect(deed).toBeVisible();
-  await deed.getByRole('button', { name: 'Close' }).tap();
-  await expect(deed).toBeHidden();
+  // The 2D / 3D switch: one tap to the top-down view, one back
+  await bar.getByRole('button', { name: 'Switch to the 2D view' }).tap();
+  await expect(bar.getByRole('button', { name: 'Switch to the 3D view' })).toBeVisible();
+  expect(await page.evaluate(() => (JSON.parse(localStorage.getItem('tuktuk-settings') ?? '{}') as { boardView?: string }).boardView)).toBe('2d');
+  await bar.getByRole('button', { name: 'Switch to the 3D view' }).tap();
+  await expect(bar.getByRole('button', { name: 'Switch to the 2D view' })).toBeVisible();
 
   await endTurn(p);
   await expect(rollButton(page)).toBeInViewport();
