@@ -169,7 +169,7 @@ describe('audit: doubles', () => {
     rig(s, [3, 3]);
     let st = act(s, 's0', { k: 'roll' }).state;
     expect(st.phase).toEqual({ k: 'buy', space: 6 });
-    st = run(st, ['s0', { k: 'decline' }], ['s1', { k: 'bid', amount: 10 }], ['s0', { k: 'pass' }]).state;
+    st = run(st, ['s0', { k: 'decline' }], ['s1', { k: 'bid', amount: 70 }], ['s0', { k: 'pass' }]).state;
     expect(st.props.p6?.owner).toBe('s1');
     expect(st.phase.k).toBe('preRoll');
     expect(st.turn).toMatchObject({ seat: 's0', doubles: 1 });
@@ -752,25 +752,26 @@ describe('audit: buying and auctions', () => {
     expect(cash(state, 's0')).toBe(50 + 120 - 100);
   });
 
-  it('Buying / Auctions: the player who declined may bid, and Rs. 1 is a valid opening bid', () => {
+  it('Buying / Auctions: the player who declined may bid, and 70% of the price is a valid opening bid', () => {
     const s = scenario();
     rig(s, [2, 4]);
     setPos(s, 's0', 33);
     const st = run(s, ['s0', { k: 'roll' }], ['s0', { k: 'decline' }]).state;
     expect(st.phase).toMatchObject({ k: 'auction', lot: { k: 'prop', space: 39 }, eligible: ['s0', 's1'] });
-    const { state } = run(st, ['s0', { k: 'bid', amount: 1 }], ['s1', { k: 'pass' }]);
+    expect(refused(st, 's0', { k: 'bid', amount: 279 })).toBe('low');
+    const { state } = run(st, ['s0', { k: 'bid', amount: 280 }], ['s1', { k: 'pass' }]);
     expect(state.props.p39?.owner).toBe('s0');
-    expect(cash(state, 's0')).toBe(1499);
+    expect(cash(state, 's0')).toBe(1220);
     expect(state.phase.k).toBe('postRoll');
   });
 
   it('Buying / Auctions: a decliner who could not afford the price may still win it below the price', () => {
     const s = scenario();
-    setCash(s, 's0', 50);
+    setCash(s, 's0', 80);
     rig(s, [2, 4]);
     const st = act(s, 's0', { k: 'roll' }).state;
     expect(refused(st, 's0', { k: 'buy' })).toBe('cash');
-    const { state } = run(st, ['s0', { k: 'decline' }], ['s0', { k: 'bid', amount: 40 }], ['s1', { k: 'pass' }]);
+    const { state } = run(st, ['s0', { k: 'decline' }], ['s0', { k: 'bid', amount: 70 }], ['s1', { k: 'pass' }]);
     expect(state.props.p6?.owner).toBe('s0');
     expect(cash(state, 's0')).toBe(10);
   });
@@ -781,9 +782,9 @@ describe('audit: buying and auctions', () => {
     rig(s, [2, 4]);
     const st = run(s, ['s0', { k: 'roll' }], ['s0', { k: 'decline' }]).state;
     expect(refused(st, 's1', { k: 'bid', amount: 1501 })).toBe('cash');
-    const { state } = run(st, ['s1', { k: 'bid', amount: 7 }], ['s0', { k: 'pass' }]);
+    const { state } = run(st, ['s1', { k: 'bid', amount: 70 }], ['s0', { k: 'pass' }]);
     expect(state.props.p6?.owner).toBe('s1');
-    expect(cash(state, 's1')).toBe(1493);
+    expect(cash(state, 's1')).toBe(1430);
     expect(state.players.s1?.jail).toEqual({ tries: 1 });
   });
 });

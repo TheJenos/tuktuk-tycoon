@@ -360,6 +360,10 @@ export interface AuctionPhase {
   k: 'auction';
   lot: Lot;
   high?: { seat: SeatId; amount: number };
+  /** The lowest opening bid: 70% of a property's price (AUCTION_OPEN_SHARE), 1 for a building unit; absent: 1 */
+  open?: number;
+  /** Bids made so far; the minimum raise grows with it (AUCTION_RAISES). Absent: none yet */
+  bids?: number;
   passed: SeatId[];
   eligible: SeatId[];
   /** More bank properties to auction after this one (bankruptcy to the bank) */

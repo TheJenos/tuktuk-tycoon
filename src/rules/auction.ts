@@ -1,3 +1,4 @@
+import { propertyAt } from './board';
 import { type Ctx, emit, err, isActive, player, propBidders, setPhase } from './ctx';
 import { boardMoney } from './currency';
 import { type Handler, isInt, seatAction, systemAction } from './handler';
@@ -5,15 +6,35 @@ import { maxRaise, pay, transfer } from './money';
 import type { AuctionPhase, BoardDef, GameState, Lot, Phase, RuleError, SeatId } from './types';
 
 /*
- * Timed open bidding. Any eligible seat that has not passed may bid at any time, more than the high bid and no more
- * than its cash; a pass is final. The engine has no clock: the driver sends closeAuction when the deadline (see
+ * Timed open bidding. Any eligible seat that has not passed may bid at any time, no more than its cash; a pass is
+ * final. A property's bidding opens at 70% of its price (AUCTION_OPEN_SHARE); each raise is at least the step
+ * AUCTION_RAISES gives for the bids made so far (Rs. 100 at first, then Rs. 1,000, then Rs. 10,000). The engine has no clock: the driver sends closeAuction when the deadline (see
  * timer()) passes. Every bid restarts the countdown (the net layer gives at least AUCTION_BID_SECS after a bid); with
  * cfg.fixedAuctionCountdown it runs from the moment the lot is put up and bids never add time. It closes by itself
  * once everyone but the high bidder has passed.
  */
 
+/** A property's bidding opens at this share of its printed price (rounded up) */
+export const AUCTION_OPEN_SHARE = 0.7;
+
+/**
+ * The minimum raise (engine units: 1 = Rs. 100) once this many bids have been made: the +Rs. 100 raise goes after
+ * the third bid, the +Rs. 1,000 one after the sixth. Ascending by `after`.
+ */
+export const AUCTION_RAISES: readonly { after: number; raise: number }[] = [
+  { after: 0, raise: 1 },
+  { after: 3, raise: 10 },
+  { after: 6, raise: 100 },
+];
+
+/** The lowest opening bid for a lot */
+export function openingBid(b: BoardDef, lot: Lot): number {
+  const price = lot.k === 'prop' ? (propertyAt(b, lot.space)?.price ?? 0) : 0;
+  return Math.max(1, Math.ceil(price * AUCTION_OPEN_SHARE));
+}
+
 export function startAuction(c: Ctx, lot: Lot, eligible: SeatId[], resume: Phase, queue: number[] = []): void {
-  const ph: AuctionPhase = { k: 'auction', lot, eligible: [...eligible], passed: [], queue, resume };
+  const ph: AuctionPhase = { k: 'auction', lot, open: openingBid(c.b, lot), eligible: [...eligible], passed: [], queue, resume };
   setPhase(c, ph);
   emit(c, { t: 'auctionStart', lot, eligible: [...eligible], queue: [...queue] });
   autoPass(c, ph);
@@ -21,10 +42,10 @@ export function startAuction(c: Ctx, lot: Lot, eligible: SeatId[], resume: Phase
 
 /** Pass for every seat that could not beat the high bid even after selling and mortgaging everything */
 function autoPass(c: Ctx, ph: AuctionPhase): void {
-  const floor = ph.high?.amount ?? 0;
+  const min = minBid(ph);
   for (const seat of ph.eligible) {
     if (ph.passed.includes(seat) || seat === ph.high?.seat) continue;
-    if (maxRaise(c.s, c.b, seat) <= floor) {
+    if (maxRaise(c.s, c.b, seat) < min) {
       ph.passed.push(seat);
       emit(c, { t: 'pass', seat, auto: true });
     }
@@ -38,8 +59,16 @@ export const bidders = (s: GameState, ph: AuctionPhase): SeatId[] =>
 /** Everyone but the high bidder has passed (or left) */
 export const auctionDone = (s: GameState, ph: AuctionPhase): boolean => bidders(s, ph).length === 0;
 
-/** The lowest legal bid right now */
-export const minBid = (ph: AuctionPhase): number => (ph.high?.amount ?? 0) + 1;
+/** The smallest raise over the high bid allowed now */
+export function minRaise(ph: AuctionPhase): number {
+  const bids = ph.bids ?? 0;
+  let raise = 1;
+  for (const step of AUCTION_RAISES) if (bids >= step.after) raise = step.raise;
+  return raise;
+}
+
+/** The lowest legal bid right now: the opening bid, then the high bid plus the minimum raise */
+export const minBid = (ph: AuctionPhase): number => (ph.high ? ph.high.amount + minRaise(ph) : (ph.open ?? 1));
 
 /**
  * Ends the current auction: the high bidder pays and takes the lot; with no bids the bank keeps it (a building unit
@@ -94,6 +123,7 @@ export const bid: Handler<'bid'> = seatAction(
     const ph = c.s.phase;
     if (ph.k !== 'auction') return;
     ph.high = { seat, amount: a.amount };
+    ph.bids = (ph.bids ?? 0) + 1;
     emit(c, { t: 'bid', seat, amount: a.amount });
     // Re-entering restarts the deadline: every bid gives the others a fresh countdown. A fixed countdown runs on from
     // when the lot was put up.

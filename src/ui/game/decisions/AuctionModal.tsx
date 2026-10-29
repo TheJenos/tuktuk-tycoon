@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { MONEY_SCALE, minBid, toRupees, toUnits, type AuctionPhase, type GameState, type SeatId } from '../../../rules';
+import { useEffect, useRef } from 'react';
+import { minBid, minRaise, type AuctionPhase, type GameState, type SeatId } from '../../../rules';
 import { safeColor } from '../../colors';
 import { useBusy, useSend } from '../actions';
 import { useDoc, useGame, useMySeats, useNames } from '../context';
@@ -9,11 +9,12 @@ import { lotText, money, priceOf } from '../format';
 import { TimerBar } from '../hud/TimerRing';
 import { activeDeadline } from '../selectors';
 
-/** Quick raises in engine units: +Rs. 100 / +Rs. 1,000 / +Rs. 10,000 as shown */
+/** The raises in engine units: +Rs. 100 / +Rs. 1,000 / +Rs. 10,000 as shown */
 const RAISES = [1, 10, 100];
 
 /**
- * Timed open bidding: anyone still in may raise at any time until the countdown runs out (each bid restarts it, unless
+ * Timed open bidding, by buttons only: the opening bid (70% of a property's price), then raises of Rs. 100, 1,000 or
+ * 10,000; the smaller raises go grey as the bids come in (the engine's minimum raise grows: AUCTION_RAISES). anyone still in may raise at any time until the countdown runs out (each bid restarts it, unless
  * the table chose a fixed countdown: cfg.fixedAuctionCountdown). One bid row per
  * seat of mine still in (hot-seat), the high bid read out as it changes, and a way to raise cash meanwhile
  * (selling and mortgaging are open during an auction). Works for properties and for building units in a
@@ -45,7 +46,7 @@ export function AuctionModal({ seats, covered, onRaise }: { seats: SeatId[]; cov
             <strong style={{ color: safeColor(doc?.seats[ph.high.seat]?.color) }}>{names.seat(ph.high.seat)}</strong>
           </>
         ) : (
-          <>No bids yet: bidding starts at {money(1)}{printed ? ` (printed price ${money(printed)})` : ''}</>
+          <>No bids yet: bidding opens at {money(minBid(s) ?? 1)}{printed ? ` (printed price ${money(printed)})` : ''}</>
         )}
       </p>
       {deadline && <TimerBar deadline={deadline} label="Auction closes in" />}
@@ -60,10 +61,8 @@ export function AuctionModal({ seats, covered, onRaise }: { seats: SeatId[]; cov
 }
 
 /**
- * Opening the auction, focus goes to the dialog's first focusable control, which is the amount box while the
- * quick raises are still disabled (the decline that opened it is being committed). Once the dialog can be used, the
- * first quick raise that can be pressed takes the focus instead (Pass when none can), unless the player has already
- * picked a button or typed an amount. Once per auction (`lot` tells one from the next).
+ * Opening the auction, focus goes to the first bid button that can be pressed once the dialog can be used (Pass when
+ * none can), unless the player has already picked a button. Once per auction (`lot` tells one from the next).
  */
 function useFirstBidFocus(ready: boolean, lot: string): void {
   const placed = useRef<string | null>(null);
@@ -73,10 +72,10 @@ function useFirstBidFocus(ready: boolean, lot: string): void {
     if (!box) return;
     placed.current = lot;
     const at = document.activeElement;
-    const chosen = at instanceof HTMLElement && box.contains(at) && (at.tagName === 'BUTTON' || (at instanceof HTMLInputElement && at.value !== ''));
+    const chosen = at instanceof HTMLElement && box.contains(at) && at.tagName === 'BUTTON';
     if (chosen) return;
     const target =
-      box.querySelector<HTMLButtonElement>('.bid-row .action-row:not(.custom-bid) button:not([disabled])') ??
+      box.querySelector<HTMLButtonElement>('.bid-row .bid-buttons button:not([disabled])') ??
       box.querySelector<HTMLButtonElement>('.bid-row button.danger:not([disabled])');
     target?.focus();
   }, [ready, lot]);
@@ -86,22 +85,11 @@ function BidRow({ seat, s, ph, many, onRaise }: { seat: SeatId; s: GameState; ph
   const names = useNames();
   const send = useSend();
   const busy = useBusy();
-  const [custom, setCustom] = useState('');
   const cash = s.players[seat]?.cash ?? 0;
-  const high = ph.high?.amount ?? 0;
   const isHigh = ph.high?.seat === seat;
-  const min = minBid(s) ?? high + 1;
-  // The box takes shown rupees (step Rs. 100); the bid is sent in engine units, rounded to the nearest unit
-  const typed = Number(custom);
-  const amount = custom.trim() !== '' && Number.isFinite(typed) ? toUnits(typed) : NaN;
-  const customOk = Number.isInteger(amount) && amount >= min && amount <= cash && !isHigh;
+  const min = minBid(s) ?? 1;
+  const step = minRaise(s) ?? 1;
   const bid = (n: number) => void send(seat, { k: 'bid', amount: n });
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    if (!customOk) return;
-    bid(amount);
-    setCustom('');
-  };
   const label = many ? `${names.seat(seat)}: ` : '';
   return (
     <div className={isHigh ? 'bid-row high' : 'bid-row'} role="group" aria-label={many ? `Bids for ${names.seat(seat)}` : 'Your bid'}>
@@ -115,50 +103,34 @@ function BidRow({ seat, s, ph, many, onRaise }: { seat: SeatId; s: GameState; ph
           </button>
         )}
       </p>
-      <div className="action-row">
-        {RAISES.map((inc) => {
-          const n = high + inc;
-          return (
-            <button
-              key={inc}
-              type="button"
-              className={inc === 1 ? 'primary' : undefined}
-              disabled={busy || isHigh || n > cash}
-              aria-label={`${label}Bid ${money(n)}`}
-              onClick={() => bid(n)}
-            >
-              +{money(inc)} <small className="amt">({money(n)})</small>
-            </button>
-          );
-        })}
-      </div>
-      <form className="action-row custom-bid" onSubmit={submit}>
-        <label className="sr-only" htmlFor={`bid-${seat}`}>{label}Bid amount</label>
-        <input
-          id={`bid-${seat}`}
-          type="number"
-          inputMode="numeric"
-          min={toRupees(min)}
-          max={toRupees(cash)}
-          step={MONEY_SCALE}
-          placeholder={`${money(min)} or more`}
-          value={custom}
-          disabled={isHigh}
-          onChange={(e) => setCustom(e.target.value)}
-        />
-        <button type="submit" disabled={busy || !customOk}>
-          Bid
-        </button>
+      <div className="action-row bid-buttons">
+        {ph.high ? (
+          RAISES.map((inc) => {
+            const n = ph.high!.amount + inc;
+            const tooSmall = inc < step;
+            return (
+              <button
+                key={inc}
+                type="button"
+                className={inc === step ? 'primary' : undefined}
+                disabled={busy || isHigh || tooSmall || n > cash}
+                title={tooSmall ? `Raises are at least ${money(step)} now` : undefined}
+                aria-label={`${label}Bid ${money(n)}`}
+                onClick={() => bid(n)}
+              >
+                +{money(inc)} <small className="amt">({money(n)})</small>
+              </button>
+            );
+          })
+        ) : (
+          <button type="button" className="primary" disabled={busy || min > cash} aria-label={`${label}Bid ${money(min)}`} onClick={() => bid(min)}>
+            Open at {money(min)}
+          </button>
+        )}
         <button type="button" className="danger" disabled={busy || isHigh} title={isHigh ? 'The high bidder cannot pass' : undefined} onClick={() => void send(seat, { k: 'pass' })}>
           Pass
         </button>
-      </form>
-      {/* Others keep raising while a number is typed: say why Bid went grey */}
-      {!isHigh && custom !== '' && Number.isInteger(amount) && (amount < min || amount > cash) && (
-        <p className="muted small bid-note" role="status">
-          {amount < min ? `The bidding is past that: ${money(min)} or more now` : `That is more than your ${money(cash)} cash`}
-        </p>
-      )}
+      </div>
     </div>
   );
 }

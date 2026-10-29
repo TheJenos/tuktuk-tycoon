@@ -366,7 +366,7 @@ describe('audit: Speed Die Tuk-Tuk Uncle', () => {
     own(s, 's1', except(3));
     rig(s, [1, 2, 'uncle']);
     const buy = act(s, 's0', { k: 'roll' }).state;
-    const { state, events } = run(buy, ['s0', { k: 'decline' }], ['s1', { k: 'bid', amount: 1 }], ['s0', { k: 'pass' }]);
+    const { state, events } = run(buy, ['s0', { k: 'decline' }], ['s1', { k: 'bid', amount: 42 }], ['s0', { k: 'pass' }]);
     expect(state.props.p3?.owner).toBe('s1');
     expect(ofType(events, 'uncle')[0]).toMatchObject({ to: 5, target: 'rent' });
     expect(ofType(events, 'cash').find((e) => e.why === 'rent')).toMatchObject({ to: 's1', amount: 200 });
@@ -519,28 +519,28 @@ describe('audit: timed open auctions', () => {
     expect(a.phase).toMatchObject({ k: 'auction', eligible: ['s0', 's1', 's2'] });
     const { state, events } = run(
       a,
-      ['s2', { k: 'bid', amount: 10 }],
-      ['s0', { k: 'bid', amount: 20 }],
-      ['s2', { k: 'bid', amount: 30 }],
-      ['s1', { k: 'bid', amount: 40 }],
+      ['s2', { k: 'bid', amount: 42 }],
+      ['s0', { k: 'bid', amount: 50 }],
+      ['s2', { k: 'bid', amount: 55 }],
+      ['s1', { k: 'bid', amount: 65 }],
       ['s0', { k: 'pass' }],
       ['s2', { k: 'pass' }],
     );
     expect(state.props.p3).toEqual({ owner: 's1', level: 0 });
-    expect(cash(state, 's1')).toBe(1460);
+    expect(cash(state, 's1')).toBe(1435);
     expect(ofType(events, 'auctionEnd')).toEqual([
-      { t: 'auctionEnd', lot: { k: 'prop', space: 3 }, winner: 's1', amount: 40 },
+      { t: 'auctionEnd', lot: { k: 'prop', space: 3 }, winner: 's1', amount: 65 },
     ]);
     expect(state.phase.k).toBe('postRoll');
   });
 
-  it('decision "Auctions": minimum bid Rs. 1, each bid beats the high bid; a pass is final', () => {
+  it('decision "Auctions": bidding opens at 70% of the price, each bid beats the high bid; a pass is final', () => {
     const a = balticAuction();
-    expect(refused(a, 's1', { k: 'bid', amount: 0 })).toBe('low');
-    const b = act(a, 's1', { k: 'bid', amount: 1 }).state;
-    expect(refused(b, 's2', { k: 'bid', amount: 1 })).toBe('low');
+    expect(refused(a, 's1', { k: 'bid', amount: 41 })).toBe('low');
+    const b = act(a, 's1', { k: 'bid', amount: 42 }).state;
+    expect(refused(b, 's2', { k: 'bid', amount: 42 })).toBe('low');
     const c = act(b, 's2', { k: 'pass' }).state;
-    expect(refused(c, 's2', { k: 'bid', amount: 5 })).toBe('passed');
+    expect(refused(c, 's2', { k: 'bid', amount: 50 })).toBe('passed');
   });
 
   it('Buying rule: with no bids the bank keeps the property and the turn goes on', () => {
@@ -578,21 +578,21 @@ describe('audit: timed open auctions', () => {
   });
 
   it('decision "Auctions": only the system closes one, with the current basis; the high bidder then wins', () => {
-    const a = act(balticAuction(), 's2', { k: 'bid', amount: 25 }).state;
+    const a = act(balticAuction(), 's2', { k: 'bid', amount: 45 }).state;
     expect(refused(a, 's0', { k: 'closeAuction' })).toBe('badActor');
     expect(refused(a, 'system', { k: 'closeAuction' })).toBe('basis');
     expect(refused(a, 'system', { k: 'closeAuction' }, a.seq - 1)).toBe('stale');
     expect(timeoutCommand(a)).toEqual({ by: 'system', a: { k: 'closeAuction' }, basis: a.seq });
     const { state } = act(a, 'system', { k: 'closeAuction' }, a.seq);
     expect(state.props.p3?.owner).toBe('s2');
-    expect(cash(state, 's2')).toBe(1475);
+    expect(cash(state, 's2')).toBe(1455);
   });
 
   it('decision "Auctions": the countdown restarts on each bid, not on a pass', () => {
     const a = balticAuction();
     const k0 = timer(a);
     expect(k0?.kind).toBe('auction');
-    const b = act(a, 's1', { k: 'bid', amount: 5 }).state;
+    const b = act(a, 's1', { k: 'bid', amount: 42 }).state;
     expect(timer(b)?.key).not.toBe(k0?.key);
     const c = act(b, 's2', { k: 'pass' }).state;
     expect(timer(c)?.key).toBe(timer(b)?.key);
@@ -601,33 +601,33 @@ describe('audit: timed open auctions', () => {
   it('option "Fixed auction countdown": neither a bid nor a pass restarts it', () => {
     const a = balticAuction({ fixedAuctionCountdown: true });
     const k0 = timer(a);
-    const b = act(a, 's1', { k: 'bid', amount: 5 }).state;
+    const b = act(a, 's1', { k: 'bid', amount: 42 }).state;
     expect(timer(b)?.key).toBe(k0?.key);
     const c = act(b, 's2', { k: 'pass' }).state;
     expect(timer(c)?.key).toBe(k0?.key);
   });
 
   it('decision "Auctions" (countdown resets on each bid) + README timer: a bidder leaving the game is not a bid and keeps the countdown', () => {
-    const a = act(balticAuction(), 's1', { k: 'bid', amount: 5 }).state;
+    const a = act(balticAuction(), 's1', { k: 'bid', amount: 42 }).state;
     const key = timer(a)?.key;
     const left = act(a, 's2', { k: 'resign' }).state;
-    expect(left.phase).toMatchObject({ k: 'auction', high: { seat: 's1', amount: 5 } });
+    expect(left.phase).toMatchObject({ k: 'auction', high: { seat: 's1', amount: 42 } });
     expect(timer(left)?.key).toBe(key);
   });
 
   it('decision "Auctions": a seat that could not raise more than the high bid is passed; one that could mortgage is not', () => {
     const s = scenario({ n: 3 });
-    setCash(s, 's2', 5);
+    setCash(s, 's2', 45);
     rig(s, [1, 2]);
     const a = run(s, ['s0', { k: 'roll' }], ['s0', { k: 'decline' }]).state;
-    expect(ofType(act(a, 's1', { k: 'bid', amount: 10 }).events, 'pass')).toEqual([{ t: 'pass', seat: 's2', auto: true }]);
+    expect(ofType(act(a, 's1', { k: 'bid', amount: 45 }).events, 'pass')).toEqual([{ t: 'pass', seat: 's2', auto: true }]);
 
     const t = scenario({ n: 3 });
-    setCash(t, 's2', 5);
+    setCash(t, 's2', 45);
     own(t, 's2', [39]);
     rig(t, [1, 2]);
     const b = run(t, ['s0', { k: 'roll' }], ['s0', { k: 'decline' }]).state;
-    const after = act(b, 's1', { k: 'bid', amount: 10 }).state;
+    const after = act(b, 's1', { k: 'bid', amount: 45 }).state;
     expect(awaiting(after)).toContain('s2');
   });
 
@@ -640,8 +640,8 @@ describe('audit: timed open auctions', () => {
     const a = run(s, ['s0', { k: 'roll' }], ['s0', { k: 'decline' }]).state;
     const { state } = run(
       a,
-      ['s1', { k: 'bid', amount: 7 }],
-      ['s0', { k: 'bid', amount: 8 }],
+      ['s1', { k: 'bid', amount: 42 }],
+      ['s0', { k: 'bid', amount: 43 }],
       ['s1', { k: 'pass' }],
       ['s2', { k: 'pass' }],
     );
@@ -1063,7 +1063,7 @@ describe('audit: bankruptcy to the bank', () => {
     ]);
     expect(b.state.decks.chance.at(-1)).toBe('ch-goojf');
     expect(b.state.phase).toMatchObject({ k: 'auction', lot: { k: 'prop', space: 1 }, eligible: ['s0', 's2'], queue: [3] });
-    const won = run(b.state, ['s2', { k: 'bid', amount: 10 }], ['s0', { k: 'pass' }]).state;
+    const won = run(b.state, ['s2', { k: 'bid', amount: 42 }], ['s0', { k: 'pass' }]).state;
     expect(won.props.p1).toEqual({ owner: 's2', level: 0 });
     expect(won.phase).toMatchObject({ k: 'auction', lot: { k: 'prop', space: 3 } });
     const { state } = run(won, ['s0', { k: 'pass' }], ['s2', { k: 'pass' }]);
@@ -1079,7 +1079,7 @@ describe('audit: bankruptcy to the bank', () => {
     const { state } = act(d, 's1', { k: 'bankrupt' });
     expect(state.bank.houses).toBe(32);
     expect(state.phase).toMatchObject({ k: 'auction', lot: { k: 'prop', space: 1 }, queue: [3] });
-    const won = run(state, ['s0', { k: 'bid', amount: 5 }], ['s2', { k: 'pass' }]).state;
+    const won = run(state, ['s0', { k: 'bid', amount: 42 }], ['s2', { k: 'pass' }]).state;
     expect(won.props.p1).toEqual({ owner: 's0', level: 0 });
   });
 });
@@ -1161,9 +1161,10 @@ describe('audit: resigning', () => {
     // 1 cash + 48 for the brown street cannot cover the 50
     const d = penthouseDebt(1, [1]);
     const resigned = act(d, 's1', { k: 'resign' }).state;
-    // s1's Galle Face Penthouse is auctioned first, then the debt resumes.
-    expect(resigned.phase).toMatchObject({ k: 'auction', lot: { k: 'prop', space: 39 }, resume: { k: 'debt' } });
-    const gone = run(resigned, ['s0', { k: 'pass' }], ['s2', { k: 'pass' }]).state;
+    // s1's Galle Face Penthouse is auctioned first (s0, who could not raise its opening bid, passed at once), then the
+    // debt resumes.
+    expect(resigned.phase).toMatchObject({ k: 'auction', lot: { k: 'prop', space: 39 }, resume: { k: 'debt' }, passed: ['s0'] });
+    const gone = run(resigned, ['s2', { k: 'pass' }]).state;
     expect(gone.phase).toMatchObject({ k: 'debt', debtor: 's0', owed: { bank: 50 } });
     const { state, events } = act(gone, 's0', { k: 'bankrupt' });
     expect(ofType(events, 'bankrupt')).toEqual([{ t: 'bankrupt', seat: 's0', to: 'bank', resigned: false }]);
@@ -1299,7 +1300,7 @@ describe('audit: timers and timeouts', () => {
         return act(s, 's0', { k: 'roll' }).state;
       },
     ],
-    ['auction', 'auction', () => act(balticAuction(), 's1', { k: 'bid', amount: 10 }).state],
+    ['auction', 'auction', () => act(balticAuction(), 's1', { k: 'bid', amount: 42 }).state],
     ['buildClaim', 'decision', () => shortageClaim()],
     ['place', 'decision', () => act(shortageClaim(), 's1', { k: 'requestBuild', n: 2 }).state],
     ['mortgageXfer', 'decision', () => tradedMortgages()],

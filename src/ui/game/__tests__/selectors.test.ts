@@ -41,11 +41,11 @@ describe('decisions', () => {
     expect(s.phase.k).toBe('auction');
     const before = decisionKey(s, ['s1']);
     expect(before).toMatch(/^auction:p39/);
-    s = act(s, 's1', { k: 'bid', amount: 10 }).state;
+    s = act(s, 's1', { k: 'bid', amount: 280 }).state;
     expect(myBidders(s, ['s1'])).toEqual(['s1']);
     expect(myAwaited(s, ['s1'])).toEqual([]);
     expect(decisionKey(s, ['s1'])).toBe(before);
-    s = act(s, 's2', { k: 'bid', amount: 20 }).state;
+    s = act(s, 's2', { k: 'bid', amount: 290 }).state;
     expect(decisionKey(s, ['s1'])).toBe(before);
     s = act(s, 's1', { k: 'pass' }).state;
     expect(decisionKey(s, ['s1'])).toBeNull();

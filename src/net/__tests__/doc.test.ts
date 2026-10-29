@@ -186,7 +186,7 @@ describe('applyEnvelope', () => {
     const auctionKey = d.deadline!.key;
     const bidder = (['s0', 's1', 's2'] as SeatId[]).find((s) => s !== turnSeat(d))!;
     const bidAt = at + 2_000;
-    d = must(d, envelope({ by: bidder, a: { k: 'bid', amount: 10 } }, pidOf(d, bidder), bidAt));
+    d = must(d, envelope({ by: bidder, a: { k: 'bid', amount: 42 } }, pidOf(d, bidder), bidAt));
     expect(d.deadline!.key).not.toBe(auctionKey);
     expect(d.deadline!.at).toBeGreaterThanOrEqual(bidAt + AUCTION_BID_SECS * 1000);
     expect(d.deadline!.at).toBe(bidAt + ONLINE_TIMERS.auction * 1000);
@@ -206,10 +206,10 @@ describe('applyEnvelope', () => {
     const auction = d.deadline!;
     expect(auction).toEqual({ key: timer(d.game)!.key, at: declineAt + animBudget(declined.events) + ONLINE_TIMERS.auction * 1000 });
     const bidders = (['s0', 's1', 's2'] as SeatId[]).filter((s) => s !== turnSeat(d));
-    d = must(d, envelope({ by: bidders[0]!, a: { k: 'bid', amount: 10 } }, pidOf(d, bidders[0]!), declineAt + 2_000));
+    d = must(d, envelope({ by: bidders[0]!, a: { k: 'bid', amount: 42 } }, pidOf(d, bidders[0]!), declineAt + 2_000));
     expect(d.deadline).toEqual(auction);
     // A bid in the last moment adds no time either
-    d = must(d, envelope({ by: bidders[1]!, a: { k: 'bid', amount: 11 } }, pidOf(d, bidders[1]!), auction.at - 100));
+    d = must(d, envelope({ by: bidders[1]!, a: { k: 'bid', amount: 43 } }, pidOf(d, bidders[1]!), auction.at - 100));
     expect(d.deadline).toEqual(auction);
   });
 });

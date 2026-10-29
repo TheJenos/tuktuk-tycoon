@@ -3,7 +3,7 @@ import { HEROES_FIXED } from './heroesFixed';
 import type { RulesConfig } from './types';
 
 /** Bumped whenever the state shape or a rule changes, so old saves and rooms are recognised */
-export const RULES_VERSION = 9;
+export const RULES_VERSION = 10;
 /**
  * Older versions whose states decode() upgrades as they are: version 3 has the same state shape (4 changed rules
  * only: offers no longer expire, fixed auction countdowns, selling property to the bank, bankruptcy to a player);
@@ -13,9 +13,10 @@ export const RULES_VERSION = 9;
  * 6 as it is (7 added the auctionAll option, off in any game made before); version 7 as it is (8 added the Hero League
  * board and its optional state fields, absent from any game made before, which can only be on a classic board); version
  * 8 as it is (9 made bids restart the auction countdown again, the fixed countdown of 4-8 becoming the
- * fixedAuctionCountdown option, off in any game made before).
+ * fixedAuctionCountdown option, off in any game made before); version 9 as it is (10 opens a property's bidding at
+ * 70% of its price and raises the minimum raise as bids come in; an auction already open keeps a Rs. 100 opening).
  */
-export const UPGRADABLE_VERSIONS: readonly number[] = [3, 4, 5, 6, 7, 8];
+export const UPGRADABLE_VERSIONS: readonly number[] = [3, 4, 5, 6, 7, 8, 9];
 /** The one board size before version 5 */
 export const LEGACY_SPACES = 40;
 /** The versions laid out on LEGACY_SPACES only */

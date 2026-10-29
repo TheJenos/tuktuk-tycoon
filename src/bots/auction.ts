@@ -1,12 +1,12 @@
-import { placeSites, type Action, type AuctionPhase } from '../rules';
+import { minBid, minRaise, placeSites, type Action, type AuctionPhase } from '../rules';
 import { type BotCtx, stableNoise } from './ctx';
 import { blocksSet, completesSet, propAt, streetAt } from './model';
 import { propertyWorth } from './turn';
 
 /*
  * Timed open bidding. Each bot has a private limit for the lot (stable for the whole auction, see stableNoise). It
- * bids only while it is not the high bidder and the high bid is below its limit, in small steps, and passes once
- * the price reaches its limit. The high bidder is not awaited, so a bot never bids against itself.
+ * bids only while it is not the high bidder and the high bid is below its limit, in small steps (never below the
+ * minimum raise, which grows as the bids come in), and passes once the price reaches its limit. The high bidder is not awaited, so a bot never bids against itself.
  */
 
 /** The most the bot will pay for the lot (whole rupees, never more than its cash) */
@@ -51,11 +51,11 @@ export function auctionLimit(c: BotCtx, ph: AuctionPhase): number {
 export function auctionChoice(c: BotCtx, ph: AuctionPhase): Action {
   const limit = auctionLimit(c, ph);
   const high = ph.high?.amount ?? 0;
-  const min = high + 1;
+  const min = minBid(c.s) ?? high + 1;
   if (limit < min || c.me.cash < min) return { k: 'pass' };
   const price = ph.lot.k === 'prop' ? (propAt(c.m, ph.lot.space)?.price ?? 100) : 150;
   const p = c.prof;
-  const step = Math.max(p.stepMin, Math.min(p.stepMax, Math.round(price * p.stepShare)));
+  const step = Math.max(minRaise(c.s) ?? 1, p.stepMin, Math.min(p.stepMax, Math.round(price * p.stepShare)));
   // Open well below the limit so a lot nobody else wants goes cheap
   const open = c.prof.skill === 'easy' ? Math.round(price * (0.2 + 0.3 * c.rnd())) : Math.round(limit * 0.4);
   const want = ph.high ? high + step : Math.max(1, open);

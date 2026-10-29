@@ -56,6 +56,7 @@ export {
   canSellProperty,
   sellPropertyValue,
   minBid,
+  minRaise,
   placeSites,
   buildCapacity,
   ranking,
@@ -74,4 +75,5 @@ export {
   type BuildOption,
   type UsablePower,
 } from './selectors';
+export { AUCTION_OPEN_SHARE, AUCTION_RAISES } from './auction';
 export type { RentOpts } from './rent';

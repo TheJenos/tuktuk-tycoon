@@ -249,10 +249,10 @@ describe('Hero League: state, versions and selectors', () => {
     expect(decode(encode(w))).toEqual(w);
   });
 
-  it('is version 9; version 7 and 8 states still decode', () => {
-    expect(RULES_VERSION).toBe(9);
-    expect(UPGRADABLE_VERSIONS).toEqual(expect.arrayContaining([7, 8]));
-    for (const v of [7, 8]) expect(decode(encode({ ...scenario(), v })).v).toBe(9);
+  it('is version 10; version 7 to 9 states still decode', () => {
+    expect(RULES_VERSION).toBe(10);
+    expect(UPGRADABLE_VERSIONS).toEqual(expect.arrayContaining([7, 8, 9]));
+    for (const v of [7, 8, 9]) expect(decode(encode({ ...scenario(), v })).v).toBe(10);
   });
 
   it('heroesOf, heroOf, powerReady', () => {
