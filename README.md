@@ -207,7 +207,7 @@ disabled while a move is being committed. A move the rules refuse shows the engi
 | `C` | Recenter the camera (and turn automatic framing back on) |
 | `N` | Mute: turns the sound effects and the music off, and the second press back to how they were |
 | `Esc` | The game menu; closes the dialog on top |
-| Drag | Turn the camera (touch: one finger) |
+| Drag | Turn the camera (touch: one finger); in the 2D view, pan |
 | Wheel | Zoom (touch: pinch) |
 | Right drag | Pan (touch: two fingers) |
 | Click a space | Its Title Deed or what it does, who owns it and who stands on it |
@@ -219,7 +219,9 @@ Page Up / Page Down (ten spaces), Home / End, Enter, and typing a name to jump t
 
 ### The game screen
 
-- **Turn bar** (top): whose turn it is, what the game is waiting for, the running timer and the Speed Die badge.
+The board has the whole middle of the screen: the panels keep to the two sides.
+
+- **Turn bar** (top left, above the players): whose turn it is, what the game is waiting for, the running timer and the Speed Die badge.
 - **Players** (left): each player's token, name, cash (counting along with the board), net worth (a setting), and
   their property as swatches by colour group (mortgaged ones hatched, houses as pips); online, a dot says whether
   each player is connected. A swatch opens its deed.
@@ -228,8 +230,11 @@ Page Up / Page Down (ten spaces), Home / End, Enter, and typing a name to jump t
   debt), centred in the space the panels leave free. A drawn card flies up in 3D in front of the camera (its words
   are in the log); without the 3D board it shows as a card over the 2D board.
 - **The right-hand panel**: the last throw in words, an auction you're only watching, trade offers, and the event
-  log (filters **All**, **Mine**, **Money**).
-- **Action bar** (bottom): **Manage**, **Trade**, Recenter, the 2D board, the log and the menu.
+  log (filters **All**, **Mine**, **Money**; its chevron folds it to its header, remembered in this browser, and
+  `L` or the Log button shows it again).
+- **Action bar** (bottom right, under the log): **Manage**, **Trade**, Recenter, the 2D board, the log and the menu.
+- **Tablets and narrow windows**: the players are a strip along the top; the turn bar, the right-hand panel and the
+  action bar share the right-hand column.
 - **Phones**: the players become a strip along the top, Roll / End turn stay over the middle of the board, and the
   other decisions and the action bar share a bottom sheet, so the board stays in sight; the log opens on demand.
 
@@ -316,6 +321,11 @@ from the roll after your first Start salary (the Roll button then says "+ Speed 
 
 Saved in the browser as you change them (`tuktuk-settings`), in the lobby's **Settings** view and the game menu's:
 
+- **Board view**: 3D (the tilted table that turns to follow the action) or 2D (straight down from above, the board
+  always the same way up). 2D is the same scene through a long lens, so everything in 3D works there too: thrown
+  dice, tokens stepping tile by tile (a hop shows as the token swelling, since height doesn't show from above),
+  drawn cards, the spotlight on a hovered player's holdings, floating amounts, tile highlights and the space picker.
+  Dragging pans instead of turning; the wheel or a pinch zooms. It switches at once, mid-game too.
 - **Quality**: Low (no shadows, 1× resolution, a 2048 px board texture, simple dice), Medium, High. Phones start on
   Low.
 - **Animations**: Normal, Fast, or Instant (straight to the result).
@@ -883,6 +893,7 @@ src/
       CameraRig.tsx       CameraControls with automatic framing
       framing.ts          fitting part of the board into the space the HUD leaves free
       recenter.ts         Recenter, without importing the scene
+      view.ts             the 3D and 2D (top-down) board views: lens and distance scale
     fx/FloatingLabels.tsx "+Rs. 20,000" over the tokens
     textures/canvas.ts    canvas drawing helpers and the system font stack
     util/random.ts        seeded randomness for visuals

@@ -9,6 +9,8 @@ export type AnimSpeed = 'normal' | 'fast' | 'instant';
  * their own throw or a hit aimed at them ('mine'), or never (the game passes for them at once)
  */
 export type Reactions = 'all' | 'mine' | 'never';
+/** How the board is shown: the tilted 3D table, or straight down from above like a printed board */
+export type BoardView = '3d' | '2d';
 
 export interface Settings {
   /** Rendering tier: resolution, shadows, board texture size (see the scene's quality table) */
@@ -35,6 +37,8 @@ export interface Settings {
   uiScale: number;
   /** When a reaction window (Hero League's re-rolls and shields) asks this device's players */
   reactions: Reactions;
+  /** The board seen as a 3D table or top-down in 2D (the same scene: tokens, dice, cards and highlights alike) */
+  boardView: BoardView;
 }
 
 export const UI_SCALE_MIN = 0.8;
@@ -58,6 +62,11 @@ export const REACTIONS: { value: Reactions; label: string; hint: string }[] = [
   { value: 'never', label: 'Never', hint: 'Never ask: pass at once' },
 ];
 
+export const BOARD_VIEWS: { value: BoardView; label: string; hint: string }[] = [
+  { value: '3d', label: '3D', hint: 'A tilted table that turns to follow the action' },
+  { value: '2d', label: '2D', hint: 'Straight down from above, the board always the same way up' },
+];
+
 const COARSE = typeof matchMedia === 'function' && matchMedia('(hover: none) and (pointer: coarse)').matches;
 const MOTION_QUERY = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
 
@@ -76,6 +85,7 @@ export function defaultSettings(device: { coarse: boolean; reducedMotion: boolea
     musicVolume: 0.5,
     uiScale: 1,
     reactions: 'all',
+    boardView: '3d',
   };
 }
 
@@ -107,6 +117,7 @@ export function normalizeSettings(saved: unknown, defaults: Settings = DEFAULTS)
     musicVolume: num(s.musicVolume, 0, 1, defaults.musicVolume),
     uiScale: num(s.uiScale, UI_SCALE_MIN, UI_SCALE_MAX, defaults.uiScale),
     reactions: oneOf(s.reactions, REACTIONS, defaults.reactions),
+    boardView: oneOf(s.boardView, BOARD_VIEWS, defaults.boardView),
   };
 }
 

@@ -61,6 +61,12 @@ describe('normalizeSettings', () => {
     expect(s.autoCamera).toBe(DEFAULTS.autoCamera);
   });
 
+  it('shows the board in 3D unless 2D was chosen', () => {
+    expect(DEFAULTS.boardView).toBe('3d');
+    expect(normalizeSettings({ boardView: '2d' }).boardView).toBe('2d');
+    expect(normalizeSettings({ boardView: 'flat' }).boardView).toBe('3d');
+  });
+
   it('keeps valid choices and drops fields it does not know', () => {
     const s = normalizeSettings({ quality: 'medium', animSpeed: 'instant', dicePhysics: false, version: 1, killcam: true });
     expect(s).toMatchObject({ quality: 'medium', animSpeed: 'instant', dicePhysics: false });

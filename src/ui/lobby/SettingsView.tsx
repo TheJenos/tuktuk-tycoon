@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { ConfirmButton } from '../ConfirmButton';
 import { NAME_PATTERN } from '../playerName';
-import { ANIM_SPEEDS, QUALITIES, REACTIONS, settings, UI_SCALE_MAX, UI_SCALE_MIN, useSettings, type Settings } from '../settings';
+import { ANIM_SPEEDS, BOARD_VIEWS, QUALITIES, REACTIONS, settings, UI_SCALE_MAX, UI_SCALE_MIN, useSettings, type Settings } from '../settings';
 import { Choices, Toggle } from './Choices';
 
 /*
@@ -24,6 +24,13 @@ export function SettingsView({ name, onRename }: { name: string; onRename?: (nam
     <div className="lobby-settings">
       {onRename && <RenameRow name={name} onRename={onRename} />}
       <div className="lobby-form">
+        <Choices
+          label="Board view"
+          value={s.boardView}
+          options={BOARD_VIEWS}
+          hint="3D: a tilted table that turns to follow the action. 2D: straight down from above."
+          onChange={(boardView) => settings.update({ boardView })}
+        />
         <Choices label="Graphics quality" value={s.quality} options={QUALITIES} onChange={(quality) => settings.update({ quality })} />
         <Choices label="Animation speed" value={s.animSpeed} options={ANIM_SPEEDS} onChange={(animSpeed) => settings.update({ animSpeed })} />
         <Choices

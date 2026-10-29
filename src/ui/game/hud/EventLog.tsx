@@ -8,7 +8,27 @@ import { splitMoney } from './logText';
 /*
  * What has happened, as the board played it (the director's log, newest last): filters for everything, only my
  * seats, or only money. role=log, so screen readers can review it; live announcing is the Announcer's job.
+ * The chevron collapses it to its header (remembered in this browser); the Log button or L opens it again.
  */
+
+const COLLAPSED_KEY = 'tuktuk-log-collapsed';
+
+function savedCollapsed(): boolean {
+  try {
+    return localStorage.getItem(COLLAPSED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function saveCollapsed(on: boolean): void {
+  try {
+    if (on) localStorage.setItem(COLLAPSED_KEY, '1');
+    else localStorage.removeItem(COLLAPSED_KEY);
+  } catch {
+    /* storage unavailable: it just isn't remembered */
+  }
+}
 
 type Filter = 'all' | 'mine' | 'money';
 const FILTERS: { id: Filter; label: string }[] = [
@@ -35,6 +55,13 @@ export function EventLog({ expanded, onToggle }: { expanded: boolean; onToggle()
   const mine = useMySeats();
   const names = useNames();
   const [filter, setFilter] = useState<Filter>('all');
+  const [collapsed, setCollapsedState] = useState(savedCollapsed);
+  const setCollapsed = (on: boolean) => {
+    setCollapsedState(on);
+    saveCollapsed(on);
+  };
+  // Asking for the expanded log (L, or the phone's log button) shows it, collapsed or not
+  const open = expanded || !collapsed;
   const list = useRef<HTMLOListElement>(null);
   const stick = useRef(true);
 
@@ -48,56 +75,71 @@ export function EventLog({ expanded, onToggle }: { expanded: boolean; onToggle()
   useLayoutEffect(() => {
     const el = list.current;
     if (el && stick.current) el.scrollTop = el.scrollHeight;
-  }, [rows, expanded]);
+  }, [rows, expanded, open]);
   useEffect(() => {
     stick.current = true;
   }, [filter]);
 
   return (
-    <section className={expanded ? 'event-log panel expanded' : 'event-log panel'} aria-label="Game log">
+    <section className={['event-log panel', expanded && 'expanded', !open && 'collapsed'].filter(Boolean).join(' ')} aria-label="Game log">
       <header className="panel-head">
-        <button type="button" className="log-toggle" onClick={onToggle} aria-expanded={expanded} title="Log (L)">
+        <button type="button" className="log-toggle" onClick={() => (open ? onToggle() : setCollapsed(false))} aria-expanded={expanded} title="Log (L)">
           Log <kbd>L</kbd>
         </button>
-        <span className="choices log-filters" role="radiogroup" aria-label="Show">
-          {FILTERS.map((f) => (
-            <button
-              key={f.id}
-              type="button"
-              role="radio"
-              aria-checked={filter === f.id}
-              className={filter === f.id ? 'chip selected' : 'chip'}
-              onClick={() => setFilter(f.id)}
-            >
-              {f.label}
-            </button>
-          ))}
-        </span>
+        {open && (
+          <span className="choices log-filters" role="radiogroup" aria-label="Show">
+            {FILTERS.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                role="radio"
+                aria-checked={filter === f.id}
+                className={filter === f.id ? 'chip selected' : 'chip'}
+                onClick={() => setFilter(f.id)}
+              >
+                {f.label}
+              </button>
+            ))}
+          </span>
+        )}
+        <button
+          type="button"
+          className="log-collapse"
+          aria-expanded={open}
+          aria-label={open ? 'Hide the log' : 'Show the log'}
+          title={open ? 'Hide the log' : 'Show the log'}
+          onClick={() => {
+            if (open && expanded) onToggle();
+            setCollapsed(open);
+          }}
+        />
       </header>
-      <ol
-        ref={list}
-        className="log-lines"
-        role="log"
-        aria-live="off"
-        aria-label="Events"
-        tabIndex={0}
-        onScroll={(e) => {
-          const el = e.currentTarget;
-          stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24;
-        }}
-      >
-        {rows.length === 0 && <li className="muted">Nothing yet</li>}
-        {rows.map(({ e, i }) => (
-          <li key={`${e.seq}:${i}`} className={`log-line t-${e.ev.t}`}>
-            <span className="log-icon" aria-hidden="true">{iconOf(e.ev, names.board)}</span>
-            <span>
-              {splitMoney(formatEvent(e.ev, names), currencyOf(names.board)).map((p, j) =>
-                p.money ? <span key={j} className={`log-money ${p.money}`}>{p.text}</span> : p.text,
-              )}
-            </span>
-          </li>
-        ))}
-      </ol>
+      {open && (
+        <ol
+          ref={list}
+          className="log-lines"
+          role="log"
+          aria-live="off"
+          aria-label="Events"
+          tabIndex={0}
+          onScroll={(e) => {
+            const el = e.currentTarget;
+            stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24;
+          }}
+        >
+          {rows.length === 0 && <li className="muted">Nothing yet</li>}
+          {rows.map(({ e, i }) => (
+            <li key={`${e.seq}:${i}`} className={`log-line t-${e.ev.t}`}>
+              <span className="log-icon" aria-hidden="true">{iconOf(e.ev, names.board)}</span>
+              <span>
+                {splitMoney(formatEvent(e.ev, names), currencyOf(names.board)).map((p, j) =>
+                  p.money ? <span key={j} className={`log-money ${p.money}`}>{p.text}</span> : p.text,
+                )}
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
     </section>
   );
 }

@@ -924,7 +924,8 @@ html.reduce-motion .spinner { animation: none; border-right-color: currentColor;
   /* The side columns grow with the Panel size (GameView keeps it to what the window can take: fitUiScale) */
   grid-template-columns: min(calc(280px * var(--ui-scale)), 25vw) minmax(0, 1fr) min(calc(340px * var(--ui-scale)), 30vw);
   grid-template-rows: auto minmax(0, 1fr) auto;
-  grid-template-areas: 'players top context' 'players board context' 'players dock context';
+  /* The board has the whole middle: the turn bar heads the left column, the action bar ends the right one */
+  grid-template-areas: 'top board context' 'players board context' 'players board dock';
   gap: 12px;
   padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
   font-size: 15px;
@@ -933,7 +934,7 @@ html.reduce-motion .spinner { animation: none; border-right-color: currentColor;
 .game-hud p { margin: 0; }
 .token-icon { display: inline-block; vertical-align: middle; flex-shrink: 0; }
 
-.hud-top { grid-area: top; justify-self: stretch; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; max-width: 100%; --edge: top; }
+.hud-top { grid-area: top; justify-self: stretch; display: flex; flex-direction: column; align-items: stretch; gap: 8px; min-width: 0; max-width: 100%; --edge: left; }
 .hud-players { grid-area: players; align-self: start; min-height: 0; max-height: 100%; display: flex; flex-direction: column; --edge: left; }
 .hud-board { grid-area: board; min-height: 0; min-width: 0; display: grid; place-items: center; container-type: size; }
 .hud-context { grid-area: context; min-height: 0; display: flex; flex-direction: column; gap: 10px; --edge: right; }
@@ -942,7 +943,7 @@ html.reduce-motion .spinner { animation: none; border-right-color: currentColor;
 /* The expanded log takes the room left over: it never squeezes the decision out of sight */
 .game-hud.log-open .hud-decision { flex-shrink: 0; }
 /* The dock spans its column (a size container: a narrow one drops the bar's key hints); the bar sits centred in it */
-.hud-dock { grid-area: dock; justify-self: stretch; align-self: end; min-width: 0; --edge: bottom; container-type: inline-size; }
+.hud-dock { grid-area: dock; justify-self: stretch; align-self: end; min-width: 0; --edge: right; container-type: inline-size; }
 
 /* Turn bar */
 .turn-bar { display: flex; align-items: center; gap: 10px; padding: 8px 12px; width: min(560px, 100%); }
@@ -1026,6 +1027,13 @@ html.reduce-motion .spinner { animation: none; border-right-color: currentColor;
 .event-log { display: flex; flex-direction: column; min-height: 0; flex: 0 1 auto; padding: 8px 10px; }
 .event-log.expanded { flex: 1 1 auto; }
 .event-log .panel-head { margin-bottom: 4px; flex-wrap: wrap; row-gap: 4px; }
+.event-log.collapsed { flex: 0 0 auto; }
+.event-log.collapsed .panel-head { margin-bottom: 0; }
+/* The chevron that folds the log to its header: down when open, right when folded (as My properties') */
+.log-collapse { display: inline-grid; place-items: center; width: 26px; height: 26px; margin-left: auto; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--muted); }
+.log-collapse:hover { color: var(--text); background: rgba(255, 255, 255, 0.06); }
+.log-collapse::after { content: ''; width: 7px; height: 7px; margin-top: -4px; border: solid currentColor; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+.log-collapse[aria-expanded='false']::after { margin: 0 0 0 -3px; transform: rotate(-45deg); }
 .log-toggle { display: inline-flex; align-items: center; gap: 6px; padding: 2px 6px; border: 0; background: transparent; color: var(--muted); font: inherit; letter-spacing: inherit; text-transform: inherit; }
 .log-toggle:hover { color: var(--text); background: rgba(255, 255, 255, 0.06); }
 .log-filters { display: inline-flex; gap: 4px; }
@@ -1075,8 +1083,13 @@ html.reduce-motion .spinner { animation: none; border-right-color: currentColor;
 .inspector-action { display: flex; flex-direction: column; gap: 3px; flex: 1 1 140px; min-width: 0; }
 .inspector-action button { min-height: 38px; }
 .inspector-action small { font-size: 12px; line-height: 1.35; }
-.turn-row { display: flex; align-items: stretch; gap: 6px; width: min(560px, 100%); min-width: 0; }
-.turn-row .turn-bar { flex: 1; width: auto; }
+.turn-row { display: flex; align-items: stretch; gap: 6px; width: 100%; min-width: 0; }
+.turn-row .turn-bar { flex: 1; width: auto; min-width: 0; }
+/* In a side column the turn bar is narrow: what the game waits for wraps rather than being cut short (phones keep
+   one line) */
+@media (min-width: 641px) {
+  .turn-phase { white-space: normal; }
+}
 /* Phones: My properties opens from beside the turn bar (the tool row has no room for another button) */
 .props-button { display: none; width: 44px; border-radius: 14px; border: 1px solid var(--glass-line); background: var(--glass); backdrop-filter: blur(12px); font-size: 20px; }
 .props-button[aria-pressed='true'] { border-color: var(--accent); color: var(--accent); }
@@ -1103,6 +1116,22 @@ html.reduce-motion .spinner { animation: none; border-right-color: currentColor;
 /* One row where there is room; a narrow dock (a large Panel size) takes a second rather than spill out of it */
 .action-row.tools { justify-content: center; }
 .action-row.tools button:not(.icon-button) { min-height: 40px; }
+/* Docked under the side column, the tools share its width in one row (phones have their bottom sheet's own rules) */
+@media (min-width: 641px) {
+  .hud-dock .action-bar { width: 100%; padding: 8px; }
+  .hud-dock .action-row.tools { width: 100%; gap: 6px; }
+  .hud-dock .action-row.tools button { flex: 1 1 36px; min-width: 36px; padding-inline: 8px; }
+  .hud-dock .action-row.tools button:not(.icon-button) { flex: 2 0 auto; }
+  .hud-dock .action-row.tools .icon-button { width: auto; padding-inline: 0; }
+  .hud-dock .action-row.tools button.turn-button { justify-content: center; }
+  /* Too narrow for one row (a side column): Manage and Trade above, the icon buttons below, each row full, and Roll /
+     End turn (docked into the bar while trading) on a row of its own above them */
+  @container (max-width: 320px) {
+    .hud-dock .action-row.tools button:not(.icon-button) { flex: 1 1 45%; }
+    .hud-dock .action-row.tools .icon-button { flex: 1 1 20%; }
+    .hud-dock .action-row.tools button.turn-button { flex: 1 1 100%; }
+  }
+}
 :is(.action-bar, .turn-center) button.big { min-height: 48px; padding: 10px 22px; font-family: var(--display); font-size: 20px; letter-spacing: 1.5px; text-transform: uppercase; display: inline-flex; align-items: center; gap: 8px; }
 :is(.action-bar, .turn-center) button kbd, .prompt button kbd { margin-left: 4px; font-size: 11px; padding: 1px 5px; opacity: 0.75; background: rgba(0, 0, 0, 0.2); color: inherit; border-color: rgba(0, 0, 0, 0.25); }
 /* The jail choices: the title beside the buttons where the bar has room, so the bar stays two rows high */
@@ -1226,9 +1255,9 @@ button.link:hover { background: none; filter: brightness(1.1); }
   .turn-center button.big { min-height: 68px; min-width: 210px; padding: 12px 36px; font-size: 28px; }
 }
 .action-bar button.turn-button { min-height: 40px; padding: 6px 18px; font-size: 18px; }
-/* While trading (the dialog hugs the right), the bar with Roll / End turn and the decision the roll brings (in the
-   space the dialog leaves free) stay above the dialog's dimmed backdrop, so the turn can go on without closing the
-   trade. Phones: the trade is a bottom sheet over both instead. */
+/* While trading (the dialog in the middle), the bar with Roll / End turn (bottom right) and the decision the roll
+   brings stay above the dialog's dimmed backdrop, so the turn can go on without closing the trade. Phones: the trade
+   is a bottom sheet over both instead. */
 @media (min-width: 641px) {
   .game-hud.trade-open .hud-dock { position: relative; z-index: 31; }
   .game-hud.trade-open .board-center-wrap { z-index: 31; }
@@ -1414,16 +1443,15 @@ html.reduce-motion .trade-tile label:hover { transform: none; }
 /* Beside the offers list (TradeOffers): a glass card of its own; the pointer goes through it */
 .offer-preview { position: fixed; z-index: 24; padding: 8px; border-radius: 12px; background: rgba(13, 16, 22, 0.94); border: 1px solid rgba(77, 171, 247, 0.55); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45); pointer-events: none; animation: panel-in 140ms ease-out; }
 
-/* The trade builder keeps the board in view: beside the board on wide screens (the camera frames around it,
-   data-inset), its preview pane on the right (always there, so a hover never moves the rows) */
-.game-dialog.trade { --edge: right; }
+/* The trade builder: in the middle of the screen over the lightly dimmed board, its preview pane on the right (always
+   there, so a hover never moves the rows) */
 .game-dialog.trade .dialog-body { flex: 1 1 auto; display: grid; grid-template-columns: minmax(0, 1fr) 260px; grid-template-rows: minmax(0, 1fr); overflow: hidden; padding: 0; gap: 0; }
 .trade-main { min-height: 0; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
 .trade-main > * { flex-shrink: 0; }
 .trade-preview-hint { margin-top: auto; line-height: 1.5; }
 @media (min-width: 641px) {
   /* Clear of the action bar, which stays above the backdrop while trading (Roll / End turn) */
-  .game-modal:has(> .game-dialog.trade) { place-items: center end; padding-bottom: calc(76px * var(--ui-scale) + 16px); background: linear-gradient(to left, rgba(7, 9, 13, 0.6), rgba(7, 9, 13, 0.12) 75%); }
+  .game-modal:has(> .game-dialog.trade) { padding-bottom: calc(76px * var(--ui-scale) + 16px); background: rgba(7, 9, 13, 0.45); }
   .game-dialog.trade { width: min(900px, 100%); }
   .trade-sheet-body { min-height: 310px; }
 }
@@ -1438,6 +1466,12 @@ html.reduce-motion .trade-tile label:hover { transform: none; }
 }
 @media (min-width: 641px) and (max-width: 1100px) {
   .game-dialog.trade { width: min(780px, 100%); }
+}
+/* Tablets: in the side column the bar would be two or three rows (Roll docked, then the tools), too tall to keep clear
+   of a dialog this size; while trading it goes under the board instead, one row, as the dialog's padding allows for */
+@media (min-width: 641px) and (max-width: 1023px) {
+  #hud.game-hud.trade-open { grid-template-areas: 'players players' 'board top' 'board context' 'dock context'; }
+  .game-hud.trade-open .hud-dock { --edge: bottom; }
   .game-dialog.trade .dialog-body { grid-template-columns: minmax(0, 1fr) 220px; }
 }
 
@@ -1513,9 +1547,11 @@ html.reduce-motion .trade-tile label:hover { transform: none; }
   #hud.game-hud {
     grid-template-columns: minmax(0, 1fr) minmax(calc(270px * var(--ui-scale)), calc(320px * var(--ui-scale)));
     grid-template-rows: auto auto minmax(0, 1fr) auto;
-    grid-template-areas: 'players players' 'top context' 'board context' 'dock context';
+    /* The board keeps the whole left: the turn bar, the context panels and the action bar share the right column */
+    grid-template-areas: 'players players' 'board top' 'board context' 'board dock';
     gap: 8px;
   }
+  .hud-top, .hud-dock { --edge: right; }
   .hud-players { --edge: top; align-self: stretch; }
   .players-panel { padding: 6px 8px; }
   .players-panel .panel-head { display: none; }
@@ -1541,6 +1577,8 @@ html.reduce-motion .trade-tile label:hover { transform: none; }
     gap: 6px;
     padding: max(6px, env(safe-area-inset-top)) max(6px, env(safe-area-inset-right)) 0 max(6px, env(safe-area-inset-left));
   }
+  .hud-top { align-items: center; --edge: top; }
+  .turn-row { width: min(560px, 100%); }
   .hud-context { display: contents; }
   .hud-context > .dice-readout { display: none; }
   .hud-decision { grid-area: decision; max-height: 48vh; --edge: bottom; }
@@ -1678,7 +1716,7 @@ html.reduce-motion .trade-tile label:hover { transform: none; }
 
 /* Touch: everything a thumb presses is at least 44px */
 @media (pointer: coarse) {
-  .game-hud button:not(.swatch):not(.log-toggle):not(.link):not(.cell):not(.prop-chip), .game-hud select, .game-hud input:not([type='checkbox']):not([type='range']) { min-height: 44px; }
+  .game-hud button:not(.swatch):not(.log-toggle):not(.log-collapse):not(.link):not(.cell):not(.prop-chip), .game-hud select, .game-hud input:not([type='checkbox']):not([type='range']) { min-height: 44px; }
   .game-hud .icon-button { min-width: 44px; }
   .prop-chip { min-height: 28px; }
   .prop-chip.info { width: 36px; height: 36px; }
