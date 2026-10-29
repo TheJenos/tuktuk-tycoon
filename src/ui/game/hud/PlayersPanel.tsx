@@ -12,6 +12,7 @@ import { capital, levelText, pluralWord, tokenOf, type Names } from '../format';
 import { stripScroll } from '../layout';
 import { TokenIcon } from '../tokenIcons';
 import { Money } from './Money';
+import { TurnStatus } from './TurnBar';
 import '../heroes.css';
 
 /*
@@ -65,7 +66,13 @@ export function PlayersPanel() {
   if (!s || !doc) return null;
   return (
     <section className="players-panel panel" aria-label="Players">
-      <h2 className="panel-head">Players</h2>
+      <header className="panel-head players-head">
+        <h2>Players</h2>
+        {/* Desktop only (CSS): there is no turn bar there */}
+        <span className="players-turn">
+          <TurnStatus />
+        </span>
+      </header>
       <ol className="player-list" ref={list}>
         {order.map((seat) => (
           <PlayerCard

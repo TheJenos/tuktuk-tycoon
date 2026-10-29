@@ -222,7 +222,8 @@ Page Up / Page Down (ten spaces), Home / End, Enter, and typing a name to jump t
 
 The board has the whole middle of the screen: the panels keep to the two sides.
 
-- **Turn bar** (top left, above the players): whose turn it is, what the game is waiting for, the running timer and the Speed Die badge.
+- **Turn bar** (tablets and phones; on a desktop the players panel shows whose turn it is, with the turn number, the
+  Speed Die badge and the timer in its header): whose turn it is, what the game is waiting for, the running timer and the Speed Die badge.
 - **Players** (left): each player's token, name, cash (counting along with the board), net worth (a setting), and
   their property as swatches by colour group (mortgaged ones hatched, houses as pips); online, a dot says whether
   each player is connected. A swatch opens its deed.
