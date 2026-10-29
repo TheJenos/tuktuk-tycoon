@@ -234,7 +234,8 @@ The board has the whole middle of the screen: the panels keep to the two sides.
   log (filters **All**, **Mine**, **Money**; its chevron folds it to its header, remembered in this browser, and
   `L` or the Log button shows it again).
 - **Action bar** (bottom right, under the log): **Manage**, **Trade**, Recenter, the **2D / 3D** switch (the board
-  view, as in Settings; it names the view it switches to), the log and the menu.
+  view, as in Settings; it names the view it switches to) and the menu. On phones it also has the log button, since
+  the log isn't on screen there.
 - **Tablets and narrow windows**: the players are a strip along the top; the turn bar, the right-hand panel and the
   action bar share the right-hand column.
 - **Phones**: the players become a strip along the top, Roll / End turn stay over the middle of the board, and the
@@ -972,7 +973,7 @@ src/
       tokenIcons.tsx      flat token silhouettes
       hud/
         TurnBar.tsx       whose turn, what the game waits for, the timer
-        ActionBar.tsx     Manage, Trade, Recenter, the 2D / 3D switch, log, menu
+        ActionBar.tsx     Manage, Trade, Recenter, the 2D / 3D switch, log (phones), menu
         BoardCenter.tsx   over the board's middle: Roll / End turn, the jail choices and my decisions
         PlayersPanel.tsx  players, cash, property swatches, online dots
         DiceReadout.tsx   the last throw, in words and faces

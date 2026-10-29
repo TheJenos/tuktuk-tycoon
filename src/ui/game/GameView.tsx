@@ -290,7 +290,8 @@ function GameScreen({ session, onLeave, onRematch, isOwner = false, ownerActions
               seat={seat}
               onManage={() => openManage(seat)}
               onTrade={() => openTrade(seat)}
-              onLog={toggleLog}
+              // Wider screens always show the log beside the board: the button is for phones, where it opens on demand
+              {...(phone ? { onLog: toggleLog } : {})}
               onMenu={openMenu}
               {...(glOk ? { onRecenter: recenter, onToggleView: toggleView } : {})}
               {...(tradeOpen ? { turnSeat } : {})}

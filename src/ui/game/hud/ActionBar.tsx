@@ -12,7 +12,8 @@ interface Props {
   onTrade(): void;
   /** Absent when there is no 3D camera to recenter (the 2D board only) */
   onRecenter?: () => void;
-  onLog(): void;
+  /** Phones only: the log opens on demand there (wider screens always show it, and L folds it) */
+  onLog?: () => void;
   onMenu(): void;
   /** Switch the board between the 3D and 2D views (absent without a 3D scene: the grid board is all there is) */
   onToggleView?: () => void;
@@ -21,7 +22,7 @@ interface Props {
 }
 
 /**
- * Manage, Trade, Recenter, the 2D / 3D switch, the log and the menu (bottom right; a bottom sheet on phones). The turn's Roll / End turn and the
+ * Manage, Trade, Recenter, the 2D / 3D switch, the log (phones) and the menu (bottom right; a bottom sheet on phones). The turn's Roll / End turn and the
  * jail choices are over the middle of the board (BoardCenter), but Roll / End turn move here while trading. Hero
  * League has nothing to manage (no buildings, mortgages or sales) and no trading: neither button is there.
  */
@@ -54,9 +55,11 @@ export function ActionBar({ seat, onManage, onTrade, onRecenter, onLog, onMenu, 
             {other}
           </button>
         )}
-        <button type="button" className="icon-button log-button" onClick={onLog} aria-label="Log" title="Log (L)">
-          ☰
-        </button>
+        {onLog && (
+          <button type="button" className="icon-button log-button" onClick={onLog} aria-label="Log" title="Log (L)">
+            ☰
+          </button>
+        )}
         <button type="button" className="icon-button" onClick={onMenu} aria-label="Menu" title="Menu (Esc)">
           ⏸
         </button>
