@@ -1091,6 +1091,7 @@ html.reduce-motion .spinner { animation: none; border-right-color: currentColor;
   .turn-phase { white-space: normal; }
 }
 /* Phones: My properties opens from beside the turn bar (the tool row has no room for another button) */
+.action-bar .view-button { font-size: 13px; font-weight: 800; letter-spacing: 0.5px; }
 .props-button { display: none; width: 44px; border-radius: 14px; border: 1px solid var(--glass-line); background: var(--glass); backdrop-filter: blur(12px); font-size: 20px; }
 .props-button[aria-pressed='true'] { border-color: var(--accent); color: var(--accent); }
 

@@ -57,6 +57,7 @@ describe('shortcuts', () => {
     expect(shortcutOf({ key: 'R' })).toBe('roll');
     expect(shortcutOf({ key: 'Escape' })).toBe('menu');
     expect(shortcutOf({ key: 'c' })).toBe('recenter');
+    expect(shortcutOf({ key: 'v' })).toBe('view');
     expect(shortcutOf({ key: 'n' })).toBe('mute');
     expect(shortcutOf({ key: 'r', ctrlKey: true })).toBeNull();
     expect(shortcutOf({ key: 'x' })).toBeNull();

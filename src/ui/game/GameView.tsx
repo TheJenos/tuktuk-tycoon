@@ -7,7 +7,7 @@ import { recenter } from '../../scene/camera/recenter';
 import { shallowEqual, useSelector, useStore } from '../../state/store';
 import { uiStore, type UiState } from '../../state/ui';
 import { connectDirector, useIdle } from '../../view';
-import { useSettings } from '../settings';
+import { settings, useSettings } from '../settings';
 import { installGameHooks } from '../testHooks';
 import { inflight, send, toast } from './actions';
 import { myPropsTitle, priceOf } from './format';
@@ -53,9 +53,12 @@ export interface GameViewProps {
   lateJoin?: { seats: SeatId[]; take(seat: SeatId): void };
 }
 
+/** The action bar's 2D / 3D switch and V: the other board view (saved, as in Settings) */
+const toggleView = () => settings.update({ boardView: settings.get().boardView === '2d' ? '3d' : '2d' });
+
 /**
- * The whole in-game DOM layer over the 3D board: players on the left, offers and log on the right, the turn bar on
- * top, the action bar at the bottom (a bottom sheet on phones), Roll / End turn and my decisions over the middle of
+ * The whole in-game DOM layer over the 3D board: the turn bar and players on the left, offers and log on the right,
+ * the action bar under them (a bottom sheet on phones), Roll / End turn and my decisions over the middle of
  * the board (the decisions join the bottom sheet on phones), plus the dialogs. Every
  * action is here, so the game plays without WebGL (the MiniBoard stands in for the board).
  */
@@ -115,7 +118,6 @@ function GameScreen({ session, onLeave, onRematch, isOwner = false, ownerActions
 
   const [manageSeat, setManageSeat] = useState<SeatId | null>(null);
   const [trade, setTrade] = useState<{ seat: SeatId; draft?: TradeDraft; n: number } | null>(null);
-  const [mini, setMini] = useState(false);
 
   const openManage = useCallback((x: SeatId | null) => {
     if (!x) return;
@@ -166,6 +168,9 @@ function GameScreen({ session, onLeave, onRematch, isOwner = false, ownerActions
     },
     log: toggleLog,
     recenter,
+    view: () => {
+      if (glOk) toggleView();
+    },
     mute: () => toast(toggleMute() ? 'Sound on (N to mute)' : 'Sound off (N to turn it back on)', 'info', 2500),
     menu: openMenu,
   };
@@ -225,7 +230,7 @@ function GameScreen({ session, onLeave, onRematch, isOwner = false, ownerActions
   }, [doc === null]);
 
   const propsLabel = myPropsTitle(names.board);
-  const classes = ['game-hud', menuOpen && 'paused', ui.panel === 'log' && 'log-open', ui.panel === 'props' && 'props-open', tradeOpen && 'trade-open', (!glOk || mini) && 'mini-on'].filter(Boolean).join(' ');
+  const classes = ['game-hud', menuOpen && 'paused', ui.panel === 'log' && 'log-open', ui.panel === 'props' && 'props-open', tradeOpen && 'trade-open', !glOk && 'mini-on'].filter(Boolean).join(' ');
   return (
     <div id="hud" ref={hud} className={classes} style={{ '--ui-scale': scale } as CSSProperties}>
       <Announcer />
@@ -263,7 +268,7 @@ function GameScreen({ session, onLeave, onRematch, isOwner = false, ownerActions
           <aside className="hud-players" data-inset>
             <PlayersPanel />
           </aside>
-          {(!glOk || mini) && (
+          {!glOk && (
             <div className="hud-board">
               <MiniBoard />
             </div>
@@ -287,13 +292,12 @@ function GameScreen({ session, onLeave, onRematch, isOwner = false, ownerActions
               onTrade={() => openTrade(seat)}
               onLog={toggleLog}
               onMenu={openMenu}
-              {...(glOk ? { onRecenter: recenter, onMiniBoard: () => setMini((m) => !m) } : {})}
-              miniBoard={!glOk || mini}
+              {...(glOk ? { onRecenter: recenter, onToggleView: toggleView } : {})}
               {...(tradeOpen ? { turnSeat } : {})}
             />
           </div>
           <BoardCenter turnSeat={turnSeat} turnDocked={tradeOpen}>{phone ? null : decision}</BoardCenter>
-          <CardModal threeD={glOk && !mini} />
+          <CardModal threeD={glOk} />
           {bidders.length > 0 && (
             <AuctionModal seats={bidders} covered={manageOpen || tradeOpen || inspecting || menuOpen} onRaise={openManage} />
           )}
