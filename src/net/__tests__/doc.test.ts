@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { apply, awaiting, defaultAction, RULES_VERSION, timeoutCommand, timer, type Action, type SeatId } from '../../rules';
-import { animBudget, ONLINE_TIMERS } from '../../shared/timing';
+import { animBudget, AUCTION_BID_SECS, ONLINE_TIMERS } from '../../shared/timing';
 import {
   applyEnvelope,
   decodeDoc,
@@ -180,8 +180,24 @@ describe('applyEnvelope', () => {
     const rolled = apply(before.game, { by: turnSeat(before), a: { k: 'roll' } });
     if (!rolled.ok) throw new Error('roll refused');
     expect(d.deadline).toEqual({ key: timer(d.game)!.key, at: at + animBudget(rolled.events) + ONLINE_TIMERS.decision * 1000 });
-    // Declining opens the auction: a fixed countdown from now; bids never restart or extend it
-    const declineAt = at + 1_000;
+    // Declining opens the auction; each bid restarts the clock and gives at least AUCTION_BID_SECS
+    d = act(d, { k: 'decline' }, at + 1_000);
+    expect(d.game.phase.k).toBe('auction');
+    const auctionKey = d.deadline!.key;
+    const bidder = (['s0', 's1', 's2'] as SeatId[]).find((s) => s !== turnSeat(d))!;
+    const bidAt = at + 2_000;
+    d = must(d, envelope({ by: bidder, a: { k: 'bid', amount: 10 } }, pidOf(d, bidder), bidAt));
+    expect(d.deadline!.key).not.toBe(auctionKey);
+    expect(d.deadline!.at).toBeGreaterThanOrEqual(bidAt + AUCTION_BID_SECS * 1000);
+    expect(d.deadline!.at).toBe(bidAt + ONLINE_TIMERS.auction * 1000);
+  });
+
+  it('fixedAuctionCountdown: the auction deadline runs from the decline; bids never restart or extend it', () => {
+    let d = makeDoc('hhh', { timers: ONLINE_TIMERS, rules: { debug: true, fixedAuctionCountdown: true } });
+    d = act(d, { k: 'debugRig', dice: [[1, 2]] }, T0 + 5_000);
+    d = act(d, { k: 'roll' }, T0 + 6_000);
+    expect(d.game.phase.k).toBe('buy');
+    const declineAt = T0 + 7_000;
     const pre = d;
     d = act(d, { k: 'decline' }, declineAt);
     expect(d.game.phase.k).toBe('auction');

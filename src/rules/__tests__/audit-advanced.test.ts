@@ -12,7 +12,7 @@ import {
   timer,
   unmortgageCost,
 } from '..';
-import type { Action, Bundle, GameState, SeatId, TimerInfo } from '../types';
+import type { Action, Bundle, GameState, RulesConfig, SeatId, TimerInfo } from '../types';
 import { act, cash, cashDelta, ofType, own, pos, refused, rig, run, scenario, setCash, setPos, stack } from './helpers';
 
 /*
@@ -33,8 +33,8 @@ function speedy(n = 2): GameState {
 }
 
 /** s0 lands on Maradana Lane (3) and declines: an open auction among s0, s1, s2 */
-function balticAuction(): GameState {
-  const s = scenario({ n: 3 });
+function balticAuction(cfg: Partial<RulesConfig> = {}): GameState {
+  const s = scenario({ n: 3, cfg });
   rig(s, [1, 2]);
   return run(s, ['s0', { k: 'roll' }], ['s0', { k: 'decline' }]).state;
 }
@@ -588,17 +588,26 @@ describe('audit: timed open auctions', () => {
     expect(cash(state, 's2')).toBe(1475);
   });
 
-  it('decision "Auctions": the countdown is fixed from the start; neither a bid nor a pass restarts it', () => {
+  it('decision "Auctions": the countdown restarts on each bid, not on a pass', () => {
     const a = balticAuction();
     const k0 = timer(a);
     expect(k0?.kind).toBe('auction');
+    const b = act(a, 's1', { k: 'bid', amount: 5 }).state;
+    expect(timer(b)?.key).not.toBe(k0?.key);
+    const c = act(b, 's2', { k: 'pass' }).state;
+    expect(timer(c)?.key).toBe(timer(b)?.key);
+  });
+
+  it('option "Fixed auction countdown": neither a bid nor a pass restarts it', () => {
+    const a = balticAuction({ fixedAuctionCountdown: true });
+    const k0 = timer(a);
     const b = act(a, 's1', { k: 'bid', amount: 5 }).state;
     expect(timer(b)?.key).toBe(k0?.key);
     const c = act(b, 's2', { k: 'pass' }).state;
     expect(timer(c)?.key).toBe(k0?.key);
   });
 
-  it('decision "Auctions" (fixed countdown) + README timer: a bidder leaving the game keeps the countdown', () => {
+  it('decision "Auctions" (countdown resets on each bid) + README timer: a bidder leaving the game is not a bid and keeps the countdown', () => {
     const a = act(balticAuction(), 's1', { k: 'bid', amount: 5 }).state;
     const key = timer(a)?.key;
     const left = act(a, 's2', { k: 'resign' }).state;

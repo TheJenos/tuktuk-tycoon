@@ -257,7 +257,8 @@ game), and is checked against the rules again when accepted.
 
 **Auctions use timed open bidding.** Declining a purchase puts it up for everyone still in, the decliner included.
 Bidding starts at Rs. 100: **+Rs. 100**, **+Rs. 1,000**, **+Rs. 10,000**, or type any amount above the high bid up to your cash. The
-countdown (8 seconds by default) is fixed from the moment the lot is put up: bids never add time. **Pass** is final,
+countdown (8 seconds by default) restarts at every bid, giving everyone at least 5 seconds to answer (the **Fixed
+auction countdown** option instead runs it from the moment the lot is put up: bids never add time). **Pass** is final,
 and the high bidder can neither pass nor outbid itself. It closes when everyone but the high bidder has passed or the
 countdown runs out; with no bids the bank keeps the lot.
 You can sell and mortgage meanwhile (**Raise cash**). The same auction sells houses and hotels in a building
@@ -333,7 +334,8 @@ choice made is in that file's [Rules decisions](docs/rules.md#rules-decisions) t
   house rule.
 - **Rent is collected automatically**: the rulebook's "ask before the second following player rolls" window is
   dropped.
-- **Auctions are timed open bidding**, from Rs. 100, with a fixed countdown from the start (bids don't add time).
+- **Auctions are timed open bidding**, from Rs. 100, the countdown restarting on every bid (or, as an option, fixed
+  from the start: bids don't add time).
 - **Triples** (Speed Die): move to any of the other 39 spaces, then roll again (a setting).
 - **Mortgages** pay 60% of the price; **unmortgaging** costs that plus 10% rounded up (Power Cut Board: Rs. 9,900). Mortgaged stations and
   boards still count toward the number owned for rent.

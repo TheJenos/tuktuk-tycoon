@@ -5,7 +5,7 @@ import { roomPosition, space } from './support/positions';
 /*
  * Timed open bidding between two browsers. Both bid the same amount at the same moment: the database transaction
  * lets exactly one in and the other is refused (it no longer beats the high bid). Then a raise, a pass, and the
- * winner pays. The countdown is fixed from when the lot was put up: the bids leave its timer key alone.
+ * winner pays. Each bid restarts the countdown (a new timer key).
  */
 
 needsEmulator();
@@ -20,7 +20,7 @@ test('two browsers bid at once: one bid lands, then a raise, a pass, and the win
     await expect(auctionDialog(p.page).getByRole('heading', { name: 'Auction: Maradana Lane' })).toBeVisible();
     await expect(auctionDialog(p.page).locator('.high-bid')).toContainText('No bids yet');
   }
-  // The auction's timer key (phase + since): bids must not restart the countdown
+  // The auction's timer key (phase + since): each bid restarts the countdown
   const opened = (await alice.state()).since;
 
   // The same bid from both, sent together
@@ -41,8 +41,8 @@ test('two browsers bid at once: one bid lands, then a raise, a pass, and the win
   // The other raises with the ladder; the leader lets it go
   await auctionDialog(other.page).getByRole('button', { name: 'Bid Rs. 1,100', exact: true }).click();
   await expect(auctionDialog(leader.page).locator('.high-bid')).toContainText(`High bid Rs. 1,100 by ${other.name}`);
-  // Two bids in, and the countdown is still the one the lot started with
-  expect((await leader.state()).since).toBe(opened);
+  // Two bids in: the countdown is no longer the one the lot started with
+  expect((await leader.state()).since).not.toBe(opened);
   await auctionDialog(leader.page).getByRole('button', { name: 'Pass' }).click();
 
   for (const p of [alice, bob]) {

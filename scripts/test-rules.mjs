@@ -131,6 +131,8 @@ const cases = [
   ['setup: an unknown Inland Revenue mode', 'rooms/ROOM1/setup/rules/incomeTaxMode', 'none', false],
   ['setup: auctions off', 'rooms/ROOM1/setup/rules/auctions', false, true],
   ['setup: auctions not a boolean', 'rooms/ROOM1/setup/rules/auctions', 'off', false],
+  ['setup: fixed auction countdown', 'rooms/ROOM1/setup/rules/fixedAuctionCountdown', true, true],
+  ['setup: fixed auction countdown not a boolean', 'rooms/ROOM1/setup/rules/fixedAuctionCountdown', 'yes', false],
   ['setup: buying after the first lap', 'rooms/ROOM1/setup/rules/buyAfterFirstLap', true, true],
   ['setup: first-lap rule not a boolean', 'rooms/ROOM1/setup/rules/buyAfterFirstLap', 0, false],
   ['setup: no rent while jailed', 'rooms/ROOM1/setup/rules/jailRent', false, true],

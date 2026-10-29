@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { awaiting, timeoutCommand, timer } from '..';
-import type { GameState } from '../types';
+import type { GameState, RulesConfig } from '../types';
 import { act, cash, ofType, own, refused, rig, run, scenario, setCash } from './helpers';
 
 /** s0 lands on Kottu Street (6, Rs. 100) and declines: an auction among `n` players */
-function declined(n = 3): GameState {
-  const s = scenario({ n });
+function declined(n = 3, cfg: Partial<RulesConfig> = {}): GameState {
+  const s = scenario({ n, cfg });
   rig(s, [2, 4]);
   return run(s, ['s0', { k: 'roll' }], ['s0', { k: 'decline' }]).state;
 }
@@ -106,8 +106,33 @@ describe('timed open auction', () => {
     expect(after.state.props.p6?.owner).toBe('s0');
   });
 
-  it('has a fixed countdown: the timer key holds through bids, passes and mortgaging', () => {
+  it('restarts the deadline on every bid but not on a pass or a mortgage', () => {
     let s = declined();
+    own(s, 's0', [1]);
+    const k0 = timer(s)?.key;
+    s = act(s, 's1', { k: 'pass' }).state;
+    expect(timer(s)?.key).toBe(k0);
+    s = act(s, 's2', { k: 'bid', amount: 5 }).state;
+    const k1 = timer(s)?.key;
+    expect(k1).not.toBe(k0);
+    s = act(s, 's0', { k: 'mortgage', space: 1 }).state;
+    expect(timer(s)?.key).toBe(k1);
+    s = act(s, 's0', { k: 'bid', amount: 9 }).state;
+    expect(timer(s)?.key).not.toBe(k1);
+  });
+
+  it('restarts the countdown when the high bidder leaves the game (its bid is wiped)', () => {
+    let s = declined(4);
+    s = act(s, 's2', { k: 'bid', amount: 30 }).state;
+    const k0 = timer(s)?.key;
+    s = act(s, 's2', { k: 'resign' }).state;
+    expect(s.phase).toMatchObject({ k: 'auction' });
+    expect(s.phase.k === 'auction' && s.phase.high).toBeUndefined();
+    expect(timer(s)?.key).not.toBe(k0);
+  });
+
+  it('fixedAuctionCountdown: the timer key holds through bids, passes and mortgaging', () => {
+    let s = declined(3, { fixedAuctionCountdown: true });
     own(s, 's0', [1]);
     const k0 = timer(s)?.key;
     expect(k0).toMatch(/^auction:/);
@@ -123,8 +148,8 @@ describe('timed open auction', () => {
     expect(timer(s)?.key).toBe(k0);
   });
 
-  it('keeps the countdown when the high bidder leaves the game (its bid is wiped)', () => {
-    let s = declined(4);
+  it('fixedAuctionCountdown: keeps the countdown when the high bidder leaves the game (its bid is wiped)', () => {
+    let s = declined(4, { fixedAuctionCountdown: true });
     s = act(s, 's2', { k: 'bid', amount: 30 }).state;
     const k0 = timer(s)?.key;
     s = act(s, 's2', { k: 'resign' }).state;
@@ -145,8 +170,8 @@ describe('timed open auction', () => {
     expect(state.phase.k).toBe('postRoll');
   });
 
-  it("a new lot gets a new timer key (the bank auctioning a bankrupt's property one space at a time)", () => {
-    const s = scenario({ n: 3 });
+  it("fixedAuctionCountdown: a new lot gets a new timer key (the bank auctioning a bankrupt's property one space at a time)", () => {
+    const s = scenario({ n: 3, cfg: { fixedAuctionCountdown: true } });
     own(s, 's0', [1, 3]);
     setCash(s, 's0', 10);
     s.players.s0!.pos = 0;

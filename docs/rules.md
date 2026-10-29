@@ -101,7 +101,7 @@ The rulebook is silent or ambiguous on these points. Each is a config option whe
 | Income Tax amount | Rs. 20,000 or 10% (the scanned PDF's OCR reads "Rs. 90,000", a scan error). The 10% rounds down. |
 | Luxury Tax | Rs. 7,500 (this era's board). Config: Rs. 7,500 or Rs. 10,000. |
 | Rent | Collected automatically. The "ask before the second following player rolls" window is not used. |
-| Auctions | Timed open bidding: anyone still in may raise at any time. The countdown is fixed from when the lot is put up: bids never add or reset time. It closes early when everyone but the high bidder has passed. Minimum bid Rs. 100. |
+| Auctions | Timed open bidding: anyone still in may raise at any time; the countdown resets on each bid (at least 5 seconds to answer); it closes early when everyone but the high bidder has passed. Minimum bid Rs. 100. Option `fixedAuctionCountdown`: the countdown is fixed from when the lot is put up. |
 | Triples | Move to any of the other 39 spaces, then roll again (the white dice are doubles, so triples also count toward the three-doubles jail rule). Passing GO on the way pays Rs. 20,000. Config `triplesRollAgain`. |
 | Speed Die unlock | Takes effect from the next roll after the first GO salary (including a doubles re-roll). |
 | Nearest Utility card | If owned: throw the dice (white dice, plus the speed die when the roller has it active; Bus / Tuk-Tuk Uncle = 0) and pay 10× the total. |
@@ -142,6 +142,7 @@ Off (classic) by default; each is a `RulesConfig` field the room owner can chang
 | Inland Revenue | `incomeTaxMode` (`choice`) | `flat` or `percent` charges that amount at once, with no choice to make. |
 | Auctions | `auctions` (on) | Off: a declined property and a bankrupt's property to the Bank stay with the Bank; in a building shortage, requests are granted in the order they were made until the supply runs out. |
 | Auction every property | `auctionAll` (off) | Nobody buys at the printed price: landing on an unowned property (a card's or Tuk-Tuk Uncle's move included) starts an auction at once, open to everyone still in, the lander included. It needs auctions, so it turns them on. A player still on the first lap (`buyAfterFirstLap`) triggers nothing, as without it. |
+| Fixed auction countdown | `fixedAuctionCountdown` (off) | The auction countdown runs from when the lot is put up: bids never add or reset time (nor does the high bidder leaving the game). Off: every bid restarts it. |
 | First lap | `buyAfterFirstLap` (off) | No buying or bidding until the player has collected a Start salary once (a landing on a Bank property, Tuk-Tuk Uncle's included, then does nothing). |
 | Rent while jailed | `jailRent` (on) | Off: a jailed owner collects no rent (Tuk-Tuk Uncle's rent branch skips its property). |
 | Three doubles | `threeDoublesJail` (on) | Off: a third (or later) doubles just rolls again. |

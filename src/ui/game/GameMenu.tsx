@@ -10,7 +10,7 @@ import { useDialogFocus, useEscape } from '../useDialogFocus';
 import { useBusy, useSend } from './actions';
 import { useDoc, useGameSession, useMySeats, useNames, useSessionSel } from './context';
 import { skillLabel } from '../lobby/seats';
-import { afkText, BOT_PACE_LABELS, hiddenOptions, incomeTaxText, jailName, minutes, parkingName, supplyOf, tradingText, type RulesDraft } from '../lobby/rulesText';
+import { afkText, auctionCountdownText, BOT_PACE_LABELS, hiddenOptions, incomeTaxText, jailName, minutes, parkingName, supplyOf, tradingText, type RulesDraft } from '../lobby/rulesText';
 import { capital, pluralWord, startName, taxName, tokenOf } from './format';
 import { GameSettings } from './GameSettings';
 import { resignQuestion } from './selectors';
@@ -271,7 +271,7 @@ function RulesView() {
     ['Turn timer', secs(t.turn), 'turnTimer'],
     ['Decision timer', secs(t.decision), 'decisionTimer'],
     ...(heroes ? [['Reaction window', `${secs(phaseSecs('reaction', t))} after the throw lands`] as RuleRow] : []),
-    ['Auction countdown', `${secs(t.auction)} from the start (bids don't add time)`, 'auctionTimer'],
+    ['Auction countdown', auctionCountdownText(t.auction, c.fixedAuctionCountdown), 'auctionTimer'],
     ['Debt timer', secs(t.debt), 'debtTimer'],
     ['Bot speed', BOT_PACE_LABELS[doc.botPace ?? 1] ?? 'Normal'],
     ...(online ? [

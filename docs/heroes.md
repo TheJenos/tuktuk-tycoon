@@ -56,7 +56,7 @@ the same score. A location lost to a card or a resignation is villain-held again
 
 | Topic | Decision |
 |---|---|
-| Fixed config | `HEROES_FIXED`, forced by `normalizeConfig` on this board (and on `decode`): Speed Die off, houses 0, hotels 0, auctions off, auctionAll off, jailRent off, buyAfterFirstLap off, dealProperties 0, endMode lastStanding, jackpot off, trading off. Adjustable: startCash, goSalary, jailFine, doubleGoLanding, threeDoublesJail, turnLimit (and the net layer's timers). `HEROES.rules` is `{ ...HEROES_FIXED }`. |
+| Fixed config | `HEROES_FIXED`, forced by `normalizeConfig` on this board (and on `decode`): Speed Die off, houses 0, hotels 0, auctions off, auctionAll off, fixedAuctionCountdown off, jailRent off, buyAfterFirstLap off, dealProperties 0, endMode lastStanding, jackpot off, trading off. Adjustable: startCash, goSalary, jailFine, doubleGoLanding, threeDoublesJail, turnLimit (and the net layer's timers). `HEROES.rules` is `{ ...HEROES_FIXED }`. |
 | Refused by the engine | build, sell, mortgage, unmortgage and sellProperty are refused with code `heroes` in every phase; `legalActions` offers none of them; `buildOptions` is `[]`; `maxRaise` is the cash. Trades are refused by the pinned `trading: 'off'` (`tradingOff`). |
 | Hero assignment | `createGame` gives each seat a hero in two passes: first every valid, still-free `SeatSetup.hero` request in seat order, then the rest in the heroes' list order. No RNG; a bad request is never an error. |
 | Compulsory save | The lander with cash >= cost pays (`cash why:'buy'`) and owns it (`owner via:'buy'`) at once. A Strike team card saves it for nothing (`owner via:'free'`). |
@@ -133,7 +133,7 @@ seeds 1, 20001, 30001, 100001, 200001, 300001 and 400001: 93.96% to 94.87%). The
   with an active seat in `open` and every seat in `open` able to answer it (`liveOpen`), an `aim` / `boost` seat still
   in and still able to use Dead Aim (before the reveal) / Viper Strike, no jailed seat about to roll, `rigHero` only with
   debug (faces 1-6, never empty).
-- **Version.** `RULES_VERSION` 8; version 7 states decode unchanged (they can only be on classic boards).
+- **Version.** Hero League came with `RULES_VERSION` 8; version 7 states decode unchanged (they can only be on classic boards).
 
 ## API for the other layers
 
@@ -172,7 +172,7 @@ board theme (`src/boards/heroes/theme.ts`).
   on heroes boards for every ending; the `over` event is unchanged apart from `why`).
 - `MoveVia` adds `'swap'` (Titan Smash) and `'power'` (reserved, never emitted); `OwnerVia` adds `'backup'`,
   `'villain'`, `'free'` (a lander's own save stays `'buy'`; a resignation's locations go back with `'bankrupt'`).
-- `RULES_VERSION` is 8; `UPGRADABLE_VERSIONS` includes 7.
+- `RULES_VERSION` is 9; `UPGRADABLE_VERSIONS` includes 7 and 8.
 
 ### Actions
 
