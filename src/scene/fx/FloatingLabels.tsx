@@ -28,6 +28,8 @@ interface Label {
   start: number;
   seat: SeatId | null;
   baseY: number;
+  /** How far above the token it starts (more for a second label stacked on the first) */
+  up: number;
 }
 
 function paint(l: Label, text: string, color: string): void {
@@ -58,7 +60,7 @@ export function FloatingLabels() {
         sprite.scale.set(1.1, 0.41, 1);
         sprite.visible = false;
         sprite.renderOrder = 10;
-        return { sprite, canvas, tex, start: -Infinity, seat: null, baseY: 0 };
+        return { sprite, canvas, tex, start: -Infinity, seat: null, baseY: 0, up: 0 };
       }),
     [],
   );
@@ -72,7 +74,8 @@ export function FloatingLabels() {
       const stacked = labels.filter((x) => x.seat === seat && performance.now() - x.start < LIFE_MS * 0.5).length;
       l.start = performance.now();
       l.seat = seat;
-      l.baseY = at.y + 0.75 + stacked * 0.32;
+      l.up = 0.75 + stacked * 0.32;
+      l.baseY = at.y + l.up;
       l.sprite.position.set(at.x, l.baseY, at.z);
       l.sprite.visible = true;
       paint(l, text, color);
@@ -90,7 +93,11 @@ export function FloatingLabels() {
 
   useFrame(() => {
     const now = performance.now();
-    const rise = settings.get().reduceMotion ? 0 : RISE;
+    const { reduceMotion, boardView } = settings.get();
+    const rise = reduceMotion ? 0 : RISE;
+    // Seen from straight above, height doesn't show: the 2D view puts the label above the token on screen (towards
+    // the board's far edge) and drifts it further that way
+    const top = boardView === '2d';
     let busy = false;
     for (const l of labels) {
       if (!l.sprite.visible) continue;
@@ -102,7 +109,8 @@ export function FloatingLabels() {
       }
       busy = true;
       const at = l.seat ? tokenPositions.get(l.seat) : undefined;
-      if (at) l.sprite.position.set(at.x, l.baseY + rise * t, at.z);
+      if (at && top) l.sprite.position.set(at.x, l.baseY, at.z - (l.up - 0.2) - rise * t);
+      else if (at) l.sprite.position.set(at.x, l.baseY + rise * t, at.z);
       (l.sprite.material as SpriteMaterial).opacity = t < 0.65 ? 1 : 1 - (t - 0.65) / 0.35;
     }
     if (busy) invalidate();

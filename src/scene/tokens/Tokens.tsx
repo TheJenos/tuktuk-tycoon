@@ -17,7 +17,7 @@ import { BOARD_TOP, JAIL, slotPos, travelYaw, type XZ } from '../board/layout';
 import type { Tier } from '../quality';
 import { useSeatLooks, type SeatLook } from '../seats';
 import { makeCanvas } from '../textures/canvas';
-import { movePoints, moveMs, poseAt, type MoveMode, type Pose } from './hop';
+import { liftScale, movePoints, moveMs, poseAt, type MoveMode, type Pose } from './hop';
 import { ringGeometry, tokenGeometry } from './shapes';
 import { dimTrimMaterial, tokenMaterial, trimMaterial } from './materials';
 
@@ -193,7 +193,8 @@ export function Tokens({ tier }: { tier: Tier }) {
   const pose = useRef<Pose>({ x: 0, y: 0, z: 0, yaw: 0, scale: 1, squash: 1 });
   useFrame((_, dt) => {
     const now = performance.now();
-    const { reduceMotion: reduced, animSpeed } = settings.get();
+    const { reduceMotion: reduced, animSpeed, boardView } = settings.get();
+    const top = boardView === '2d';
     // Tokens glide to a new resting slot (others arrived, a snap); instantly with instant animations
     const k = animSpeed === 'instant' ? 1 : 1 - Math.exp(-Math.min(dt, 0.1) * 12);
     let busy = false;
@@ -204,7 +205,9 @@ export function Tokens({ tier }: { tier: Tier }) {
         const p = poseAt(tr.points, tr.mode, t, reduced, g.rotation.y, pose.current);
         g.position.set(p.x, BOARD_TOP + p.y, p.z);
         g.rotation.y = p.yaw;
-        g.scale.set(p.scale, p.scale * p.squash, p.scale);
+        // Seen from straight above a hop has no height: the token grows towards the viewer instead
+        const lift = top ? liftScale(p.y) : 1;
+        g.scale.set(p.scale * lift, p.scale * p.squash * lift, p.scale * lift);
         if (t >= 1) tr.done();
         busy = true;
       } else {

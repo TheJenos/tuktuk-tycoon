@@ -1,5 +1,5 @@
 import { useStore } from '../../state/store';
-import { ANIM_SPEEDS, QUALITIES, REACTIONS, UI_SCALE_MAX, UI_SCALE_MIN, settings, useSettings, type Settings } from '../settings';
+import { ANIM_SPEEDS, BOARD_VIEWS, QUALITIES, REACTIONS, UI_SCALE_MAX, UI_SCALE_MIN, settings, useSettings, type Settings } from '../settings';
 import { useMySeats, useNames } from './context';
 import { hotSeatCards, setHotSeatCards } from './hotSeat';
 
@@ -25,6 +25,24 @@ export function GameSettings() {
   const heroes = !!names.board.heroes;
   return (
     <div className="game-settings">
+      <div className="setting">
+        <span>Board view</span>
+        <div className="choices" role="radiogroup" aria-label="Board view">
+          {BOARD_VIEWS.map((v) => (
+            <button
+              key={v.value}
+              type="button"
+              role="radio"
+              aria-checked={current.boardView === v.value}
+              className={current.boardView === v.value ? 'choice selected' : 'choice'}
+              title={v.hint}
+              onClick={() => settings.update({ boardView: v.value })}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="setting">
         <span>Quality</span>
         <div className="choices" role="radiogroup" aria-label="Graphics quality">

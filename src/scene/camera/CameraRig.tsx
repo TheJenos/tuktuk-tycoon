@@ -2,11 +2,13 @@ import { CameraControls } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
 import { useCallback, useEffect, useRef } from 'react';
 import type { PerspectiveCamera } from 'three';
+import { useSelector } from '../../state/store';
 import { uiStore } from '../../state/ui';
-import { settings } from '../../ui/settings';
+import { settings, type BoardView } from '../../ui/settings';
 import { director } from '../../view';
 import { boardArea, frameArea, laneAzimuth, nearestAzimuth, pathArea, shotPolar, tileArea, zoomOutLimit, type Area } from './framing';
 import { setOverview } from './recenter';
+import { distanceScale, TOP_DOWN, VIEW_FOV } from './view';
 
 export { recenter } from './recenter';
 
@@ -18,6 +20,10 @@ export { recenter } from './recenter';
  * uiStore.cameraManual, which pauses the automatic framing until recenter() (the Recenter button / C key).
  * A space previewed from a list (uiStore.preview) holds the camera on its tile: the director's shots wait meanwhile
  * and the latest is taken up when the preview ends (with a hand-moved camera the tile is only highlighted).
+ *
+ * The 2D board view (settings.boardView) is the same rig looking straight down through a long lens: every shot is
+ * top-down with the board's front at the bottom of the screen (no swinging round to a lane), dragging pans instead
+ * of turning, and pinching or the wheel zooms.
  */
 
 /** A preview ending this soon after it began to point elsewhere is the pointer moving down a list: no swing back */
@@ -30,6 +36,26 @@ type Shot = keyof typeof POLAR;
 const LIMITS = { minPolar: 0.15, maxPolar: 1.1, minDistance: 5, maxDistance: 34 } as const;
 
 const auto = () => settings.get().autoCamera && !uiStore.get().cameraManual;
+const flat = () => settings.get().boardView === '2d';
+
+/** The polar range, distances and what a drag does, for a view */
+function applyView(c: CameraControls, camera: PerspectiveCamera, view: BoardView): void {
+  const top = view === '2d';
+  // camera-controls' action codes, from the class itself (drei doesn't export it: see the drei allowlist)
+  type Mouse = CameraControls['mouseButtons']['left'];
+  type Touch = CameraControls['touches']['one'];
+  const { ACTION } = c.constructor as unknown as { ACTION: { ROTATE: Mouse; TRUCK: Mouse; TOUCH_ROTATE: Touch; TOUCH_TRUCK: Touch } };
+  camera.fov = VIEW_FOV[view];
+  camera.updateProjectionMatrix();
+  c.minPolarAngle = top ? TOP_DOWN : LIMITS.minPolar;
+  c.maxPolarAngle = top ? TOP_DOWN : LIMITS.maxPolar;
+  // 2D never turns: the board stays the right way up
+  c.minAzimuthAngle = top ? 0 : -Infinity;
+  c.maxAzimuthAngle = top ? 0 : Infinity;
+  c.minDistance = LIMITS.minDistance * distanceScale(view);
+  c.mouseButtons.left = top ? ACTION.TRUCK : ACTION.ROTATE;
+  c.touches.one = top ? ACTION.TOUCH_TRUCK : ACTION.TOUCH_ROTATE;
+}
 
 export function CameraRig() {
   const ref = useRef<CameraControls>(null);
@@ -53,13 +79,15 @@ export function CameraRig() {
       const insets = { left: ins.left / w, right: ins.right / w, top: ins.top / h, bottom: ins.bottom / h };
       // Kept up to date with a hand-held camera too, so zooming out always reaches the whole board; set before
       // dollyTo, which clamps to it
-      c.maxDistance = zoomOutLimit(camera.fov, aspect, insets, shotPolar(POLAR.overview, aspect), LIMITS.maxDistance);
+      const top = flat();
+      const far = LIMITS.maxDistance * distanceScale(top ? '2d' : '3d');
+      c.maxDistance = zoomOutLimit(camera.fov, aspect, insets, top ? TOP_DOWN : shotPolar(POLAR.overview, aspect), far);
       if (!opts.force && !auto()) return Promise.resolve();
-      const polar = shotPolar(POLAR[shot], aspect);
-      // Swinging round takes the short way, however far the player had turned the board
+      const polar = top ? TOP_DOWN : shotPolar(POLAR[shot], aspect);
+      // Swinging round takes the short way, however far the player had turned the board; 2D always faces the front
       const a = c.azimuthAngle;
-      const azimuth = opts.face !== undefined ? nearestAzimuth(a, opts.face) : a;
-      const lens = { fov: camera.fov, aspect, minDistance: LIMITS.minDistance, maxDistance: c.maxDistance };
+      const azimuth = top ? nearestAzimuth(a, 0) : opts.face !== undefined ? nearestAzimuth(a, opts.face) : a;
+      const lens = { fov: camera.fov, aspect, minDistance: c.minDistance, maxDistance: c.maxDistance };
       const f = frameArea(area, azimuth, polar, lens, insets);
       const smooth = (opts.smooth ?? true) && !settings.get().reduceMotion;
       return Promise.all([
@@ -138,6 +166,16 @@ export function CameraRig() {
     };
   }, [frame]);
 
+  // Switching views: the new lens and limits, then the whole board again (a hand-held camera too)
+  const view = useSelector(settings, (s) => s.boardView);
+  useEffect(() => {
+    const c = ref.current;
+    if (!c) return;
+    applyView(c, camera, view);
+    uiStore.update({ cameraManual: false });
+    void frame(boardArea(), 'overview', { smooth: false, force: true, face: 0 });
+  }, [view, camera, frame]);
+
   // A resize keeps the current shot
   const size = useThree((s) => s.size);
   useEffect(() => {
@@ -149,9 +187,9 @@ export function CameraRig() {
     <CameraControls
       ref={ref}
       makeDefault
-      minPolarAngle={LIMITS.minPolar}
-      maxPolarAngle={LIMITS.maxPolar}
-      minDistance={LIMITS.minDistance}
+      minPolarAngle={view === '2d' ? TOP_DOWN : LIMITS.minPolar}
+      maxPolarAngle={view === '2d' ? TOP_DOWN : LIMITS.maxPolar}
+      minDistance={LIMITS.minDistance * distanceScale(view)}
       smoothTime={0.35}
       onControlStart={() => uiStore.update({ cameraManual: true })}
     />

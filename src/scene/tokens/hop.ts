@@ -18,6 +18,12 @@ export const JUMP_HEIGHT = 2.2;
 /** A leap's arc over a ground distance d: low on the spot, never above a jump */
 export const leapHeight = (d: number): number => Math.min(JUMP_HEIGHT, Math.max(HOP_HEIGHT * 1.5, d * 0.45));
 
+/**
+ * The 2D (top-down) view's stand-in for height: a token in the air drawn this much larger, so each hop of a walk
+ * pulses and a jump to jail swells and settles. 1 on the ground, at most 1.6.
+ */
+export const liftScale = (y: number): number => 1 + Math.min(0.6, Math.max(0, y) * 0.9);
+
 const arcs = (mode: MoveMode): boolean => mode === 'jump' || mode === 'leap';
 
 export interface Pose {
