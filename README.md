@@ -219,7 +219,9 @@ Page Up / Page Down (ten spaces), Home / End, Enter, and typing a name to jump t
 
 ### The game screen
 
-- **Turn bar** (top): whose turn it is, what the game is waiting for, the running timer and the Speed Die badge.
+The board has the whole middle of the screen: the panels keep to the two sides.
+
+- **Turn bar** (top left, above the players): whose turn it is, what the game is waiting for, the running timer and the Speed Die badge.
 - **Players** (left): each player's token, name, cash (counting along with the board), net worth (a setting), and
   their property as swatches by colour group (mortgaged ones hatched, houses as pips); online, a dot says whether
   each player is connected. A swatch opens its deed.
@@ -228,8 +230,11 @@ Page Up / Page Down (ten spaces), Home / End, Enter, and typing a name to jump t
   debt), centred in the space the panels leave free. A drawn card flies up in 3D in front of the camera (its words
   are in the log); without the 3D board it shows as a card over the 2D board.
 - **The right-hand panel**: the last throw in words, an auction you're only watching, trade offers, and the event
-  log (filters **All**, **Mine**, **Money**).
-- **Action bar** (bottom): **Manage**, **Trade**, Recenter, the 2D board, the log and the menu.
+  log (filters **All**, **Mine**, **Money**; its chevron folds it to its header, remembered in this browser, and
+  `L` or the Log button shows it again).
+- **Action bar** (bottom right, under the log): **Manage**, **Trade**, Recenter, the 2D board, the log and the menu.
+- **Tablets and narrow windows**: the players are a strip along the top; the turn bar, the right-hand panel and the
+  action bar share the right-hand column.
 - **Phones**: the players become a strip along the top, Roll / End turn stay over the middle of the board, and the
   other decisions and the action bar share a bottom sheet, so the board stays in sight; the log opens on demand.
 
