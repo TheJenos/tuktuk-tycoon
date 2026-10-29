@@ -91,7 +91,6 @@ export function TradeBuilder({ seat, initial, onClose, covered }: { seat: SeatId
       title="Propose a trade"
       onClose={onClose}
       covered={covered}
-      inset
       aside={
         <div className="trade-partners" role="radiogroup" aria-label="Trade with">
           {partners.map((x) => (

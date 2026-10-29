@@ -8,7 +8,7 @@ import { settings, type BoardView } from '../../ui/settings';
 import { director } from '../../view';
 import { boardArea, frameArea, laneAzimuth, nearestAzimuth, pathArea, shotPolar, tileArea, zoomOutLimit, type Area } from './framing';
 import { setOverview } from './recenter';
-import { distanceScale, TOP_DOWN, VIEW_FOV } from './view';
+import { distanceScale, TOP_DOWN, VIEW_CLIP, VIEW_FOV } from './view';
 
 export { recenter } from './recenter';
 
@@ -46,6 +46,8 @@ function applyView(c: CameraControls, camera: PerspectiveCamera, view: BoardView
   type Touch = CameraControls['touches']['one'];
   const { ACTION } = c.constructor as unknown as { ACTION: { ROTATE: Mouse; TRUCK: Mouse; TOUCH_ROTATE: Touch; TOUCH_TRUCK: Touch } };
   camera.fov = VIEW_FOV[view];
+  camera.near = VIEW_CLIP[view].near;
+  camera.far = VIEW_CLIP[view].far;
   camera.updateProjectionMatrix();
   c.minPolarAngle = top ? TOP_DOWN : LIMITS.minPolar;
   c.maxPolarAngle = top ? TOP_DOWN : LIMITS.maxPolar;

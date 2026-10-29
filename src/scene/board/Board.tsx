@@ -58,7 +58,8 @@ export function Board({ tier, paint }: { tier: Tier; paint?: string }) {
       </RoundedBox>
       <mesh rotation-x={-Math.PI / 2} position-y={BOARD_TOP + 0.002} receiveShadow>
         <planeGeometry args={[SIDE, SIDE]} />
-        <meshStandardMaterial map={map} roughness={0.82} metalness={0} />
+        {/* Drawn over the slab's top whatever the depth precision (a far-off camera, a 16-bit depth buffer) */}
+        <meshStandardMaterial map={map} roughness={0.82} metalness={0} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-4} />
       </mesh>
     </group>
   );

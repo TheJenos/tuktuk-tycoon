@@ -1255,13 +1255,11 @@ button.link:hover { background: none; filter: brightness(1.1); }
   .turn-center button.big { min-height: 68px; min-width: 210px; padding: 12px 36px; font-size: 28px; }
 }
 .action-bar button.turn-button { min-height: 40px; padding: 6px 18px; font-size: 18px; }
-/* While trading (the dialog hugs the right), the bar with Roll / End turn and the decision the roll brings (in the
-   space the dialog leaves free) stay above the dialog's dimmed backdrop, so the turn can go on without closing the
-   trade. Phones: the trade is a bottom sheet over both instead. */
+/* While trading (the dialog in the middle), the bar with Roll / End turn (bottom right) and the decision the roll
+   brings stay above the dialog's dimmed backdrop, so the turn can go on without closing the trade. Phones: the trade
+   is a bottom sheet over both instead. */
 @media (min-width: 641px) {
-  /* The dialog takes the right-hand side, so the bar moves to the left column (under the board on a tablet) */
-  #hud.game-hud.trade-open { grid-template-areas: 'top board context' 'players board context' 'dock board context'; }
-  .game-hud.trade-open .hud-dock { position: relative; z-index: 31; --edge: left; }
+  .game-hud.trade-open .hud-dock { position: relative; z-index: 31; }
   .game-hud.trade-open .board-center-wrap { z-index: 31; }
 }
 .jail-center { padding: 12px 14px; background: rgba(13, 16, 22, 0.95); box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5); }
@@ -1445,16 +1443,15 @@ html.reduce-motion .trade-tile label:hover { transform: none; }
 /* Beside the offers list (TradeOffers): a glass card of its own; the pointer goes through it */
 .offer-preview { position: fixed; z-index: 24; padding: 8px; border-radius: 12px; background: rgba(13, 16, 22, 0.94); border: 1px solid rgba(77, 171, 247, 0.55); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45); pointer-events: none; animation: panel-in 140ms ease-out; }
 
-/* The trade builder keeps the board in view: beside the board on wide screens (the camera frames around it,
-   data-inset), its preview pane on the right (always there, so a hover never moves the rows) */
-.game-dialog.trade { --edge: right; }
+/* The trade builder: in the middle of the screen over the lightly dimmed board, its preview pane on the right (always
+   there, so a hover never moves the rows) */
 .game-dialog.trade .dialog-body { flex: 1 1 auto; display: grid; grid-template-columns: minmax(0, 1fr) 260px; grid-template-rows: minmax(0, 1fr); overflow: hidden; padding: 0; gap: 0; }
 .trade-main { min-height: 0; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
 .trade-main > * { flex-shrink: 0; }
 .trade-preview-hint { margin-top: auto; line-height: 1.5; }
 @media (min-width: 641px) {
   /* Clear of the action bar, which stays above the backdrop while trading (Roll / End turn) */
-  .game-modal:has(> .game-dialog.trade) { place-items: center end; padding-bottom: calc(76px * var(--ui-scale) + 16px); background: linear-gradient(to left, rgba(7, 9, 13, 0.6), rgba(7, 9, 13, 0.12) 75%); }
+  .game-modal:has(> .game-dialog.trade) { padding-bottom: calc(76px * var(--ui-scale) + 16px); background: rgba(7, 9, 13, 0.45); }
   .game-dialog.trade { width: min(900px, 100%); }
   .trade-sheet-body { min-height: 310px; }
 }
@@ -1469,6 +1466,12 @@ html.reduce-motion .trade-tile label:hover { transform: none; }
 }
 @media (min-width: 641px) and (max-width: 1100px) {
   .game-dialog.trade { width: min(780px, 100%); }
+}
+/* Tablets: in the side column the bar would be two or three rows (Roll docked, then the tools), too tall to keep clear
+   of a dialog this size; while trading it goes under the board instead, one row, as the dialog's padding allows for */
+@media (min-width: 641px) and (max-width: 1023px) {
+  #hud.game-hud.trade-open { grid-template-areas: 'players players' 'board top' 'board context' 'dock context'; }
+  .game-hud.trade-open .hud-dock { --edge: bottom; }
   .game-dialog.trade .dialog-body { grid-template-columns: minmax(0, 1fr) 220px; }
 }
 
@@ -1563,12 +1566,6 @@ html.reduce-motion .trade-tile label:hover { transform: none; }
   .player-badges .badge.accent { display: none; }
   .swatches { flex-wrap: nowrap; overflow: hidden; }
   .turn-bar { min-width: 0; }
-}
-
-/* Tablets, trading: the dialog takes the right-hand side, so the bar moves under the board */
-@media (min-width: 641px) and (max-width: 1023px) {
-  #hud.game-hud.trade-open { grid-template-areas: 'players players' 'board top' 'board context' 'dock context'; }
-  .game-hud.trade-open .hud-dock { --edge: bottom; }
 }
 
 /* Phones: a players strip on top; the decision and the action bar in a bottom sheet; the log on demand */

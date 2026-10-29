@@ -8,6 +8,13 @@ import type { BoardView } from '../../ui/settings';
 /** Vertical field of view, degrees */
 export const VIEW_FOV: Record<BoardView, number> = { '3d': 40, '2d': 12 };
 
+/**
+ * Near and far clipping planes. 2D stands about 3.5 times farther off, so its near plane moves out with it: the depth
+ * buffer's precision falls with the square of the distance over the near plane, and at 0.1 the printed board (a hair
+ * above the slab) lost to the slab's top. Nothing is ever drawn closer than the 2D minimum distance (about 15).
+ */
+export const VIEW_CLIP: Record<BoardView, { near: number; far: number }> = { '3d': { near: 0.1, far: 200 }, '2d': { near: 2, far: 700 } };
+
 /** Polar angle of every 2D shot: straight down */
 export const TOP_DOWN = 0;
 
