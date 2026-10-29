@@ -57,6 +57,11 @@ export interface RulesConfig {
    * price (the lander bids like everyone else). Needs `auctions` (normalizeConfig turns it on).
    */
   auctionAll: boolean;
+  /**
+   * The auction countdown is fixed from when the lot is put up: bids never restart or extend it. Off (the default):
+   * every bid restarts the countdown, giving everyone at least AUCTION_BID_SECS to answer.
+   */
+  fixedAuctionCountdown: boolean;
   /** No buying (or bidding) until the player has collected a GO salary once */
   buyAfterFirstLap: boolean;
   /** Owners collect rent while they are in jail */
@@ -347,11 +352,18 @@ export type Phase =
   | BoostPhase
   | OverPhase;
 
-/** Timed open bidding with a fixed countdown (bids never add time). Any eligible seat that has not passed may bid at any time. */
+/**
+ * Timed open bidding: each bid restarts the countdown, or with cfg.fixedAuctionCountdown it is fixed from the start. Any
+ * eligible seat that has not passed may bid at any time.
+ */
 export interface AuctionPhase {
   k: 'auction';
   lot: Lot;
   high?: { seat: SeatId; amount: number };
+  /** The lowest opening bid: 70% of a property's price (AUCTION_OPEN_SHARE), 1 for a building unit; absent: 1 */
+  open?: number;
+  /** Bids made so far; the minimum raise grows with it (AUCTION_RAISES). Absent: none yet */
+  bids?: number;
   passed: SeatId[];
   eligible: SeatId[];
   /** More bank properties to auction after this one (bankruptcy to the bank) */
@@ -533,7 +545,7 @@ export interface GameState {
   v: number;
   /** +1 per accepted command */
   seq: number;
-  /** seq at which the current phase was entered (timer keys; an auction's bids do not change it) */
+  /** seq at which the current phase was entered, or the auction's last bid was made unless cfg.fixedAuctionCountdown (timer keys) */
   since: number;
   /** mulberry32 state (uint32). Only throws consume it: createGame, roll, the utility fresh throw, the Hero die (heroes). */
   rng: number;

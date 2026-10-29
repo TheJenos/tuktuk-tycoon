@@ -90,6 +90,7 @@ const OPTIONAL: (keyof RulesConfig)[] = [
   'incomeTaxMode',
   'auctions',
   'auctionAll',
+  'fixedAuctionCountdown',
   'buyAfterFirstLap',
   'jailRent',
   'threeDoublesJail',

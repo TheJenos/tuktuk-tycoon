@@ -1,4 +1,4 @@
-import { minBid as auctionMinBid } from './auction';
+import { minBid as auctionMinBid, minRaise as auctionMinRaise } from './auction';
 import { cardById, getBoard, groupOf as boardGroupOf, isStreet } from './board';
 import {
   buildableGroups,
@@ -96,6 +96,9 @@ export const sellPropertyValue = (s: GameState, space: number): number => saleVa
 /** The lowest legal bid in the current auction */
 export const minBid = (s: GameState): number | undefined =>
   s.phase.k === 'auction' ? auctionMinBid(s.phase) : undefined;
+/** The smallest raise over the high bid in the current auction (it grows as the bids come in) */
+export const minRaise = (s: GameState): number | undefined =>
+  s.phase.k === 'auction' ? auctionMinRaise(s.phase) : undefined;
 /** Where a building unit may be placed now (place phase, or for planning) */
 export const placeSites = (s: GameState, seat: SeatId, kind: BuildKind): number[] =>
   boardPlaceSites(s, boardOf(s), seat, kind, !(s.phase.k === 'place' && s.phase.bid !== undefined));

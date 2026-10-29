@@ -82,15 +82,16 @@ function retire(c: Ctx, seat: SeatId, to: Creditor, resigned: boolean): void {
 
 /**
  * Removes an out seat from the phase chain, offers and pending steps. The turn seat's turn ends. The timer restarts
- * only when this surfaces another phase; an uninvolved seat leaving keeps everyone's countdown, and so does an
- * auction whose high bidder left (its bid is wiped, the fixed countdown runs on).
+ * only when this surfaces another phase or wipes the high bid (as a bid would restart it; not under
+ * cfg.fixedAuctionCountdown, where the countdown runs on); an uninvolved seat leaving keeps everyone's countdown.
  */
 export function dropSeat(c: Ctx, seat: SeatId): void {
   clearTrades(c, seat);
   const turnOut = c.s.turn.seat === seat;
   const before = c.s.phase;
+  const lostHigh = before.k === 'auction' && before.high?.seat === seat && !c.s.cfg.fixedAuctionCountdown;
   const after = purge(before, seat, turnOut);
-  if (after !== before) setPhase(c, after);
+  if (after !== before || lostHigh) setPhase(c, after);
   if (turnOut) c.s.pending = [{ k: 'nextTurn' }];
   else c.s.pending = c.s.pending.filter((st) => stepSeat(st) !== seat);
 }

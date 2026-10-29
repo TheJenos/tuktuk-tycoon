@@ -160,7 +160,8 @@ describe('reduceView drift', () => {
   it('matches the engine after every command of random classic games', () => {
     let events = 0;
     let overs = 0;
-    for (let seed = 1; seed <= 12; seed++) {
+    // 24 games: with auctions opening at 70% of the price, random play completes a colour group (and builds) less often
+    for (let seed = 1; seed <= 24; seed++) {
       const res = play(seed, { startCash: [1500, 500, 250][seed % 3], houses: seed % 2 ? 8 : 32, hotels: seed % 2 ? 3 : 12 }, 1200);
       events += res.events;
       overs += res.overs;

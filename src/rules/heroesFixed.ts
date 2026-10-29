@@ -13,6 +13,7 @@ export const HEROES_FIXED: Readonly<Partial<Omit<RulesConfig, 'board' | 'debug'>
   hotels: 0,
   auctions: false,
   auctionAll: false,
+  fixedAuctionCountdown: false,
   jailRent: false,
   buyAfterFirstLap: false,
   dealProperties: 0,

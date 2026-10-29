@@ -67,6 +67,9 @@ export interface TimerRules {
   reaction?: number;
 }
 
+/** Each new bid gives everyone at least this long to answer (unless the auction's countdown is fixed) */
+export const AUCTION_BID_SECS = 5;
+
 export const ONLINE_TIMERS: TimerRules = { turn: 60, decision: 45, auction: 8, debt: 120, reaction: 8 };
 /** Offline: nobody waits on a human except the auction countdown and reaction windows */
 export const OFFLINE_TIMERS: TimerRules = { turn: 0, decision: 0, auction: 8, debt: 0, reaction: 6 };

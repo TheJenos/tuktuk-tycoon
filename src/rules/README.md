@@ -76,7 +76,7 @@ State fields the options use: `GameState.pot` (the jackpot, 0 unless `jackpot`) 
 salaries collected, counted whatever the rules).
 
 On a heroes board `normalizeConfig` forces `HEROES_FIXED` whatever was asked (and `decode` re-applies it): `speedDie`
-off, `houses` / `hotels` 0, `auctions` and `auctionAll` off, `jailRent` off, `buyAfterFirstLap` off, `dealProperties`
+off, `houses` / `hotels` 0, `auctions`, `auctionAll` and `fixedAuctionCountdown` off, `jailRent` off, `buyAfterFirstLap` off, `dealProperties`
 0, `endMode` `'lastStanding'`, `jackpot` off, `trading` `'off'`. The others stay adjustable (`startCash`, `goSalary`,
 `jailFine`, `doubleGoLanding`, `threeDoublesJail`, `turnLimit`); the tax and mortgage fields have nothing to act on.
 
@@ -271,9 +271,10 @@ if (cmd) apply(state, cmd);
 ```
 
 - `key` changes exactly when the deadline should restart: whenever a phase is entered (including a re-entered one,
-  such as `preRoll` after doubles, and each new auction lot). It does **not** change on an auction bid (the auction's
-  countdown is fixed from when the lot is put up), nor when someone else mortgages, trades, passes or leaves the game
-  meanwhile (a leaver's high bid is wiped and the countdown runs on), unless their leaving surfaces another phase.
+  such as `preRoll` after doubles, each new auction lot, and each auction bid, a leaver's wiped high bid included). It
+  does **not** change when someone else mortgages, trades, passes or leaves the game meanwhile, unless their leaving
+  surfaces another phase. With `cfg.fixedAuctionCountdown` it does not change on a bid either (the countdown is fixed
+  from when the lot is put up; a leaver's high bid is wiped and the countdown runs on).
   Compute the deadline inside the same transaction as the command.
 - `timeoutCommand(state)`:
   - `auction` -> `{ by:'system', a:{ k:'closeAuction' }, basis }` (high bidder wins; no bids: bank keeps it);
@@ -360,10 +361,13 @@ Dev only (not exported from `index.ts`): `randomPlayer.ts` (`randFrom`, `randomC
 
 `docs/rules.md` lists the rulebook decisions; these are the engine-level ones on top:
 
-- **Auction**: a fixed countdown from when the lot is put up (`timer()` keeps its key through bids); it still ends
+- **Auction**: every bid restarts the countdown (the net layer gives at least `AUCTION_BID_SECS` after a bid); with
+  `cfg.fixedAuctionCountdown` it is fixed from when the lot is put up (`timer()` keeps its key through bids). It ends
   early once everyone but the high bidder has passed. The high bidder can neither pass nor raise its own bid, and is
-  not counted in `awaiting`. Seats whose
-  `maxRaise` cannot beat the high bid are passed automatically (`pass {auto:true}`); a seat with cash below the next
+  not counted in `awaiting`. The lowest bid is `minBid(phase)`: `phase.open` (70% of a property's price,
+  `AUCTION_OPEN_SHARE`; 1 for a building unit) with no bid yet, then the high bid plus `minRaise(phase)`, which grows
+  with `phase.bids` (`AUCTION_RAISES`: 1, then 10 from the 3rd bid, 100 from the 6th). Seats whose
+  `maxRaise` cannot reach `minBid` are passed automatically (`pass {auto:true}`); a seat with cash below the next
   bid but enough to raise is not. Mortgaging, selling buildings and selling property to the bank are allowed during an auction; building and
   lifting are not.
   A winner whose cash fell below the bid meanwhile (only via a nested settlement) owes it as a debt.

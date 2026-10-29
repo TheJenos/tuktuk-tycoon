@@ -131,8 +131,8 @@ test('rigged dice: a card, a purchase, jail on the third doubles, the fine, and 
   const auction = auctionDialog(page);
   await expect(auction.getByRole('heading', { name: 'Auction: Pinnawala Elephant Walk' })).toBeVisible();
   await expect(auction.getByRole('group', { name: 'Your bid' })).toContainText('Cash Rs. 155,000');
-  // Ten over the high bid (Ava may already have bid: the button raises whatever stands)
-  await auction.locator('.bid-row button', { hasText: /^\+Rs\. 1,000\b/ }).click();
+  // The highlighted button: the opening bid, or the smallest raise allowed if Ava has already bid
+  await auction.locator('.bid-row .bid-buttons button.primary').click();
   await expect(auction.locator('.high-bid')).toContainText(/High bid Rs\. [\d,]+ by (Rita|Ava)/);
   // Pass once outbid (the high bidder can't); it closes when the other has passed too, or at the deadline
   await until(p, async () => (await auction.count()) === 0, 'the auction to close');

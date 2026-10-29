@@ -249,11 +249,10 @@ describe('Hero League: state, versions and selectors', () => {
     expect(decode(encode(w))).toEqual(w);
   });
 
-  it('is version 8; version 7 states (classic boards only) still decode', () => {
-    expect(RULES_VERSION).toBe(8);
-    expect(UPGRADABLE_VERSIONS).toContain(7);
-    const old = { ...scenario(), v: 7 };
-    expect(decode(encode(old)).v).toBe(8);
+  it('is version 10; version 7 to 9 states still decode', () => {
+    expect(RULES_VERSION).toBe(10);
+    expect(UPGRADABLE_VERSIONS).toEqual(expect.arrayContaining([7, 8, 9]));
+    for (const v of [7, 8, 9]) expect(decode(encode({ ...scenario(), v })).v).toBe(10);
   });
 
   it('heroesOf, heroOf, powerReady', () => {

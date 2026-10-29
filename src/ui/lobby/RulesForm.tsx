@@ -460,7 +460,16 @@ export function RulesForm({ value, onChange, online = false, disabled = false, s
               options={AUCTION_TIMERS}
               disabled={disabled || !value.auctions}
               onChange={(auctionTimer) => set({ auctionTimer })}
-              hint="Runs from the start of each auction; bids don't add time."
+              hint={value.fixedAuctionCountdown ? "Runs from the start of each auction; bids don't add time." : 'Restarts at each bid.'}
+            />
+          )}
+          {shown('fixedAuctionCountdown') && (
+            <Toggle
+              label="Fixed auction countdown"
+              checked={value.fixedAuctionCountdown}
+              disabled={disabled || !value.auctions}
+              onChange={(fixedAuctionCountdown) => set({ fixedAuctionCountdown })}
+              hint="Bids don't add time: the countdown runs from the start of each auction. Off: every bid restarts it."
             />
           )}
           {shown('buyAfterFirstLap') && (

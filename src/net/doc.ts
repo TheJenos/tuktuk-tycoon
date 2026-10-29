@@ -14,7 +14,7 @@ import {
   type RulesConfig,
   type SeatId,
 } from '../rules';
-import { animBudget, OFFLINE_TIMERS, phaseSecs, type TimerRules } from '../shared/timing';
+import { animBudget, AUCTION_BID_SECS, OFFLINE_TIMERS, phaseSecs, type TimerRules } from '../shared/timing';
 import { seatToken, tokenOn, tokensOn } from '../shared/tokens';
 import type { Batch, BotSkill, Doc, Envelope, PlayerId, SeatInfo } from './types';
 
@@ -180,7 +180,8 @@ export function reactIdleOnly(doc: Doc): boolean {
 
 /**
  * The deadline after a command: kept while timer(game).key is unchanged, restarted when it changes. An auction's key
- * changes only when a lot is put up, so its countdown is fixed: bids never add time. A reaction window's countdown
+ * changes on every bid, which gives at least AUCTION_BID_SECS to answer; under cfg.fixedAuctionCountdown it changes
+ * only when a lot is put up, so bids never add time. A reaction window's countdown
  * starts once the whole batch that opened it has played (a card, its Hero-die throws and their walks may take longer
  * than animBudget's cap), so nobody loses reaction time watching the throw land.
  */
@@ -197,7 +198,9 @@ export function nextDeadline(
   const secs = phaseSecs(t.kind, timers);
   if (secs <= 0 && t.kind !== 'auction') return undefined;
   const anim = t.kind === 'reaction' ? fullAnimBudget(events) : animBudget(events);
-  return { key: t.key, at: at + anim + secs * 1000 };
+  let due = at + anim + secs * 1000;
+  if (t.kind === 'auction' && !game.cfg.fixedAuctionCountdown) due = Math.max(due, at + AUCTION_BID_SECS * 1000);
+  return { key: t.key, at: due };
 }
 
 /** Applies one envelope to the document. Never throws. */

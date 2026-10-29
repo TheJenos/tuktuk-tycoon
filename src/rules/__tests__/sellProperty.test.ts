@@ -83,7 +83,7 @@ describe('sellProperty', () => {
     setCash(s, 's1', 10);
     rig(s, [2, 4]);
     let a = run(s, ['s0', { k: 'roll' }], ['s0', { k: 'decline' }]).state;
-    expect(refused(a, 's1', { k: 'bid', amount: 50 })).toBe('cash');
+    expect(refused(a, 's1', { k: 'bid', amount: 150 })).toBe('cash');
     a = act(a, 's1', { k: 'sellProperty', space: 39 }).state;
     a = act(a, 's1', { k: 'bid', amount: 150 }).state;
     expect(a.phase).toMatchObject({ k: 'auction', high: { seat: 's1', amount: 150 } });

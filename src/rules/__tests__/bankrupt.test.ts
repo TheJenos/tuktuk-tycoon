@@ -90,7 +90,7 @@ describe('bankruptcy', () => {
     expect(ofType(events, 'mortgage').map((e) => e.space)).toEqual([1, 3, 5]);
     expect(ofType(events, 'cash').find((e) => e.why === 'bankrupt')).toMatchObject({ from: 's0', to: 'bank', amount: 10 });
 
-    let t = run(state, ['s1', { k: 'bid', amount: 1 }], ['s2', { k: 'pass' }]).state;
+    let t = run(state, ['s1', { k: 'bid', amount: 42 }], ['s2', { k: 'pass' }]).state;
     expect(t.props.p1).toEqual({ owner: 's1', level: 0 });
     expect(t.phase).toMatchObject({ k: 'auction', lot: { k: 'prop', space: 3 }, queue: [5] });
     t = run(t, ['s1', { k: 'pass' }], ['s2', { k: 'pass' }]).state;
@@ -222,7 +222,7 @@ describe('resigning', () => {
   it('a high bidder who resigns loses the bid; the auction goes on', () => {
     const s = scenario({ n: 3 });
     rig(s, [2, 4]);
-    let a = run(s, ['s0', { k: 'roll' }], ['s0', { k: 'decline' }], ['s2', { k: 'bid', amount: 50 }]).state;
+    let a = run(s, ['s0', { k: 'roll' }], ['s0', { k: 'decline' }], ['s2', { k: 'bid', amount: 70 }]).state;
     a = act(a, 's2', { k: 'resign' }).state;
     expect(a.phase).toMatchObject({ k: 'auction', eligible: ['s0', 's1'] });
     expect(a.phase.k === 'auction' && a.phase.high).toBeUndefined();

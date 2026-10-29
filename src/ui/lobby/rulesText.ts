@@ -121,7 +121,12 @@ export function optionRows(d: RulesDraft, { all = false, online = false, local =
     add('decisionTimer', d.decisionTimer !== def.decisionTimer && d.turnTimer > 0, ['Decision timer', secs(d.decisionTimer)]);
     add('debtTimer', d.debtTimer !== def.debtTimer && d.turnTimer > 0, ['Debt timer', secs(d.debtTimer)]);
   }
-  if (online || local) add('auctionTimer', d.auctionTimer !== def.auctionTimer, ['Auction countdown', `${secs(d.auctionTimer)} from the start (bids don't add time)`]);
+  const fixedCountdown = d.auctions && d.fixedAuctionCountdown;
+  if (online || local) {
+    add('auctionTimer', d.auctionTimer !== def.auctionTimer || fixedCountdown, ['Auction countdown', auctionCountdownText(d.auctionTimer, fixedCountdown)]);
+  } else {
+    add('fixedAuctionCountdown', fixedCountdown, ['Auction countdown', "Fixed from the start (bids don't add time)"]);
+  }
   add('botPace', d.botPace !== def.botPace, ['Bot speed', BOT_PACE_LABELS[d.botPace] ?? 'Normal']);
   add('botSkill', d.botSkill !== def.botSkill, ['New bots', skillLabel(d.botSkill)]);
   if (online) {
@@ -151,7 +156,13 @@ export function rulesLine(d: RulesDraft): string {
     shown('trading', d.trading === 'off' ? 'no trading' : null),
     shown('auctions', !d.auctions ? 'no auctions' : null),
     shown('auctionAll', d.auctionAll ? 'every property auctioned' : null),
+    shown('fixedAuctionCountdown', d.auctions && d.fixedAuctionCountdown ? 'fixed auction countdown' : null),
   ].filter(Boolean).join(' · ');
+}
+
+/** "8 s, restarting at each bid" / "8 s from the start (bids don't add time)" */
+export function auctionCountdownText(seconds: number, fixed: boolean): string {
+  return fixed ? `${secs(seconds)} from the start (bids don't add time)` : `${secs(seconds)}, restarting at each bid`;
 }
 
 /** For the speed bonus line */

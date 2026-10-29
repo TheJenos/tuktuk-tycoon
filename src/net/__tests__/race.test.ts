@@ -26,17 +26,17 @@ describe('dispatch races (several clients on one MemoryServer)', () => {
     await flush();
     expect(docOf(T).game.phase.k).toBe('auction');
 
-    // Everyone bids Rs. 10 at once: exactly one gets it, the others are told why not
-    const same = await Promise.all(t.sessions.map((s, i) => s.dispatch(SEATS[i]!, { k: 'bid', amount: 10 })));
+    // Everyone bids the opening Rs. 4,200 (70% of the price) at once: exactly one gets it, the others are told why not
+    const same = await Promise.all(t.sessions.map((s, i) => s.dispatch(SEATS[i]!, { k: 'bid', amount: 42 })));
     expect(same.filter((r) => r.ok)).toHaveLength(1);
     for (const r of same) if (!r.ok) expect(['low', 'highBidder']).toContain(r.code);
     await flush();
     const winner = SEATS[same.findIndex((r) => r.ok)]!;
-    expect(docOf(t.sessions[0]!).game.phase).toMatchObject({ k: 'auction', high: { seat: winner, amount: 10 } });
+    expect(docOf(t.sessions[0]!).game.phase).toMatchObject({ k: 'auction', high: { seat: winner, amount: 42 } });
 
     // The other two raise at once with different amounts
     const others = [0, 1, 2].filter((i) => SEATS[i] !== winner);
-    const raise = await Promise.all(others.map((i, j) => t.sessions[i]!.dispatch(SEATS[i]!, { k: 'bid', amount: 20 + 10 * j })));
+    const raise = await Promise.all(others.map((i, j) => t.sessions[i]!.dispatch(SEATS[i]!, { k: 'bid', amount: 50 + 10 * j })));
     await flush();
     const committed = raise.filter((r) => r.ok).length;
     expect(committed).toBeGreaterThanOrEqual(1);

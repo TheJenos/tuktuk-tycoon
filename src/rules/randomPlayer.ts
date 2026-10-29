@@ -48,6 +48,7 @@ export function variedRules(seed: number): Partial<RulesConfig> {
     endMode: r() < 0.3 ? 'firstBankrupt' : 'lastStanding',
     trading: pick(r, ['on', 'on', 'off', 'afterLap'] as const),
     tradeAfterLap: 1 + Math.floor(r() * 3),
+    fixedAuctionCountdown: r() < 0.4,
   };
 }
 

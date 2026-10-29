@@ -83,11 +83,12 @@ test('hot-seat: the device is passed before the next player sees their turn, bot
   await expect(hana).toBeVisible();
   await expect(kofi).toBeVisible();
   await expect(passCard(page)).toHaveCount(0);
-  await hana.getByRole('button', { name: 'Hana: Bid Rs. 1,000', exact: true }).click();
+  // Bidding opens at 70% of the Rs. 6,000 price
+  await hana.getByRole('button', { name: 'Hana: Bid Rs. 4,200', exact: true }).click();
   await expect(hana.locator('.badge', { hasText: 'Holds the high bid' })).toBeVisible();
   await kofi.getByRole('button', { name: 'Pass' }).click();
   await expect(auction).toBeHidden();
-  await expect(gameLog(page)).toContainText('Hana wins Maradana Lane for Rs. 1,000');
+  await expect(gameLog(page)).toContainText('Hana wins Maradana Lane for Rs. 4,200');
   await expect(swatch(page, 'Hana', 'Maradana Lane')).toBeVisible();
 
   // Kofi's turn waits behind the hand-over card: no Roll until he says he's ready

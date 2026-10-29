@@ -52,6 +52,7 @@ describe('Hero League: setup', () => {
       hotels: 0,
       auctions: false,
       auctionAll: false,
+      fixedAuctionCountdown: false,
       jailRent: false,
       buyAfterFirstLap: false,
       dealProperties: 0,

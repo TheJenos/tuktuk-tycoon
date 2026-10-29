@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import wasm from 'vite-plugin-wasm';
-import { pwa } from './scripts/pwa';
+import { pwa } from './scripts/pwa.ts';
 
 export default defineConfig({
   // wasm(): Rapier's browser build imports its .wasm as an ES module (the dice simulation)
